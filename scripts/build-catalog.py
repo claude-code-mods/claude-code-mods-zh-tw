@@ -83,11 +83,14 @@ def build_market(mods, summaries):
     write(MARKET, json.dumps(market, indent=2, ensure_ascii=False) + "\n")
 
 
-def language_bar(strings, current):
-    return " · ".join(
-        f"**{s['label']}**" if lang == current else f"[{s['label']}]({s['file']})"
-        for lang, s in strings.items())
-
+def language_bar(strings, current, links):
+    parts = []
+    for link in links:
+        if link["locale"] == current:
+            parts.append(f"**{link['label']}**")
+        else:
+            parts.append(f"[{link['label']}](https://github.com/{link['repo']})")
+    return " · ".join(parts)
 
 def catalog(mods, summaries, s, lang, images):
     lines = []
@@ -126,12 +129,13 @@ def main():
     mods = load("community.json")
     summaries = load("readme/summaries.json")
     strings = load("readme/strings.json")
+    language_links = load("readme/language-links.json")
     images = load("readme/images.json")
     check(mods, summaries, strings)
     build_market(mods, summaries)
     for lang, s in strings.items():
         page = (ROOT / "readme" / "pages" / f"{lang}.md").read_text(encoding="utf-8")
-        page = (page.replace("{{languages}}", language_bar(strings, lang))
+        page = (page.replace("{{languages}}", language_bar(strings, lang, language_links))
                     .replace("{{count}}", str(len(mods)))
                     .replace("{{catalog}}", catalog(mods, summaries, s, lang, images)))
         write(ROOT / s["file"], page)

@@ -1,5 +1,7 @@
 # 精選 Claude Code 模組
 
+[English](https://github.com/claude-code-mods/best-claude-code-mods) · [简体中文](https://github.com/claude-code-mods/claude-code-mods-zh) · **繁體中文** · [日本語](https://github.com/claude-code-mods/claude-code-mods-ja) · [한국어](https://github.com/claude-code-mods/claude-code-mods-ko) · [Español](https://github.com/claude-code-mods/claude-code-mods-es) · [Français](https://github.com/claude-code-mods/claude-code-mods-fr) · [Deutsch](https://github.com/claude-code-mods/claude-code-mods-de) · [Português (Brasil)](https://github.com/claude-code-mods/claude-code-mods-pt-br) · [Русский](https://github.com/claude-code-mods/claude-code-mods-ru)
+
 **逐一挑選、驗證、固定版本。新增一次，40 個模組隨裝即用。**
 
 > **全部 40 個模組已完整繁體中文化。** 介面文字、指令、面板、提示與說明文件皆為繁體中文；外掛原始碼已內建於本儲存庫，安裝後即顯示繁體中文，無需額外設定。僅程式碼識別字、hook 事件名稱、技能（skills）與模型呼叫說明保留英文，以確保功能不變。
