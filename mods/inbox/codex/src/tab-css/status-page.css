@@ -1,0 +1,393 @@
+/* The head starts where the list's marks do. */
+.status-head {
+  padding: 0 var(--edge) 0 var(--mark-x);
+  overflow-wrap: anywhere;
+}
+/* Each row pads half the gap above it and half the gap below it, which the list sets from `statusRowPads` as
+   `--status-row-pad` and `--status-row-pad-below`. A row with no neighbor pads half of `list`, or half of `item` when
+   it shows more than its name. A milestone's group takes its milestone row's padding, which the path's line reads. */
+.status-page .row,
+.status-page .milestone-group {
+  --status-row-pad: calc(var(--list-gap) / 2);
+}
+.status-page .row.long,
+.status-page .milestone-group.long {
+  --status-row-pad: calc(var(--item-gap) / 2);
+}
+.status-page .row {
+  padding-top: var(--status-row-pad);
+  padding-bottom: var(--status-row-pad-below, var(--status-row-pad));
+}
+.status-page .mark {
+  text-align: left;
+}
+.mark.running {
+  animation: running-pulse var(--pulse) ease-in-out infinite;
+}
+@keyframes running-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+.status-page .content {
+  overflow-wrap: anywhere;
+}
+/* A row `--depth` steps in. Each step is the mark column's width, so a row sits under the text of the row it hangs from. */
+.status-page .row {
+  padding-left: calc(var(--mark-x) + var(--depth, 0) * var(--step));
+}
+.status-page .content > .actions {
+  margin-top: var(--control-gap);
+}
+.status-page .clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--lines);
+  overflow: clip;
+}
+.status-page .unbroken {
+  white-space: nowrap;
+}
+/* The tree line runs under the middle of a subject's mark, and its arm reaches to a child's mark, a step in. Its color is
+   opaque, the text's share mixed into the page's background, so where an arm meets a column no pixel draws twice as dark. */
+.status-page .list {
+  --step: calc(var(--text-x) - var(--mark-x));
+  --mark-middle: 5.5px;
+  --arm-gap: 2px;
+  --tree-x: calc(var(--mark-x) + var(--mark-middle));
+  --tree-line: color-mix(in srgb, var(--text) 20%, var(--bg));
+}
+/* A row sets its own --tree-line for the Asks tab's trees. On the Status the row takes the list's, so every stroke is one color. */
+.status-page .row {
+  --tree-line: inherit;
+}
+.status-page .row.has-children,
+.status-page .row.branch-mid,
+.status-page .row.branch-last {
+  position: relative;
+}
+.status-page .row.has-children::before,
+.status-page .row.branch-mid::before,
+.status-page .row.branch-last::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--tree-x) + var(--depth, 0) * var(--step));
+  border-left: 1px solid var(--tree-line);
+}
+.status-page .row.branch-mid::before,
+.status-page .row.branch-last::before {
+  left: calc(var(--tree-x) + (var(--depth) - 1) * var(--step));
+}
+.status-page .row.has-children::before {
+  top: calc(var(--status-row-pad) + 1lh);
+  bottom: 0;
+}
+.status-page .row.branch-mid::before {
+  top: 0;
+  bottom: 0;
+}
+.status-page .row.branch-last::before {
+  top: 0;
+  height: calc(var(--status-row-pad) + 0.5lh);
+}
+.status-page .row.branch-mid::after,
+.status-page .row.branch-last::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--tree-x) + (var(--depth) - 1) * var(--step));
+  top: calc(var(--status-row-pad) + 0.5lh);
+  width: calc(var(--text-x) - var(--tree-x) - var(--arm-gap));
+  border-top: 1px solid var(--tree-line);
+}
+/* A section ends half of `section` under its last row's text, counting the row's padding. */
+.status-page section {
+  padding-bottom: calc(var(--section-gap) / 2 - var(--last-row-pad, 0px));
+}
+.status-page section.unruled::before {
+  content: none;
+}
+.status-head h1 {
+  margin: 0;
+  font-size: 15px;
+  line-height: calc(6 * var(--unit));
+  font-weight: 600;
+}
+.status-head p {
+  margin: 0;
+}
+/* The goal's heading row: its title where the goal's text starts, a rule, then the goal's buttons at the right edge.
+   The buttons wrap under the rule, still at the right, when they do not fit beside it. */
+.status-page .goal-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--control-gap);
+  row-gap: var(--list-gap);
+  padding: 0 var(--edge) 0 var(--mark-x);
+  color: var(--muted);
+}
+/* A met goal hangs its ✓ in the mark column, centred as a row's mark is, so its title starts at the text column. */
+.status-page .goal-heading .goal-mark {
+  flex-shrink: 0;
+  align-self: center;
+  width: calc(var(--text-x) - var(--mark-x) - var(--control-gap));
+  padding-right: 0;
+}
+.status-page .status-head.goal.marked {
+  padding-left: var(--text-x);
+}
+/* The line a met goal's milestones fold into, at the text column under its text. */
+.status-page .milestones-fold {
+  margin-top: var(--control-gap);
+  padding: 0 var(--edge) 0 var(--text-x);
+}
+.status-page .goal-heading .goal-rule {
+  flex: 1 0 32px;
+  border-top: 1px solid var(--soft);
+}
+.status-page .goal-heading .goal-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--control-gap);
+  margin-left: auto;
+}
+.status-page .goal-heading .actions {
+  margin: 0;
+}
+/* Edit and Remove sit at the heading's right end around a dot, so they keep their padding on both sides of it. */
+.status-page .goal-heading .key.ghost {
+  left: 0;
+}
+.status-head .actions {
+  margin-top: var(--control-gap);
+}
+.status-head .goal-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--control-gap);
+}
+.status-head .goal-offer .offer-actions {
+  display: flex;
+  align-items: center;
+  white-space: pre;
+}
+.status-head .goal-offer .actions {
+  margin: 0;
+}
+/* Keeps the field's top margin inside, so clipping the box while it glides does not move the field. */
+.status-head .goal-text {
+  display: flow-root;
+}
+/* The goal's milestones follow it as a heading's items do. A milestone's rows follow its name as a subject's children do.
+   A milestone that `isSpacedAbove` spaces sits `item` above the work before it, so a milestone's work sits closer to its
+   own name than to the next milestone. */
+.status-head.goal + .list {
+  margin-top: calc(var(--item-gap) / 2);
+}
+@property --space-above {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+/* The space above a milestone glides as its class changes, over the time a row's height takes to settle, so it closes with
+   the rows that fold. The path's line reads the same variable, so it follows. */
+.status-page .milestone-group {
+  position: relative;
+  --space-above: 0px;
+  padding-top: var(--space-above);
+  transition: --space-above var(--settle);
+}
+.status-page .milestone-group.spaced {
+  --space-above: var(--space-size, calc(var(--item-gap) - var(--list-gap)));
+}
+/* Later sits half of `section` under the row above, as around a rule. */
+.status-page .milestone-group + .row.part-line {
+  margin-top: calc(var(--section-gap) / 2 - var(--row-above-pad, calc(var(--item-gap) / 2)) - var(--status-row-pad));
+}
+/* A connector fades with the rows it ties together. It fades in for `--enter-fade` as it is drawn, once a line's
+   space is nearly open, and out for `--leave-fade` through a leaving class while the rows leave, as the rows do. The
+   arm of a row that leaves alone fades through `arm-leaving`, and the column the row passes beside stays. The leaving
+   rule names each connector's own selector with the leaving class, so it outranks that connector's fade in. */
+.status-page .row.milestone.connector-down::before,
+.status-page .work-joint::before,
+.status-page .work-joint::after,
+.status-page .row.has-children::before {
+  transition: opacity var(--enter-fade);
+}
+@starting-style {
+  .status-page .row.milestone.connector-down::before,
+  .status-page .work-joint::before,
+  .status-page .work-joint::after,
+  .status-page .row.has-children::before {
+    opacity: 0;
+  }
+}
+.status-page .connector-leaving::before,
+.status-page .row.milestone.connector-down.connector-leaving::before,
+.status-page .row.has-children.connector-leaving::before,
+.status-page .arm-leaving::after {
+  opacity: 0;
+  transition: opacity var(--leave-fade);
+}
+/* The path's line, from under a milestone's mark to the next milestone's mark, through the space above that one. */
+.status-page .milestone-group.path-continues::before,
+.status-page .milestone-group.path-to-next::before {
+  content: '';
+  position: absolute;
+  left: var(--tree-x);
+  top: calc(var(--space-above) + var(--status-row-pad) + 1lh);
+  bottom: calc(-1 * var(--next-row-pad, var(--status-row-pad)));
+  border-left: 1px solid var(--tree-line);
+}
+.status-page .milestone-group.gap-under::before {
+  bottom: calc(-1 * var(--next-space, 0px) - var(--next-row-pad, var(--status-row-pad)));
+}
+/* Dashes of whole pixels from the line's top. A dashed border stretches its dashes to fit the line, which blurs their ends. */
+.status-page .milestone-group.path-to-next::before {
+  width: 1px;
+  border-left: 0;
+  background: repeating-linear-gradient(to bottom, var(--tree-line) 0 3px, transparent 3px 5px);
+}
+/* A milestone's nesting connector, from under its mark to the arm of its last work row, as a subject's tree line runs to
+   its children. Where the path's line runs past the work, each work row draws only its arm, and the path's line is the
+   column. */
+.status-page .row.milestone.connector-down,
+.status-page .work-joint {
+  position: relative;
+}
+.status-page .row.milestone.connector-down::before,
+.status-page .work-joint.beside-connector::before,
+.status-page .work-joint.arm-elbow::before {
+  content: '';
+  position: absolute;
+  left: var(--tree-x);
+  border-left: 1px solid var(--tree-line);
+}
+.status-page .row.milestone.connector-down::before {
+  top: calc(var(--status-row-pad) + 1lh);
+  bottom: 0;
+}
+.status-page .work-joint.beside-connector::before {
+  top: 0;
+  bottom: 0;
+}
+.status-page .work-joint.arm-elbow::before {
+  top: 0;
+  height: calc(var(--status-row-pad) + 0.5lh);
+}
+.status-page .work-joint.arm-tee::after,
+.status-page .work-joint.arm-elbow::after {
+  content: '';
+  position: absolute;
+  left: var(--tree-x);
+  top: calc(var(--status-row-pad) + 0.5lh);
+  width: calc(var(--text-x) - var(--tree-x) - var(--arm-gap));
+  border-top: 1px solid var(--tree-line);
+}
+.status-page .milestone-name > * {
+  transition: color var(--fade);
+}
+.status-page .milestone-name .bold {
+  font-weight: 600;
+}
+/* A done milestone folded to its name: the name where other milestones' names start, its chevron after it. */
+.status-page .milestone-fold {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--unit);
+  margin: 0;
+  padding: 0;
+}
+.status-page .milestone-fold .icon {
+  margin-left: 0;
+}
+/* "Other work" at the mark column, as the Goal heading is, then a solid rule to the tab's edge. The head's title takes its place, with its
+   description under it. It sits `section` under the item above and `head` over the row under it, each side counting the
+   rows' padding, which the list sets as `--row-above-pad` and `--row-below-pad`. */
+.status-page .row.part-line {
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: calc(var(--head-gap) - var(--row-below-pad, calc(var(--item-gap) / 2)));
+  margin-top: calc(var(--section-gap) - var(--row-above-pad, calc(var(--item-gap) / 2)) - var(--status-row-pad));
+}
+/* A part that starts its section sits under the section's own space, without its padding above. */
+.status-page .list > .row.part-line:first-child {
+  margin-top: calc(-1 * var(--status-row-pad));
+}
+.status-page .part-rule {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--control-gap);
+  margin-left: var(--mark-x);
+  color: var(--muted);
+}
+.status-page .part-rule.part-title {
+  color: var(--text);
+  font-weight: 600;
+}
+.status-page .part-description {
+  grid-column: 1 / -1;
+  margin-left: var(--mark-x);
+  padding-right: var(--edge);
+}
+.status-page .part-rule::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--soft);
+}
+/* Set a goal under the empty page's centred text. */
+.empty .status-head {
+  padding: 0;
+}
+.empty .actions,
+.empty .keys,
+.empty .goal-field {
+  justify-content: center;
+}
+.goal-field {
+  flex-wrap: wrap;
+}
+.goal-field input {
+  flex: 1 1 18em;
+}
+.field-keys {
+  display: flex;
+  gap: var(--control-gap);
+}
+/* A done fold draws as the Closed fold does: its count at the text column, its chevron after it. */
+.status-page .row.fold-row {
+  display: block;
+}
+.status-page .fold-row .fold {
+  margin: 0 0 0 calc(var(--text-x) - var(--mark-x) - var(--unit));
+}
+/* A parent's name line takes the click that folds its rows. Its chevron and count sit after the name, in the muted tone, and
+   brighten while the line is hovered. */
+.status-page .parent-name {
+  margin: 0 calc(-1 * var(--unit));
+  padding: 0 var(--unit);
+  border-radius: 5px;
+}
+.status-page .parent-name:hover .parent-chevron {
+  color: var(--text);
+}
+.still .status-page .parent-name:not(:active):hover .parent-chevron {
+  color: var(--muted);
+}
+.status-page .parent-name:focus-visible {
+  outline: 1px solid var(--soft);
+}
+.status-page .parent-chevron {
+  white-space: nowrap;
+  font-weight: 400;
+}
+.status-page .parent-chevron .icon {
+  width: 12px;
+  height: 12px;
+  vertical-align: -1px;
+}
+.status-page .parent-count {
+  opacity: 0.75;
+}

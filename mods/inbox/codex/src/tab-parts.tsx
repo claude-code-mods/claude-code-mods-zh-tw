@@ -1,0 +1,276 @@
+import type { ComponentChildren, ComponentProps } from 'preact'
+import { TitleTint } from './tab-title-tint'
+import { ActionButton, Icon } from './row-actions'
+import { NEEDS_YOU_MARKS } from '../../hooks/help'
+import { markShape, mutedMarkShape } from '../../hooks/marks'
+import { DOT, rowMark } from '../../hooks/rows'
+import { markedFeedbackText, rowFeedbackText } from '../../hooks/feedback'
+import { SETTLED_MS } from '../../hooks/timing'
+import type { BannerView } from '../../hooks/banners'
+import type { EmptyTab } from '../../hooks/empty-tab'
+import type { ToneName } from '../../hooks/tones'
+import type { ResultMark, RowView } from '../../hooks/rows'
+import { parseInline } from '../../hooks/inline'
+import { isUndoLeft } from './settle'
+import { errors, notes } from './tab-state'
+import type { Tone, Key, Row } from './tab-state'
+
+/** A tab's empty state from `emptyTab`, centred in the page, with its drawn `under` as children. */
+export function EmptyState({ empty, children }: { empty: EmptyTab; children?: ComponentChildren }) {
+  return (
+    <div class="empty">
+      <div class="title">{empty.title}</div>
+      {empty.hint ? <div class="muted">{empty.hint}</div> : null}
+      {children}
+    </div>
+  )
+}
+
+/** An Asks or Finds row's mark in the mark column: its result's, or ◆ on an open question or task. */
+export function resultHandle(r: RowView): Pick<Row, 'handle' | 'handleTone' | 'isHandleRunning'> {
+  const mark = rowMark(r)
+
+  return mark
+    ? { handle: mark.text, isHandleRunning: mark.isRunning, ...(mark.tone ? { handleTone: mark.tone } : {}) }
+    : { handle: '' }
+}
+
+export function KeyButton({ k }: { k: Key }) {
+  return <ActionButton action={k} isBlocked={() => false} />
+}
+
+export function feedbackLabel(row: Row): string | null {
+  const f = row.feedback
+  if (!f) return null
+
+  return row.view ? rowFeedbackText(row.view, 'codex') : markedFeedbackText(f, row.isMarkDone ?? false, 'codex')
+}
+
+export function noteOf(id: string): string | null {
+  const n = notes.get(id)
+
+  return n && Date.now() - n.at < SETTLED_MS ? n.text : null
+}
+
+export function isFeedbackShown(row: Row): boolean {
+  return !errors.has(row.id) && noteOf(row.id) === null
+}
+
+/** Starts every running mark's pulse at the page's time origin, so a mark drawn at a later poll moves in step. */
+export function pulseInStep(el: HTMLElement | null) {
+  for (const a of el?.getAnimations?.() ?? []) a.startTime = 0
+}
+
+const MARK_TONE_CLASS: Record<ToneName, string> = {
+  needsYou: 'tone-needsYou',
+  issue: 'issue',
+  findings: 'findings',
+  tasks: 'tasks',
+  prs: 'prs',
+  done: 'done',
+  success: 'success',
+  opportunity: 'opportunity',
+  working: 'working',
+  error: 'error',
+}
+
+export function markClassOf(tone: ToneName | null, isRunning: boolean): string {
+  return ['mark', tone ? MARK_TONE_CLASS[tone] : null, isRunning ? 'running' : null].filter(Boolean).join(' ')
+}
+
+/** The tab's ○ glyph, as measured in the Codex app: centred 6 px into the mark, and 0.75 px above an 8 px box's middle. */
+const CIRCLE_MID = { x: 6, y: 3.25 }
+
+/** A mark's text, or its shape from `mutedMarkShape` where the system font draws it badly. */
+export function MarkGlyph({ text }: { text: string }) {
+  const shape = text === NEEDS_YOU_MARKS.task.mark ? markShape(text, 4) : mutedMarkShape(text, 4, CIRCLE_MID)
+
+  return shape === null ? (
+    <>{text}</>
+  ) : (
+    <svg
+      class="mark-shape"
+      viewBox="0 0 8 8"
+      role="img"
+      aria-label={text}
+      dangerouslySetInnerHTML={{ __html: shape }}
+    />
+  )
+}
+
+export function ResultMarkView({
+  mark,
+  tint,
+}: {
+  mark: ResultMark
+  tint?: Omit<ComponentProps<typeof TitleTint>, 'children'>
+}) {
+  return (
+    <span class={mark.isRunning ? 'mark running' : 'mark'} ref={mark.isRunning ? pulseInStep : undefined}>
+      {tint ? (
+        <TitleTint {...tint}>
+          <MarkGlyph text={mark.text} />
+        </TitleTint>
+      ) : (
+        <MarkGlyph text={mark.text} />
+      )}
+    </span>
+  )
+}
+
+/** A group mark's text, or the checked box's shape, which the system font draws too small. */
+function GroupMark({ text }: { text: string }) {
+  const shape = text === NEEDS_YOU_MARKS.task.mark ? markShape(text, 4) : null
+
+  return shape === null ? (
+    <>{text}</>
+  ) : (
+    <svg
+      class="group-shape"
+      viewBox="0 0 8 8"
+      role="img"
+      aria-label={text}
+      dangerouslySetInnerHTML={{ __html: shape }}
+    />
+  )
+}
+
+/** A group's title hangs its kind's mark in the mark column, since its rows draw none. A title with no mark starts at the mark column, where its rows' marks do. */
+export function GroupTitle({
+  title,
+  count,
+  mark,
+  aside,
+}: {
+  title: string
+  count: number
+  mark?: { mark: string; tone: Tone }
+  /** Muted monospace text at the title's right end. */
+  aside?: string
+}) {
+  return (
+    <div class={mark ? 'group-title' : 'group-title unmarked'}>
+      {mark ? (
+        <span class={`group-mark ${MARK_TONE_CLASS[mark.tone]}`}>
+          <GroupMark text={mark.mark} />
+        </span>
+      ) : null}
+      <b>{title}</b>
+      {count > 0 ? (
+        <span class="count">
+          {DOT}
+          {count}
+        </span>
+      ) : null}
+      {aside ? <span class="group-aside">{aside}</span> : null}
+    </div>
+  )
+}
+
+/** Preact escapes each span's text, so no HTML gets through. */
+export function inlineHtml(text: string) {
+  return parseInline(text).map(s => {
+    let node: ComponentChildren = s.code ? <code>{s.text}</code> : s.text
+    if (s.italic) node = <i>{node}</i>
+    if (s.bold) node = <b>{node}</b>
+    if (s.strike) node = <s>{node}</s>
+    return s.link ? (
+      <>
+        <u>{node}</u>
+        <span class="muted"> {s.link}</span>
+      </>
+    ) : (
+      node
+    )
+  })
+}
+
+/**
+ * Undo on a settled row or PR, for `SETTLED_MS` from `start` while `canUndo`, or while its Undo is out. Once Undo
+ * ends, a row that offered it keeps Undo's width, unseen, so its title keeps its wrap.
+ */
+export function UndoPlace({
+  start,
+  isUndoing,
+  canUndo,
+  offersUndo,
+  onUndo,
+}: {
+  start: number
+  isUndoing: boolean
+  canUndo: boolean
+  offersUndo: boolean
+  onUndo: () => void
+}) {
+  const isShown = isUndoing || (canUndo && isUndoLeft(start, Date.now()))
+  if (!isShown)
+    return offersUndo ? (
+      <button type="button" class="key undo spent" disabled tabIndex={-1} aria-hidden="true">
+        <Icon name="undo" />
+        Undo
+      </button>
+    ) : null
+
+  return (
+    <button type="button" class={isUndoing ? 'key undo undoing' : 'key undo'} disabled={isUndoing} onClick={onUndo}>
+      {/* The delay is set once, when it is drawn: the animation keeps its own time after that. */}
+      <span
+        key={start}
+        class={isUndoing ? 'time-left paused' : 'time-left'}
+        style={{ animationDuration: `${SETTLED_MS}ms` }}
+        ref={el => {
+          if (el && !el.style.animationDelay) el.style.animationDelay = `-${Math.max(0, Date.now() - start)}ms`
+        }}
+      />
+      <Icon name="undo" />
+      Undo
+    </button>
+  )
+}
+
+/**
+ * A message in the tone of what it says. `label` and `press` draw one button at its right end. `keys` draws the
+ * buttons a shared plan lists there, and `under` follows the text, as a press's result does. A question, in the `ask`
+ * tone, draws its body on its own line and its buttons on a line under its text.
+ */
+export function Banner({
+  banner,
+  label,
+  press,
+  keys,
+  under,
+}: {
+  banner: BannerView
+  label?: string
+  press?: () => void
+  keys?: Key[]
+  under?: ComponentChildren
+}) {
+  const isQuestion = banner.tone === 'ask'
+  const isAlert = banner.tone === 'error' || banner.tone === 'warning'
+
+  return (
+    <div class={`banner banner-${banner.tone}`} role={isAlert ? 'alert' : 'status'}>
+      <div class="banner-text">
+        <span>
+          <strong class="lead">{banner.lead}</strong>
+          {banner.body && isQuestion ? <span class="body">{banner.body}</span> : null}
+          {banner.body && !isQuestion ? ` ${banner.body}` : null}
+        </span>
+        {under}
+      </div>
+      {label && press ? (
+        <button type="button" class="key" onClick={press}>
+          {label}
+        </button>
+      ) : null}
+      {keys && keys.length > 0 ? (
+        <span class="banner-keys">
+          {keys.map(k => (
+            <KeyButton k={k} />
+          ))}
+        </span>
+      ) : null}
+    </div>
+  )
+}

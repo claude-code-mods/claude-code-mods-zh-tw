@@ -1,0 +1,34 @@
+{
+  "name": "engineer",
+  "version": "0.40.2",
+  "description": "嚴謹的 Agent 工程方法（DAE）——Claude Code 方法論套件：需求受理、驗收標準探索、規格撰寫、計劃、實現、驗證與加固。",
+  "author": {
+    "name": "Miklos"
+  },
+  "repository": "https://github.com/swingerman/engineer",
+  "license": "MIT",
+  "keywords": ["dae", "disciplined-agentic-engineering", "methodology", "ai-development", "tdd", "atdd", "engineering"],
+  "decarchy": {
+    "lifecycles": {
+      "command": "python3",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/scripts/dae_lifecycle.py"
+      ]
+    }
+  },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "economyModel": {
+      "type": "string",
+      "title": "經濟型模型別名",
+      "description": "該模組自身派發任務時，經濟型類別解析到的模型別名（見 model-classes.md）。模型陣容變化時請更新此項。",
+      "default": "sonnet"
+    },
+    "frontierModels": {
+      "type": "string",
+      "title": "前沿模型別名",
+      "description": "以逗號分隔的別名（或 id 片段），用於迴圈守衛判斷前沿模型類別。",
+      "default": "fable"
+    }
+  }
+}

@@ -1,0 +1,74 @@
+# Inbox UI: replies, states and keys
+
+Part of [the inbox UI spec](../inbox-ui.md).
+
+Status: built.
+
+### 2.5 Typing a reply
+
+The field replaces every other row action and its keys with [Send] and [Cancel]. Each row keeps its own draft. Cancel restores the actions and keeps the words for the next Reply.
+
+- **Reply** on a question uses the hint `Your answer`. Send hands the words to the agent. The question remains open until the agent or inbox model establishes that the words answer it. A question back does not close it.
+- **Reply** on a task or finding uses `Your reply to Claude` or `Your reply to Codex`. Send hands the row off and keeps its ledger record.
+
+### 2.6 Status
+
+The UI reads one status record for items. It shows errors only, under the tabs. Work under way, such as an update or a PR refresh, shows nowhere in the footer. When the list last changed is not shown: it would not change what the person does.
+
+| Field | Shown as |
+|---|---|
+| `error`, optional, with the source's own text | The text in red, under the tabs |
+
+`hooks/view.ts:footerError` picks the error for the shown tab in every look. The PRs tab shows none. While polls fail, the Codex tab shows `Last read 1m ago · retrying` at the footer's right, muted, and red after a minute.
+
+The UI names the result, not the model call or tool. `updateRecovery` in `hooks/session-view.ts` reads where a failed ledger stands from saved state, and `perTurnStatus` in `hooks/view.ts` gives its text:
+
+| State | When | Text |
+| --- | --- | --- |
+| Waiting | The ledger failed once, and the host can retry | `Last update failed. Items from that reply may be missing. The inbox tries again after the agent's next reply.` |
+| Retrying | An update runs while the ledger is failed | No error text while it runs |
+| Failed again | `presence.failedAttempts`, which counts retries too, is 2 or more | `Last update failed, and its retry failed too. Items from recent replies may be missing. The inbox tries again after the agent's next reply.` |
+| Unreadable | Nothing is pending, and the last catch-up could not read the conversation | `Last update failed. The inbox cannot read this conversation right now, so items from that reply may be missing. The inbox tries again after the agent's next reply.` |
+
+A pending exchange is retried on its own, so it reads as waiting or failed again. With nothing pending, the host retries by catching up. Every host can: a Codex chat saved with no `transcriptPath` gets one from the next reply's Stop hook, which saves it before the update starts. A catch-up that finds the conversation unreadable sets `presence.isConversationUnreadable`. The next update tries the catch-up again, as a resumed session or a moved rollout can be readable then, and one that reads the conversation clears the flag. A second failure drops the exchange and keeps the warning until a catch-up covers it. A catch-up that applies clears the warning. An update a reload cut off leaves `failedAttempts` as it was, so it reads as waiting, not as failed again. All hosts advance applied turns after a failed update, so a handed-off row can return to the count.
+
+An expired item closes as `Expired`. The rule behind it, 12 prompts or more than 20 open, belongs to the per-turn update.
+
+### 2.7 Empty, loading and error states
+
+| State | Text |
+|---|---|
+| Asks, empty | A title, `Nothing needs you.`, and a hint line: `Claude's questions and the tasks only you can do show up here.` (`Codex's` in the Codex tab) |
+| Finds, empty | `No findings yet` and `Claude flags issues and opportunities it spots beyond your task.` |
+| PRs, empty | `No PRs` and `Your PRs show here when this session opens or links one, or when your branch has one.` |
+| PRs, loading | `Checking for PRs…` |
+| View loading | `Reading the inbox…` |
+| PR refresh failed | `Last refresh failed: <reason>` and [Retry] |
+| Inbox unreadable, mod | `Could not read the inbox.` and [Try again] |
+| Inbox unreadable, Codex | `Could not read the inbox. <reason>` and [Reload] |
+| Not hearing from the chat | Its own text per look, below. An empty list there must not read as "all clear". |
+
+**Not hearing from the chat, per look.**
+
+- **Terminal and desktop, tools refused.** The guard refuses the mod's `$.tool.register` call when managed settings set `allowedMcpServers`. The band still draws, so the status line is the only sign. It reads in red: `Claude cannot record or close items here: your organization's settings block the inbox's tools.`
+- **A missing band** has no substitute inside the inbox. A worker crash, safe mode, an untrusted folder or an org policy unloads the mod, and it cannot report its own absence (reference fact 21).
+- **Desktop before attach.** A session starts with no surface and the app attaches about 0.1 s later. Nothing draws before then, so there is no state to design.
+- **Codex.** See 3.3.
+
+### 2.8 New rows
+
+- The counts change at once.
+- A new row arrives with no mark of its own. In the Codex tab it grows in. A row arriving above the open one arrives closed.
+- The view jumps to another tab only when the tab on screen shows nothing but its empty text.
+
+### 2.9 Keys
+
+Keys supplement clickable actions, except Explain: it is key-only in terminal and Codex. Only the terminal shows key text. The Codex tab keeps its working keys with no key text. Desktop shows Explain as a clickable follow-up because a `Button`'s hotkey does nothing there.
+
+### 2.10 Demo
+
+`/inbox demo` in the mod shows sample entries. The Codex tab offers [Show demo] in dev builds and builds made with `INBOX_DEMO_BUTTON=1` or `INBOX_DEMO_RECORDING=1`.
+
+The normal demo shows `DEMO_NOTICE` from `hooks/view.ts` at the top: `Sample entries. Buttons here send nothing.` with a [Hide demo] button. The band starts its counts with `Demo:` and also has [Hide demo]. A press on a sample action shows on its row what a real press shows, such as "✓ Explained" or "✓ Copied x", and sends nothing.
+
+For a recording, `/inbox demo recording` hides those notices, the band's `Demo:` prefix and Hide demo. A Codex build made with `INBOX_DEMO_RECORDING=1` also hides the demo notice and Hide demo. Recording demos still use sample entries and send nothing.

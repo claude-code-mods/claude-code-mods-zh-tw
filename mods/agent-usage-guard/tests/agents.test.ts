@@ -1,0 +1,578 @@
+import { type Engine, describe, expect, test } from 'claude-code/testing'
+
+import { SESSION_ID, T0, journalRows, respond, spawn, start, world } from './harness.ts'
+
+const MINUTE = 60_000
+/** A command the user typed at the prompt. */
+const TYPED = { kind: 'composer' }
+
+describe('agent gate', () => {
+  test('a headless session refuses the agent past the concurrency limit and tells the model to wait', async ($, on) => {
+    const w = world(on)
+    await start($, w, false)
+    for (let i = 0; i < 4; i++) expect((await spawn($, w)).agentId).toBeDefined()
+    const fifth = await spawn($, w)
+    expect(String(fifth.deny)).toMatch(/4 agents are running on this machine \(limit 4\)/)
+    expect(String(fifth.deny)).toMatch(/Nobody can approve it in this session\. Wait for a running agent to finish/)
+    expect(w.questions).toEqual([])
+    expect(journalRows(w).some((r) => r.ev === 'deny' && r.rule === 'concurrency')).toBe(true)
+  })
+
+  test('a finished agent frees its slot', async ($, on) => {
+    const w = world(on)
+    await start($, w, false)
+    for (let i = 0; i < 4; i++) await spawn($, w)
+    await $.turn.complete({ turnId: 'x', answer: 'done', durationMs: 1, isAborted: false, reason: 'answer', agentId: 'agent-1' } as never)
+    expect((await spawn($, w)).agentId).toBeDefined()
+  })
+
+  test('an agent in a long tool call stays counted, however long the tool runs', async ($, on) => {
+    let finish: (result: Record<string, unknown>) => void = () => undefined
+    const w = world(on, { env: { AGENT_GUARD_AGENT_MAX: '1' }, toolResult: () => new Promise((resolve) => (finish = resolve)) })
+    await start($, w, false)
+    const agent = String((await spawn($, w)).agentId)
+    const build = $.tool.call({ tool: 'Bash', command: 'make test', agentId: agent } as never)
+    await w.clock.advance(30 * MINUTE)
+    expect(String((await spawn($, w)).deny)).toMatch(/1 agent is running on this machine \(limit 1\)/)
+    finish({ result: 'ok' })
+    await build
+  })
+
+  test('an agent that went quiet counts again once it makes a request', async ($, on) => {
+    const w = world(on, { env: { AGENT_GUARD_AGENT_MAX: '2' } })
+    await start($, w, false)
+    const quiet = String((await spawn($, w)).agentId)
+    await w.clock.advance(20 * MINUTE)
+    expect((await spawn($, w)).agentId).toBeDefined()
+    await respond($, w, 20_000, quiet)
+    expect(String((await spawn($, w)).deny)).toMatch(/2 agents are running on this machine \(limit 2\)/)
+  })
+
+  test('approving the question lifts the limit for the window, so the next agent does not ask again', async ($, on) => {
+    const w = world(on, { answers: ['Allow'] })
+    await start($, w, true)
+    for (let i = 0; i < 4; i++) await spawn($, w)
+    expect((await spawn($, w)).agentId).toBeDefined()
+    expect(w.questions).toHaveLength(1)
+    expect(w.questions[0]).toMatch(/^4 agents are running on this machine \(limit 4\)\. Allowing lifts this limit until \d\d:\d\d\. Start this agent\?$/)
+    expect(w.options[0]).toEqual(['Allow', "Don't start it"])
+    expect((await spawn($, w)).agentId).toBeDefined()
+    expect(w.questions).toHaveLength(1)
+    const answers = journalRows(w).filter((r) => r.ev === 'answer')
+    expect(answers).toEqual([expect.objectContaining({ rule: 'concurrency', answer: 'allow' })])
+  })
+
+  test('declining refuses this agent and the next without asking twice, and the wording escalates', async ($, on) => {
+    const w = world(on, { answers: ["Don't start it"] })
+    await start($, w, true)
+    for (let i = 0; i < 4; i++) await spawn($, w)
+    const refused = await spawn($, w)
+    expect(String(refused.deny)).toMatch(/The user chose not to start it/)
+    expect(String(refused.deny)).toMatch(/refusal 1 at/)
+    const again = await spawn($, w)
+    expect(String(again.deny)).toMatch(/The user declined new agents for now/)
+    expect(String(again.deny)).toMatch(/has not changed since/)
+    const third = await spawn($, w)
+    expect(String(third.deny)).toMatch(/End the turn and tell the user what is blocked/)
+    expect(w.questions).toHaveLength(1)
+  })
+
+  test('typed words in place of an answer reach the model', async ($, on) => {
+    const w = world(on, { answers: ['use haiku agents instead'] })
+    await start($, w, true)
+    for (let i = 0; i < 4; i++) await spawn($, w)
+    const refused = await spawn($, w)
+    expect(String(refused.deny)).toMatch(/The user answered "use haiku agents instead"/)
+  })
+
+  test('a session without the question tool is treated as one nobody can answer, not as a dismissal', async ($, on) => {
+    const w = world(on, { noQuestionTool: true })
+    await start($, w, true)
+    for (let i = 0; i < 4; i++) await spawn($, w)
+    const refused = await spawn($, w)
+    expect(String(refused.deny)).toMatch(/Nobody can approve it in this session/)
+    expect(String(refused.deny)).not.toMatch(/dismissed/)
+    expect(journalRows(w).filter((r) => r.ev === 'answer')).toEqual([expect.objectContaining({ answer: 'unavailable' })])
+  })
+
+  test('a question that ends without an answer in any other way counts as a dismissal, never as a yes', async ($, on) => {
+    const w = world(on, { askFails: true })
+    await start($, w, true)
+    for (let i = 0; i < 4; i++) await spawn($, w)
+    const fifth = await spawn($, w)
+    expect(fifth.agentId).toBeUndefined()
+    expect(String(fifth.deny)).toMatch(/The user dismissed the question about starting it/)
+    expect(String((await spawn($, w)).deny)).toMatch(/The user declined new agents for now/)
+    expect(journalRows(w).filter((r) => r.ev === 'answer')).toEqual([expect.objectContaining({ answer: 'dismiss' })])
+    expect(w.logs).toContainEqual(expect.stringMatching(/the question ended without an answer \(.+\), so it counts as dismissed/))
+  })
+
+  test('an agent the guard failed to judge is refused, so Claude starts it again', async ($, on) => {
+    const w = world(on)
+    await start($, w, true)
+    // A plan reading whose window kind is not a string makes the gate throw.
+    await $.session.measure({ context: { window: 1_000_000 }, rateLimits: [{ kind: 5, percentUsed: 99 }], changed: ['rateLimits'] } as never)
+    const refused = await spawn($, w)
+    expect(refused.agentId).toBeUndefined()
+    expect(String(refused.deny)).toMatch(/^agent-usage-guard could not judge this agent\. Start it again\./)
+  })
+
+  test('agents started while a question is open are held back at once, without waiting on it', async ($, on) => {
+    const w = world(on, { answers: ['Allow'] })
+    await start($, w, true)
+    for (let i = 0; i < 4; i++) await spawn($, w)
+    const results = await Promise.all([spawn($, w), spawn($, w), spawn($, w)])
+    expect(results.filter((r) => r.agentId !== undefined)).toHaveLength(1)
+    const held = results.filter((r) => r.deny !== undefined).map((r) => String(r.deny))
+    expect(held).toHaveLength(2)
+    for (const text of held) expect(text).toMatch(/The user is being asked about starting agents\. Wait for that answer, then start this agent again/)
+    expect(w.questions).toHaveLength(1)
+    expect((await spawn($, w)).agentId).toBeDefined()
+  })
+
+  test('five agents started in one parallel batch let exactly four through', async ($, on) => {
+    const w = world(on)
+    await start($, w, false)
+    const results = await Promise.all([spawn($, w), spawn($, w), spawn($, w), spawn($, w), spawn($, w)])
+    expect(results.filter((r) => r.agentId !== undefined)).toHaveLength(4)
+    expect(results.filter((r) => r.deny !== undefined)).toHaveLength(1)
+  })
+
+  test('a subagent cannot start agents of its own', async ($, on) => {
+    const w = world(on)
+    await start($, w, true)
+    const first = await spawn($, w)
+    const nested = await spawn($, w, String(first.agentId))
+    expect(String(nested.deny)).toMatch(/subagents may not start agents of their own here \(depth limit 1\)/)
+    expect(w.questions).toEqual([])
+  })
+
+  test('AGENT_GUARD_DEPTH_MAX=2 allows one level of nesting', async ($, on) => {
+    const w = world(on, { env: { AGENT_GUARD_DEPTH_MAX: '2' } })
+    await start($, w, true)
+    const first = await spawn($, w)
+    expect((await spawn($, w, String(first.agentId))).agentId).toBeDefined()
+  })
+
+  test('the 13th start in ten minutes trips the rolling budget, counting starts that have finished', async ($, on) => {
+    const w = world(on)
+    await start($, w, false)
+    for (let i = 1; i <= 12; i++) {
+      await spawn($, w)
+      await $.turn.complete({ turnId: 'x', answer: '', durationMs: 1, isAborted: false, reason: 'answer', agentId: `agent-${i}` } as never)
+    }
+    const thirteenth = await spawn($, w)
+    expect(String(thirteenth.deny)).toMatch(/12 agents started on this machine in the last 10 min \(limit 12\)/)
+    await w.clock.advance(10 * MINUTE)
+    expect((await spawn($, w)).agentId).toBeDefined()
+  })
+
+  test('agents running in other sessions count against the limit; a stale record does not', async ($, on) => {
+    const peer = (at: number) => ({ v: 2, at, running: 4, starts: [], agentTokens: [], dormantResumes: [] })
+    const w = world(on, { store: { 'peer:other-session': peer(T0 - MINUTE), 'peer:gone-session': peer(T0 - 60 * MINUTE) } })
+    await start($, w, false)
+    const refused = await spawn($, w)
+    expect(String(refused.deny)).toMatch(/4 agents are running on this machine/)
+    w.store.delete('peer:other-session')
+    expect((await spawn($, w)).agentId).toBeDefined()
+  })
+
+  test("another session's subagent tokens age out with the window, even once it stops publishing", async ($, on) => {
+    const agentTokens = [[T0 - 9 * MINUTE, 6_000_000], [T0 - MINUTE, 5_000_000]]
+    const w = world(on, { store: { 'peer:other-session': { v: 2, at: T0 - MINUTE, running: 0, starts: [], agentTokens, dormantResumes: [] } } })
+    await start($, w, false)
+    expect(String((await spawn($, w)).deny)).toMatch(/subagents processed 11M tokens in the last 10 min \(limit 10M\)/)
+    await w.clock.advance(2 * MINUTE)
+    expect((await spawn($, w)).agentId).toBeDefined()
+  })
+
+  test('the session publishes its own counts and clears them when it ends', async ($, on) => {
+    const w = world(on)
+    await start($, w, false)
+    await spawn($, w)
+    expect(w.store.get(`peer:${SESSION_ID}`)).toMatchObject({ v: 2, running: 1, starts: [T0] })
+    await $.session.end({ reason: 'other' } as never)
+    expect(w.store.has(`peer:${SESSION_ID}`)).toBe(false)
+  })
+
+  test('subagent tokens past the window budget make the next agent ask', async ($, on) => {
+    const w = world(on, { answers: ["Don't start it"], env: { AGENT_GUARD_AGENT_TOKENS_MAX: '1000000' } })
+    await start($, w, true)
+    const agent = await spawn($, w)
+    await respond($, w, 600_000, String(agent.agentId))
+    await respond($, w, 600_000, String(agent.agentId))
+    await spawn($, w)
+    expect(w.questions[0]).toMatch(/subagents processed 1\.2M tokens in the last 10 min \(limit 1M\)/i)
+  })
+  test('an allowed subagent token budget stays lifted for an hour, through a later burst', async ($, on) => {
+    const w = world(on, { answers: ['Allow', 'Allow'] })
+    await start($, w, true)
+    const burst = async (): Promise<Record<string, unknown>> => {
+      const agent = await spawn($, w)
+      await respond($, w, 6_000_000, String(agent.agentId))
+      await respond($, w, 6_000_000, String(agent.agentId))
+      await $.turn.complete({ turnId: 'x', answer: '', durationMs: 1, isAborted: false, reason: 'answer', agentId: String(agent.agentId) } as never)
+      return agent
+    }
+    await burst()
+    expect((await burst()).agentId).toBeDefined()
+    expect(w.questions).toHaveLength(1)
+    expect(w.questions[0]).toMatch(/subagents processed 12M tokens in the last 10 min \(limit 10M\)\. Allowing lifts this limit until 13:00\./i)
+    await w.clock.advance(30 * MINUTE)
+    await burst()
+    expect((await spawn($, w)).agentId).toBeDefined()
+    expect(w.questions).toHaveLength(1)
+    await w.clock.advance(31 * MINUTE)
+    await burst()
+    await spawn($, w)
+    expect(w.questions).toHaveLength(2)
+    const asks = journalRows(w).filter((r) => r.ev === 'ask')
+    expect(asks).toEqual([expect.objectContaining({ rule: 'agent-tokens', tok: '10-15M' }), expect.objectContaining({ rule: 'agent-tokens', tok: '10-15M' })])
+  })
+
+  test('a store that stops saving shows in the status line and the status, until a save works again', async ($, on) => {
+    const w = world(on)
+    await start($, w, true)
+    w.storeFull = true
+    await spawn($, w)
+    expect(w.statuses.at(-1)).toBe("store not saving: other sessions can't count this one")
+    const status = await $.command.run({ command: 'agent-guard', args: 'status', origin: TYPED } as never)
+    expect(status.text).toMatch(/^Store: the guard could not save its counts \(.+\), so other sessions on this machine don't count this session's agents\./m)
+    w.storeFull = false
+    await spawn($, w)
+    expect(w.statuses.at(-1)).toBeUndefined()
+  })
+})
+
+describe('Haiku agents', () => {
+  const haiku = async ($: Engine, w: ReturnType<typeof world>) => {
+    w.ran.push('spawn')
+    return (await $.agent.spawn({ prompt: 'work', description: 'test agent', subagentType: 'general-purpose', model: 'haiku' } as never)) as Record<string, unknown>
+  }
+
+  test('a Haiku agent passes the running and starts caps and does not count against them', async ($, on) => {
+    const w = world(on, { env: { AGENT_GUARD_ROLLING_MAX: '6' } })
+    await start($, w, false)
+    for (let i = 0; i < 4; i++) await spawn($, w)
+    for (let i = 0; i < 5; i++) expect((await haiku($, w)).agentId).toBeDefined()
+    expect(String((await spawn($, w)).deny)).toMatch(/4 agents are running on this machine/)
+    expect(w.store.get(`peer:${SESSION_ID}`)).toMatchObject({ running: 4, starts: [T0, T0, T0, T0] })
+  })
+
+  test('an agent whose own definition runs it on Haiku stops counting once it starts', async ($, on) => {
+    const w = world(on, { spawnModel: 'claude-haiku-4-5' })
+    await start($, w, false)
+    for (let i = 0; i < 6; i++) expect((await spawn($, w)).agentId).toBeDefined()
+    expect(w.store.get(`peer:${SESSION_ID}`)).toMatchObject({ running: 0, starts: [] })
+  })
+
+  test('AGENT_GUARD_HAIKU_EXEMPT=0 counts Haiku agents like any other', async ($, on) => {
+    const w = world(on, { env: { AGENT_GUARD_HAIKU_EXEMPT: '0' } })
+    await start($, w, false)
+    for (let i = 0; i < 4; i++) await haiku($, w)
+    expect(String((await haiku($, w)).deny)).toMatch(/4 agents are running on this machine/)
+  })
+})
+
+describe('simulate', () => {
+  test('a simulated question opens the real dialog, and nothing changes whatever the answer', async ($, on) => {
+    const w = world(on, { answers: ["Don't start it"] })
+    await start($, w, true)
+    const result = await $.command.run({ command: 'agent-guard', args: 'simulate concurrency', origin: TYPED } as never)
+    expect(w.questions[0]).toMatch(/^Simulation, nothing changes: 4 agents are running on this machine \(limit 4\)/)
+    expect(result.text).toBe('Simulation of concurrency: you answered "Don\'t start it". Nothing was held, nothing changed and no usage was spent.')
+    expect((await spawn($, w)).agentId).toBeDefined()
+    expect(journalRows(w)).toEqual([])
+  })
+
+  test('where nobody can answer, it prints the refusal Claude would read or the reason a prompt would be held', async ($, on) => {
+    const w = world(on)
+    await start($, w, false)
+    const retry = await $.command.run({ command: 'agent-guard', args: 'simulate retry', origin: TYPED } as never)
+    expect(retry.text).toMatch(/^Simulation of retry: nothing was held, and none of this applies to the current work\. Claude would read this refusal:\n\nThis exact Bash call failed 3 times in a row/)
+    const prompt = await $.command.run({ command: 'agent-guard', args: 'simulate prompt-context', origin: TYPED } as never)
+    expect(prompt.text).toMatch(/A prompt you send would be held:\n\nagent-usage-guard: this session holds 520k context tokens/)
+    expect(w.questions).toEqual([])
+    expect(journalRows(w)).toEqual([])
+  })
+})
+
+describe('plan-window gate', () => {
+  const measure = (percent: number, resetsAt = '2027-01-15T15:00:00.000Z', kind = 'five_hour') => ({
+    context: { window: 1_000_000 },
+    rateLimits: [{ kind, percentUsed: percent, resetsAt }],
+    changed: ['rateLimits'],
+  })
+
+  test('from 95% of the 5-hour window new agents are refused outright', async ($, on) => {
+    const w = world(on, { answers: ['Allow'] })
+    await start($, w, true)
+    await $.session.measure(measure(96) as never)
+    const refused = await spawn($, w)
+    expect(String(refused.deny)).toMatch(/the 5-hour window is 96% used \(resets \d\d:\d\d\), and the guard keeps the rest of the window for the user/)
+    expect(w.questions).toEqual([])
+  })
+
+  test('from 80% the user is asked once, and an approval lasts until the window resets', async ($, on) => {
+    const w = world(on, { answers: ['Allow'] })
+    await start($, w, true)
+    await $.session.measure(measure(82) as never)
+    expect((await spawn($, w)).agentId).toBeDefined()
+    expect(w.questions[0]).toMatch(/the 5-hour window is 82% used/i)
+    await $.session.measure(measure(90) as never)
+    await w.clock.advance(30 * MINUTE)
+    await $.turn.complete({ turnId: 'x', answer: '', durationMs: 1, isAborted: false, reason: 'answer', agentId: 'agent-1' } as never)
+    expect((await spawn($, w)).agentId).toBeDefined()
+    expect(w.questions).toHaveLength(1)
+  })
+
+  test('the weekly window counts too', async ($, on) => {
+    const w = world(on)
+    await start($, w, false)
+    await $.session.measure(measure(97, '2027-01-18T12:00:00.000Z', 'seven_day') as never)
+    expect(String((await spawn($, w)).deny)).toMatch(/the weekly window is 97% used/)
+  })
+
+  test('a window that already reset does not count', async ($, on) => {
+    const w = world(on)
+    await start($, w, false)
+    await $.session.measure(measure(99, '2027-01-15T11:00:00.000Z') as never)
+    expect((await spawn($, w)).agentId).toBeDefined()
+  })
+
+  test('the status line clears when its window resets, even in a quiet session', async ($, on) => {
+    const w = world(on)
+    await start($, w, true)
+    await $.session.measure(measure(96) as never)
+    await w.clock.set(Date.parse('2027-01-15T15:00:00.000Z'))
+    expect(w.statuses).toEqual(['5-hour window 96%: new agents refused', undefined])
+  })
+
+  test('a fast burn makes new agents ask before the window runs out', async ($, on) => {
+    const w = world(on, { answers: ["Don't start it"] })
+    await start($, w, true)
+    await $.session.measure(measure(30) as never)
+    await w.clock.advance(5 * MINUTE)
+    await $.session.measure(measure(52) as never)
+    await spawn($, w)
+    expect(w.questions[0]).toMatch(/the 5-hour window rose 22 points in the last 10 min \(now 52%\)/i)
+  })
+
+  test('a pace that would fill the 5-hour window before it resets makes new agents ask, below the burn threshold', async ($, on) => {
+    const w = world(on, { answers: ["Don't start it"] })
+    await start($, w, true)
+    await $.session.measure(measure(30) as never)
+    await w.clock.advance(5 * MINUTE)
+    await $.session.measure(measure(38) as never)
+    await spawn($, w)
+    expect(w.questions[0]).toMatch(/^At this pace the 5-hour window fills by \d\d:\d\d, before it resets at \d\d:\d\d \(now 38%\)\./)
+  })
+
+  test('a pace that leaves the window short of full at its reset asks nothing, and neither does a one-point blip', async ($, on) => {
+    const w = world(on)
+    await start($, w, true)
+    await $.session.measure(measure(30) as never)
+    await w.clock.advance(9 * MINUTE)
+    await $.session.measure(measure(33) as never)
+    expect((await spawn($, w)).agentId).toBeDefined()
+    await w.clock.advance(10 * MINUTE)
+    await $.session.measure(measure(60) as never)
+    await w.clock.advance(MINUTE)
+    await $.session.measure(measure(61) as never)
+    expect((await spawn($, w)).agentId).toBeDefined()
+    expect(w.questions).toEqual([])
+  })
+
+  test('a short burst that would fill the window only hours from now asks nothing', async ($, on) => {
+    const w = world(on)
+    await start($, w, true)
+    await $.session.measure(measure(13) as never)
+    await w.clock.advance(3 * MINUTE)
+    await $.session.measure(measure(15) as never)
+    expect((await spawn($, w)).agentId).toBeDefined()
+    expect(w.questions).toEqual([])
+  })
+
+  test('crossing a threshold is journaled once', async ($, on) => {
+    const w = world(on)
+    await start($, w, false)
+    await $.session.measure(measure(79) as never)
+    await $.session.measure(measure(81) as never)
+    await $.session.measure(measure(83) as never)
+    const crossings = journalRows(w).filter((r) => r.ev === 'limit')
+    expect(crossings).toEqual([expect.objectContaining({ kind: 'five_hour', pct: 81, rule: '80%' })])
+  })
+})
+
+describe('agent fuse and overrides', () => {
+  test('five refused agent calls pause spawns for the fuse period without asking', async ($, on) => {
+    const w = world(on)
+    await start($, w, true)
+    const first = await spawn($, w)
+    for (let i = 0; i < 4; i++) await spawn($, w, String(first.agentId))
+    const fifth = await spawn($, w, String(first.agentId))
+    expect(String(fifth.deny)).toMatch(/agent spawns in this session are paused until \d\d:\d\d/)
+    const fromMain = await spawn($, w)
+    expect(String(fromMain.deny)).toMatch(/Agent spawns in this session are paused until/)
+    expect(w.questions).toEqual([])
+    await w.clock.advance(10 * 60_000)
+    expect((await spawn($, w)).agentId).toBeDefined()
+  })
+
+  test('resume clears a burning fuse, so declined questions really ask again', async ($, on) => {
+    const w = world(on, { answers: ['Allow'] })
+    await start($, w, true)
+    const first = await spawn($, w)
+    for (let i = 0; i < 5; i++) await spawn($, w, String(first.agentId))
+    expect(String((await spawn($, w)).deny)).toMatch(/paused until/)
+    await $.command.run({ command: 'agent-guard', args: 'resume', origin: TYPED } as never)
+    expect((await spawn($, w)).agentId).toBeDefined()
+  })
+
+  test('/agent-guard allow lifts agent limits and the fuse; resume restores them', async ($, on) => {
+    const w = world(on)
+    await start($, w, false)
+    for (let i = 0; i < 4; i++) await spawn($, w)
+    const lifted = await $.command.run({ command: 'agent-guard', args: 'allow agents 15', origin: TYPED } as never)
+    expect(lifted.text).toMatch(/^Agent limits lifted for 15 min, until \d\d:\d\d\./)
+    expect((await spawn($, w)).agentId).toBeDefined()
+    expect((await $.command.run({ command: 'agent-guard', args: 'resume', origin: TYPED } as never)).text).toBe('Limits apply again.')
+    expect(String((await spawn($, w)).deny)).toMatch(/agents are running on this machine/)
+    expect(journalRows(w).some((r) => r.ev === 'override' && r.rule === 'agents')).toBe(true)
+  })
+
+  test('another plugin cannot lift the limits; it can still read the status', async ($, on) => {
+    const w = world(on)
+    await start($, w, false)
+    for (let i = 0; i < 4; i++) await spawn($, w)
+    const plugin = { kind: 'plugin', name: 'other-mod' }
+    for (const args of ['allow agents 15', 'pause 480']) {
+      const refused = await $.command.run({ command: 'agent-guard', args, origin: plugin } as never)
+      expect(refused.text).toBe(`Only you can lift the guard's limits, and this came from the other-mod plugin, so nothing changed. Type /agent-guard ${args} to lift them.`)
+    }
+    expect(String((await spawn($, w)).deny)).toMatch(/agents are running on this machine/)
+    expect(journalRows(w).some((r) => r.ev === 'override')).toBe(false)
+    expect(w.logs).toContainEqual(expect.stringMatching(/refused \/agent-guard pause 480 from the other-mod plugin/))
+    expect((await $.command.run({ command: 'agent-guard', args: 'status', origin: plugin } as never)).text).toMatch(/^On/)
+  })
+
+  test('the status line clears when an allow runs out, even in a quiet session', async ($, on) => {
+    const w = world(on)
+    await start($, w, true)
+    await $.command.run({ command: 'agent-guard', args: 'allow 5', origin: TYPED } as never)
+    await w.clock.advance(5 * MINUTE)
+    expect(w.statuses).toEqual([expect.stringMatching(/^all limits lifted until \d\d:\d\d$/), undefined])
+  })
+
+  test('the old bracket marker sent alone lifts the limits without a model turn', async ($, on) => {
+    const w = world(on)
+    await start($, w, true)
+    const result = await $.prompt.submit({ text: '[allow-agent-burst]', origin: { kind: 'composer' }, wait: false } as never)
+    expect(result).toEqual({ drop: expect.stringMatching(/^agent-usage-guard: Agent limits lifted for 10 min/) })
+  })
+
+  test('a marker inside other text is an ordinary prompt', async ($, on) => {
+    const w = world(on)
+    await start($, w, true)
+    const result = await $.prompt.submit({ text: '[allow-usage-guard] continue', origin: { kind: 'composer' }, wait: false } as never)
+    expect(result).toEqual({ text: '[allow-usage-guard] continue' })
+  })
+})
+
+describe('agents started outside the gate', () => {
+  test('a /subtask fork is counted, so the next agent sees it, but is never blocked', async ($, on) => {
+    const w = world(on, { env: { AGENT_GUARD_AGENT_MAX: '1' } })
+    await start($, w, false)
+    await $.classic.SubagentStart({ agent_id: 'afork-1', agent_type: 'fork' } as never)
+    expect(String((await spawn($, w)).deny)).toMatch(/1 agent is running on this machine \(limit 1\)/)
+  })
+
+  test('a /subtask fork that starts while a gated agent is starting is counted once, beside it', async ($, on) => {
+    let reached: () => void = () => undefined
+    let release: () => void = () => undefined
+    const atSpawn = new Promise<void>((resolve) => (reached = resolve))
+    const held = new Promise<void>((resolve) => (release = resolve))
+    const w = world(on, {
+      env: { AGENT_GUARD_AGENT_MAX: '3' },
+      onSpawn: async () => {
+        reached()
+        await held
+      },
+    })
+    await start($, w, false)
+    const first = spawn($, w)
+    await atSpawn
+    await $.classic.SubagentStart({ agent_id: 'agent-1', agent_type: 'general-purpose' } as never)
+    await $.classic.SubagentStart({ agent_id: 'afork-1', agent_type: 'fork' } as never)
+    release()
+    expect((await first).agentId).toBe('agent-1')
+    expect((await spawn($, w)).agentId).toBeDefined()
+    expect(String((await spawn($, w)).deny)).toMatch(/3 agents are running on this machine \(limit 3\)/)
+  })
+
+  test("Claude Code's own internal agents, which have no type, are not counted", async ($, on) => {
+    const w = world(on, { env: { AGENT_GUARD_AGENT_MAX: '1' } })
+    await start($, w, false)
+    await $.classic.SubagentStart({ agent_id: 'a-suggest', agent_type: '' } as never)
+    expect((await spawn($, w)).agentId).toBeDefined()
+  })
+})
+
+describe('resumed agents', () => {
+  const send = ($: Engine, to: string) =>
+    $.tool.call({ tool: 'SendMessage', to, message: 'carry on' } as never) as Promise<Record<string, unknown>>
+
+  test('a plain message to a finished subagent counts as a start and is gated', async ($, on) => {
+    const w = world(on, { env: { AGENT_GUARD_ROLLING_MAX: '2' } })
+    await start($, w, false)
+    await spawn($, w)
+    await $.turn.complete({ turnId: 'x', answer: '', durationMs: 1, isAborted: false, reason: 'answer', agentId: 'agent-1' } as never)
+    expect(await send($, 'agent-1')).toEqual({ result: 'ok' })
+    await $.turn.complete({ turnId: 'x', answer: '', durationMs: 1, isAborted: false, reason: 'answer', agentId: 'agent-1' } as never)
+    const third = await send($, 'agent-1')
+    expect(String(third.deny)).toMatch(/2 agents started on this machine in the last 10 min \(limit 2\)/)
+  })
+
+  // Since Claude Code 2.1.299 the resume also raises agent.spawn, inside the SendMessage call.
+  const wake = ($: Engine, agentId: string, extra: Record<string, unknown> = {}) =>
+    $.agent.spawn({ prompt: 'carry on', description: 'resume', subagentType: 'general-purpose', resume: { agentId }, ...extra } as never) as Promise<Record<string, unknown>>
+  const ended = (agentId: string) => ({ turnId: 'x', answer: '', durationMs: 1, isAborted: false, reason: 'answer', agentId }) as never
+
+  test('a resume that also raises agent.spawn is judged and counted once', async ($, on) => {
+    let inner: Record<string, unknown> | undefined
+    const w = world(on, {
+      answers: ['Allow'],
+      env: { AGENT_GUARD_ROLLING_MAX: '2' },
+      toolResult: async (e) => {
+        if (e.tool === 'SendMessage') inner = await wake($, 'agent-1')
+        return { result: 'ok' }
+      },
+    })
+    await start($, w, true)
+    await spawn($, w)
+    await $.turn.complete(ended('agent-1'))
+    expect(await send($, 'agent-1')).toEqual({ result: 'ok' })
+    expect(inner).toMatchObject({ agentId: 'agent-1' })
+    expect(w.questions).toEqual([])
+    const status = await $.command.run({ command: 'agent-guard', args: 'status' } as never)
+    expect(status.text).toMatch(/2 started in the last 10 min \(limit 2\)/)
+  })
+
+  test('a resume with no SendMessage, such as a teammate woken from disk, is gated as a resume', async ($, on) => {
+    const w = world(on, { env: { AGENT_GUARD_ROLLING_MAX: '1' } })
+    await start($, w, false)
+    await spawn($, w)
+    await $.turn.complete(ended('agent-1'))
+    const refused = await wake($, 'agent-1', { isTeammate: true })
+    expect(String(refused.deny)).toMatch(/^This agent was not resumed: /)
+    expect(String(refused.deny)).toMatch(/1 agent started on this machine in the last 10 min \(limit 1\)/)
+  })
+
+  test('a message to a running agent or an unknown name is not a start', async ($, on) => {
+    const w = world(on, { env: { AGENT_GUARD_ROLLING_MAX: '1' } })
+    await start($, w, false)
+    await spawn($, w)
+    expect(await send($, 'agent-1')).toEqual({ result: 'ok' })
+    expect(await send($, 'main')).toEqual({ result: 'ok' })
+  })
+})

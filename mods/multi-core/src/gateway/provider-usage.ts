@@ -1,0 +1,147 @@
+import { providerManifests } from './provider.ts';
+import type { UsageSnapshot } from './receipts.ts';
+
+type UsageProvider = string;
+interface ProviderUsageRow {
+  id: UsageProvider;
+  name: string;
+  status: 'ready' | 'unavailable' | 'disabled' | 'error';
+  summary: string;
+  details: string[];
+  url?: string;
+}
+export interface ProviderUsageView {
+  updatedAt: string;
+  providers: ProviderUsageRow[];
+}
+export interface ProviderUsageOptions {
+  enabled: readonly string[];
+  /** Each connected provider's own account reader, keyed by provider name. */
+  readers?: Readonly<Record<string, ProviderUsageReader | undefined>>;
+  now?: () => number;
+}
+export type ProviderUsageReader = (session: string) => Promise<{
+  summary: string;
+  details: string[];
+  status?: ProviderUsageRow['status'];
+}>;
+function sessionLines(snapshot: UsageSnapshot, provider: UsageProvider): string[] {
+  const entries = snapshot.entries.filter((entry) => entry.provider === provider);
+  const totals = { input: 0, output: 0, read: 0, write: 0, requests: 0, calls: 0 };
+  for (const entry of entries) {
+    totals.input += entry.usage.input_tokens;
+    totals.output += entry.usage.output_tokens;
+    totals.read += entry.usage.cache_read_input_tokens;
+    totals.write += entry.usage.cache_creation_input_tokens;
+    totals.requests += entry.requests;
+    totals.calls += entry.usage.model_calls ?? 0;
+  }
+  const count = (value: number) => value.toLocaleString('en-US');
+  const context = snapshot.contexts?.[provider];
+  const window = context
+    ? `context ${count(context.input_tokens + context.cache_read_input_tokens + context.cache_creation_input_tokens)} · `
+    : '';
+  const calls = totals.calls ? ` · ${count(totals.calls)} model calls` : '';
+  return [
+    `This session: ${count(totals.requests)} completed requests${calls}`,
+    `Tokens: ${window}consumed ${count(totals.input)} input · cached ${count(totals.read)} read`,
+    `Output: ${count(totals.output)} · cache written ${count(totals.write)}`,
+    ...(entries.some((entry) => entry.source !== 'provider')
+      ? ['Includes estimated or unavailable counts; see session receipts for provenance.']
+      : []),
+  ];
+}
+
+/** Read-only account lookups are cached and coalesced independently of model requests. */
+export class ProviderUsageDashboard {
+  private readonly cache = new Map<string, { expires: number; view: ProviderUsageView }>();
+  private readonly pending = new Map<string, Promise<ProviderUsageView>>();
+  private readonly now: () => number;
+  private readonly options: ProviderUsageOptions;
+  constructor(options: ProviderUsageOptions) {
+    this.options = options;
+    this.now = options.now ?? Date.now;
+  }
+
+  async read(
+    session: string,
+    snapshot: UsageSnapshot,
+    refresh = false,
+  ): Promise<ProviderUsageView> {
+    const active = this.pending.get(session);
+    if (active) {
+      return this.withSession(await active, snapshot);
+    }
+    const saved = this.cache.get(session);
+    if (!refresh && saved && saved.expires > this.now()) {
+      return this.withSession(saved.view, snapshot);
+    }
+    if (this.pending.size >= 32) {
+      throw new Error('Too many simultaneous usage queries');
+    }
+    const request = this.collect(session);
+    this.pending.set(session, request);
+    try {
+      const view = await request;
+      if (this.cache.size >= 32) {
+        const oldest = this.cache.keys().next().value;
+        if (oldest !== undefined) {
+          this.cache.delete(oldest);
+        }
+      }
+      this.cache.set(session, { expires: this.now() + 30000, view });
+      return this.withSession(view, snapshot);
+    } finally {
+      this.pending.delete(session);
+    }
+  }
+
+  private async collect(session: string): Promise<ProviderUsageView> {
+    const rows = await Promise.all(
+      providerManifests().map(async ({ name, usage }): Promise<ProviderUsageRow> => {
+        const row: ProviderUsageRow = {
+          id: name,
+          name: usage.name,
+          ...(usage.url ? { url: usage.url } : {}),
+          status: 'unavailable',
+          summary: 'Account usage unavailable',
+          details: usage.unavailable,
+        };
+        if (!this.options.enabled.includes(name)) {
+          return {
+            ...row,
+            status: 'disabled',
+            summary: 'Not enabled in this launcher',
+            details: [],
+          };
+        }
+        const reader = this.options.readers?.[name];
+        if (!reader) {
+          return row;
+        }
+        try {
+          const data = await reader(session);
+          return { ...row, status: 'ready', ...data };
+        } catch {
+          return {
+            ...row,
+            status: 'error',
+            summary: 'Could not refresh provider usage',
+            details: ['Check the provider login or connection, then refresh.', ...row.details],
+          };
+        }
+      }),
+    );
+    return { updatedAt: new Date(this.now()).toISOString(), providers: rows };
+  }
+
+  private withSession(view: ProviderUsageView, snapshot: UsageSnapshot): ProviderUsageView {
+    return {
+      ...view,
+      providers: view.providers.map((row) => ({
+        ...row,
+        details: [...row.details, ...sessionLines(snapshot, row.id)],
+      })),
+    };
+  }
+}

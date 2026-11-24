@@ -1,0 +1,299 @@
+// What a shared session sends its guests: the host's transcript as compact
+// rows, converted from the Messages API blocks `session.append` and
+// `$.session.messages({ as: 'api' })` hand over.
+
+import { toolGlyph } from './look'
+
+export type Row = {
+  kind: 'user' | 'assistant' | 'tool' | 'result'
+  /** Who typed a user row. */
+  who?: string
+  text: string
+  /** A tool row's tool name. */
+  tool?: string
+  /** A few lines under a tool row: an edit's diff, a write's head. */
+  detail?: string
+  isError?: boolean
+  /** A tool row's call id, and a result row's: pairs the two. */
+  id?: string
+  /** A tool row's input as the host's Claude sent it, when small enough to replay. */
+  input?: Record<string, unknown>
+  /** A result row's pictures (a screenshot, an image read), as room files. */
+  images?: RoomImage[]
+  /** The host's own copy of those pictures, before they go up; never sent. */
+  media?: Media[]
+  /** A result row's change to a file, as unified-diff hunks (an edit's or a write's). */
+  patch?: string
+  /** A user row of a teammate's session's message: the id their joined session plays it under. */
+  pid?: string
+}
+
+/** A picture in the room's files: its id (the bytes' SHA-256), type and size. */
+export type RoomImage = { id: string; type: string; size: number }
+/** A picture's bytes, base64, and its type. */
+export type Media = { data: string; type: string }
+
+/** What a prompt carries besides its words: base64 images and documents (a PDF). */
+export function attachmentsOf(content: unknown): Media[] {
+  const out: Media[] = []
+  for (const b of blocksOf(content) as (Block & { source?: { type?: unknown; media_type?: unknown; data?: unknown } })[]) {
+    if (
+      (b.type === 'image' || b.type === 'document') &&
+      b.source?.type === 'base64' &&
+      typeof b.source.data === 'string' &&
+      typeof b.source.media_type === 'string'
+    ) {
+      out.push({ data: b.source.data, type: b.source.media_type })
+    }
+  }
+  return out
+}
+
+/** The pictures in a tool result: the Messages API's base64 image blocks (and MCP's). */
+export function imagesOf(content: unknown): Media[] {
+  const out: Media[] = []
+  for (const b of blocksOf(content) as (Block & { source?: { type?: unknown; media_type?: unknown; data?: unknown }; data?: unknown; mimeType?: unknown })[]) {
+    if (b.type !== 'image') continue
+    if (b.source?.type === 'base64' && typeof b.source.data === 'string' && typeof b.source.media_type === 'string')
+      out.push({ data: b.source.data, type: b.source.media_type })
+    else if (typeof b.data === 'string' && typeof b.mimeType === 'string') out.push({ data: b.data, type: b.mimeType })
+  }
+  return out
+}
+
+type Block = {
+  type: string
+  id?: string
+  tool_use_id?: string
+  text?: string
+  name?: string
+  input?: unknown
+  content?: unknown
+  is_error?: boolean
+}
+
+// A message another session, a teammate or a channel delivered: its markup
+// off, its sender's name kept (`from-name`, `source`, `teammate`). The engine
+// frames a session's message with a line before it ("Another Claude session
+// sent a message:", or "… while you were working:" into a running turn) and
+// its own guidance after the closing tag; neither is the message.
+const DELIVERED =
+  /^\s*(?:(Another Claude session|A peer session) sent a message( while you were working)?:\s*)?<(cross-session-message|teammate-message|channel|agent-message)\b([^>]*)>(?:([\s\S]*)<\/\3>[\s\S]*|([\s\S]*))$/
+
+export function delivered(text: string): { from: string; text: string; midTurn: boolean; address?: string; mode?: string } | null {
+  const m = DELIVERED.exec(text)
+  if (!m) return null
+  const attr = (name: string) => new RegExp(`(?:^|\\s)${name}="([^"]*)"`).exec(m[4] ?? '')?.[1]
+  const body = m[5] ?? m[6] ?? ''
+  const midTurn = Boolean(m[2]) || m[1] === 'A peer session'
+  if (m[3] === 'agent-message') {
+    // A subagent's hand-back: long, and the session's own work, not a prompt anyone typed.
+    const back = body.replace(/^\s*\[Subagent hand-back\][^\n]*\n?/, '').trim()
+    return { from: 'Subagent', text: back.length > 600 ? `${back.slice(0, 600)}…` : back, midTurn }
+  }
+  // Where a reply reaches the sender: its `from`, a socket's or a bridge's
+  // address, never its name (the engine leaves out an empty `from-name`, and
+  // the address read as one put a socket's path in front of the host).
+  const from = attr('from')
+  const address = from && /^(?:uds|bridge):/.test(from) && from.length <= 512 ? from : undefined
+  // The sender's permission mode class, as its engine said it: passed on as it is.
+  const mode = attr('from-mode')
+  return {
+    from: attr('from-name') ?? attr('source') ?? attr('teammate') ?? 'another session',
+    text: body.trim(),
+    midTurn,
+    ...(address ? { address } : {}),
+    ...(mode && /^[a-z_-]{1,24}$/.test(mode) ? { mode } : {}),
+  }
+}
+
+// The open tags of what a session, a teammate, a channel or an agent
+// delivers, wherever they are in a guest's text: only `from-name` (and a
+// channel's `source`, a teammate's `teammate`) is kept of each. A `from=` in
+// a teammate's words would have the host's Claude reply to a session of the
+// host's own, or say it came from one: only an envelope Claude Code itself
+// frames (a peer's, a mailbox's) carries one to its Claude.
+const OPEN_TAG = /<(cross-session-message|teammate-message|channel|agent-message)\b([^>]*)>/gi
+const KEPT_ATTRS = new Set(['from-name', 'source', 'teammate'])
+
+export function neutralize(text: string): string {
+  return text.replace(OPEN_TAG, (_, tag: string, attrs: string) => {
+    const kept: string[] = []
+    for (const a of attrs.matchAll(/([^\s=>"']+)\s*=\s*"([^"]*)"/g)) {
+      const name = a[1]!.toLowerCase()
+      if (KEPT_ATTRS.has(name) && !kept.some(k => k.startsWith(`${name}=`))) kept.push(`${name}="${a[2]}"`)
+    }
+    return `<${tag}${kept.map(k => ` ${k}`).join('')}>`
+  })
+}
+
+/** A mailbox's id, and a handle the room carries: 128 random bits in hex. */
+export const PEER_ID = /^[0-9a-f]{32}$/
+
+const INPUT_MAX = 16_000 // chars of JSON a tool row carries to replay
+
+// User-side text the engine records around a command or injects as context
+// (a skill's instructions, a compacted conversation's summary, a background
+// task's notice): none of it is something a person typed.
+const ENGINE_TEXT =
+  /^\s*(<(command-name|command-message|command-args|local-command-stdout|local-command-stderr|local-command-caveat|system-reminder|bash-input|bash-stdout|bash-stderr|task-notification|user-prompt-submit-hook)\b|Base directory for this skill:|This session is being continued from a previous conversation|\[SYSTEM NOTIFICATION|Tool loaded\.\s*$|\[Request interrupted by user)/
+
+// Context a host app or the engine puts into a user message; never shown to others.
+const SYSTEM_BLOCKS = /<(system-reminder|task-notification)>[\s\S]*?<\/\1>/g
+
+const RESULT_LINES = 40
+const RESULT_CHARS = 4000
+const DETAIL_LINES = 12
+
+function blocksOf(content: unknown): Block[] {
+  if (typeof content === 'string') return [{ type: 'text', text: content }]
+  return Array.isArray(content) ? (content as Block[]) : []
+}
+
+function textOf(content: unknown): string {
+  return blocksOf(content)
+    .filter(b => b.type === 'text' && typeof b.text === 'string')
+    .map(b => b.text)
+    .join('\n')
+}
+
+function clip(text: string, lines: number, chars: number): string {
+  const all = text.replace(/\s+$/, '').split('\n')
+  let out = all.slice(0, lines).join('\n')
+  if (out.length > chars) out = `${out.slice(0, chars)}…`
+  const more = all.length - lines
+  return more > 0 ? `${out}\n… +${more} lines` : out
+}
+
+function relative(path: unknown, cwd: string): string {
+  if (typeof path !== 'string') return ''
+  return cwd && path.startsWith(`${cwd}/`) ? path.slice(cwd.length + 1) : path
+}
+
+const str = (v: unknown) => (typeof v === 'string' ? v : '')
+
+export function summarizeTool(name: string, input: unknown, cwd: string): { text: string; detail?: string } {
+  const i = (input ?? {}) as Record<string, unknown>
+  switch (name) {
+    case 'Bash':
+      return { text: (str(i.command).split('\n')[0] ?? '').slice(0, 200) }
+    case 'Read':
+      return { text: relative(i.file_path, cwd) }
+    case 'Write':
+      return {
+        text: relative(i.file_path, cwd),
+        detail: clip(str(i.content), 6, 600),
+      }
+    case 'Edit': {
+      const minus = str(i.old_string)
+        .split('\n')
+        .map(l => `- ${l}`)
+      const plus = str(i.new_string)
+        .split('\n')
+        .map(l => `+ ${l}`)
+      return { text: relative(i.file_path, cwd), detail: clip([...minus, ...plus].join('\n'), DETAIL_LINES, 1200) }
+    }
+    case 'NotebookEdit':
+      return { text: relative(i.notebook_path, cwd) }
+    case 'Grep':
+      return { text: `${str(i.pattern)}${i.path ? ` in ${relative(i.path, cwd)}` : ''}` }
+    case 'Glob':
+      return { text: str(i.pattern) }
+    case 'WebFetch':
+      return { text: str(i.url) }
+    case 'WebSearch':
+      return { text: str(i.query) }
+    case 'Agent':
+    case 'Task':
+      return { text: str(i.description) }
+    case 'TodoWrite':
+      return { text: `${Array.isArray(i.todos) ? i.todos.length : 0} todos` }
+    default: {
+      const json = JSON.stringify(input ?? {})
+      return { text: json.length > 120 ? `${json.slice(0, 120)}…` : json }
+    }
+  }
+}
+
+/**
+ * The rows one transcript message makes. `who` names the person behind a
+ * user-typed row; `null` means the row was not typed by a person (skip it).
+ */
+export function rowsFromMessage(message: { role?: string; type?: string; isMeta?: boolean; content: unknown }, who: string | null, cwd: string): Row[] {
+  if (message.isMeta) return []
+  const role = message.role ?? message.type
+  const rows: Row[] = []
+  for (const block of blocksOf(message.content)) {
+    if (role === 'user') {
+      if (block.type === 'text' && typeof block.text === 'string') {
+        const text = block.text.replace(SYSTEM_BLOCKS, '').trim()
+        // A prompt another session delivered is the session's prompt too, under the sender's name.
+        const sent = delivered(text)
+        if (sent) {
+          if (sent.text) rows.push({ kind: 'user', who: sent.from, text: sent.text })
+          continue
+        }
+        if (who === null || ENGINE_TEXT.test(text) || !text) continue
+        rows.push({ kind: 'user', who, text })
+      } else if (block.type === 'tool_result') {
+        // A file read's lines come numbered ("   12\tcode"); the numbers are noise
+        // here, and so is what the engine adds for the model (reminders).
+        const text = textOf(block.content)
+          .replace(SYSTEM_BLOCKS, '')
+          .replace(/^ *\d+\t/gm, '')
+          .trim()
+        const media = imagesOf(block.content)
+        rows.push({
+          kind: 'result',
+          text: text ? clip(text, RESULT_LINES, RESULT_CHARS) : media.length ? '' : '(no output)',
+          isError: block.is_error === true || undefined,
+          id: block.tool_use_id,
+          ...(media.length ? { media } : {}),
+        })
+      }
+    } else if (role === 'assistant') {
+      if (block.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
+        rows.push({ kind: 'assistant', text: block.text.trim() })
+      } else if (block.type === 'tool_use' && block.name) {
+        const { text, detail } = summarizeTool(block.name, block.input, cwd)
+        const input =
+          block.input && typeof block.input === 'object' && JSON.stringify(block.input).length <= INPUT_MAX
+            ? (block.input as Record<string, unknown>)
+            : undefined
+        rows.push({ kind: 'tool', tool: block.name, text, detail, id: block.id, input })
+      }
+    }
+  }
+  return rows
+}
+
+/** Splits a guest prompt the host submitted as `Name: text`. */
+export function splitSpeaker(text: string): { who: string; text: string } | null {
+  const match = /^([^\n:]{1,40}): ([\s\S]*)$/.exec(text)
+  return match?.[1] && match[2] !== undefined ? { who: match[1], text: match[2] } : null
+}
+
+/** The rows as markdown: what a guest's local transcript keeps as text. */
+export function rowsToMarkdown(rows: readonly Row[]): string {
+  const parts: string[] = []
+  for (const row of rows) {
+    switch (row.kind) {
+      case 'user':
+        parts.push(`**${row.who ?? 'Someone'}:** ${row.text}`)
+        break
+      case 'assistant':
+        parts.push(row.text)
+        break
+      case 'tool': {
+        const head = `${toolGlyph(row.tool ?? '')} **${row.tool}**${row.text ? ` \`${row.text.replaceAll('`', "'")}\`` : ''}`
+        const diff = row.detail && (row.tool === 'Edit' || row.tool === 'Write')
+        parts.push(diff ? `${head}\n\n\`\`\`${row.tool === 'Edit' ? 'diff' : ''}\n${row.detail}\n\`\`\`` : head)
+        break
+      }
+      case 'result':
+        parts.push(`  ⎿ ${row.isError ? 'Error: ' : ''}${row.text.replace(/^ *\d+\t/gm, '').split('\n')[0]}`)
+        break
+    }
+  }
+  return parts.join('\n\n')
+}

@@ -1,0 +1,98 @@
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { basename, dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { zstdCompressSync } from 'node:zlib'
+
+import type { HookDeps, HookInput } from '../src/hook'
+import type { Run } from '../../hooks/gh'
+import { PARTS_STATUS_SYSTEM } from '../../hooks/status-prompt'
+import type { Ask } from '../../hooks/session-host'
+import type { Server } from '../src/server'
+
+export function tempDir(): string {
+  return mkdtempSync(join(tmpdir(), 'inbox-codex-'))
+}
+
+export async function removeTempDir(dir: string, ...servers: Server[]): Promise<void> {
+  await Promise.all(servers.map(server => server.settled()))
+  await rm(dir, { recursive: true, force: true })
+}
+
+export function fakeRunner(answer: (args: string[]) => { code: number; stdout: string; stderr: string }) {
+  const calls: string[][] = []
+  const exec: Run = args => {
+    calls.push(args)
+    return Promise.resolve(answer(args))
+  }
+
+  return { exec, calls }
+}
+
+export function hookDeps(dir: string, now = () => 1000): HookDeps & { updates: string[]; refreshes: string[] } {
+  const updates: string[] = []
+  const refreshes: string[] = []
+
+  return {
+    dir,
+    env: { CODEX_CLI_PATH: '/apps/codex' },
+    now,
+    startUpdate: id => updates.push(id),
+    startStatusRefresh: id => refreshes.push(id),
+    run: async () => ({ code: 1, stdout: '', stderr: 'not in Herdr' }),
+    parentPid: 2,
+    updates,
+    refreshes,
+  }
+}
+
+export function turnRow(type: 'task_started' | 'task_complete' | 'turn_aborted', turnId: string): string {
+  return JSON.stringify({ type: 'event_msg', payload: { type, turn_id: turnId } })
+}
+
+export function input(event: string, fields: Partial<HookInput> = {}): HookInput {
+  return { hook_event_name: event, session_id: 's1', transcript_path: join(tmpdir(), 'rollout.jsonl'), ...fields }
+}
+
+export const ROLLOUT_FIXTURE = join(dirname(fileURLToPath(import.meta.url)), '..', 'tests', 'fixtures', 'rollout.jsonl')
+
+export function rolloutCopy(): string {
+  const path = join(tempDir(), 'rollout.jsonl')
+  copyFileSync(ROLLOUT_FIXTURE, path)
+
+  return path
+}
+
+export function rolloutAt(
+  home: string,
+  threadId: string,
+  meta: Record<string, unknown> = {},
+  { day = '2026/10/20', ext = 'jsonl', rolloutId }: { day?: string; ext?: string; rolloutId?: string } = {},
+): string {
+  const [first = '', ...rest] = readFileSync(ROLLOUT_FIXTURE, 'utf8').split('\n')
+  const row = JSON.parse(first)
+  const payload = { ...row.payload, id: threadId, originator: 'Codex Desktop', source: 'vscode', ...meta }
+  const folder = join(home, 'sessions', day)
+  mkdirSync(folder, { recursive: true })
+  const path = join(
+    folder,
+    `rollout-${day.replaceAll('/', '-')}T05-01-10-${threadId}${rolloutId ? `_${rolloutId}` : ''}.${ext}`,
+  )
+  const text = [JSON.stringify({ ...row, payload }), ...rest].join('\n')
+  writeFileSync(path, ext === 'jsonl.zst' ? zstdCompressSync(text) : text)
+
+  return path
+}
+
+export function movedRollout(path: string, home: string, folder: 'archived_sessions' | `sessions/${string}`): string {
+  const to = join(home, folder, basename(path))
+  mkdirSync(dirname(to), { recursive: true })
+  renameSync(path, to)
+
+  return to
+}
+
+export function ledgerOnly(ask: (prompt: string) => Promise<string | null>): Ask {
+  return (prompt, system) => (system === PARTS_STATUS_SYSTEM ? Promise.resolve(null) : ask(prompt))
+}

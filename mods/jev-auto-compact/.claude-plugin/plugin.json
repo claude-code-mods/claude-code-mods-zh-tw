@@ -1,0 +1,9 @@
+{
+  "name": "jev-auto-compact",
+  "version": "1.6.1",
+  "description": "Jev 驅動的逐字壓縮：上下文達到 60% 後，在不生成任何內容的前提下清理過期工具呼叫。無可清理項時直接跳過（絕不回退到 LLM 摘要），併為 learning.db 記錄證據。",
+  "author": {
+    "name": "vexjoy-agent"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,960 @@
+// Built by scripts/build-types.mjs from types/parts/. Edit a part, then run the script.
+
+/** Where a subject of the session's work stands. `done` and `dropped` close it. */
+export type SubjectStatus = 'working' | 'queued' | 'waits-on-other' | 'done' | 'dropped'
+
+/** One piece of the session's work that the person would name: a feature, a fix, a release or a stream. */
+export type Subject = {
+  id: string
+  /** The handle the person would use, at most a few words. */
+  name: string
+  status: SubjectStatus
+  /** Where it stands, in a few words. */
+  text: string
+  /** The plan a reversal replaced, shown until the person looks. */
+  was: string | null
+  /** The names of the subjects dropped into this one since the person last looked, shown until they look. */
+  merged: string | null
+  createdAt: number
+  /** When its status or where it stands last changed. Code sets it; the model never writes a time. */
+  changedAt: number
+  closedAt: number | null
+  /** The subject a DROP moved this one's work into. A subject with one never shows. */
+  into: string | null
+}
+
+/**
+ * What kind of work runs apart from the session's own turn. A background command or a Monitor task is not a child: a
+ * delegate or subagent it watches has a row of its own, and a step it runs belongs to its subject's row.
+ */
+export type ChildKind = 'subagent' | 'workflow' | 'delegate'
+
+/** Work that runs apart from the turn. Code sets every field from the host's events except `subjectId`, which the Status call links. */
+export type Child = {
+  id: string
+  /** The host's handle for it: a tool call id, a task id or a delegate's Herdr name. */
+  ref: string
+  kind: ChildKind
+  name: string
+  subjectId: string | null
+  startedAt: number
+  endedAt: number | null
+  /** When it last did anything, from its start. Null in a Status an earlier build saved. */
+  lastActivityAt: number | null
+  /**
+   * What a delegate does: `working` once this session prompted it or Herdr showed it working, `blocked` while Herdr
+   * shows it at a question or an approval, and `finished` once Herdr shows it ready after it worked. Null for other
+   * kinds, and for a delegate nothing has shown working yet.
+   */
+  delegateState: DelegateState | null
+  /** A delegate's last note, which Herdr shows beside its terminal. Missing or null until one reports it. */
+  summary?: string | null
+}
+
+/** The top of the Status page: what the session is focused on now. */
+export type StatusHead = {
+  /** A short name for the focus, like a subject's name. */
+  title: string
+  /** One line on what the session is doing about it. Empty until the Status call writes one. */
+  description: string
+}
+
+export type DelegateState = 'working' | 'blocked' | 'finished'
+
+/** Who set the goal: the Status call, from the session's work, or the person, by typing it. */
+export type GoalSource = 'inferred' | 'typed'
+
+/** The outcome the session's work is for. The Status call sets and replaces an inferred goal, and the person types one. */
+export type StatusGoal = {
+  text: string
+  setAt: number
+  /** When every milestone was first done together. Code sets it, and the goal stays until a next goal replaces it. */
+  metAt: number | null
+  /** The goal this one replaced, shown until the person looks. */
+  was: string | null
+  /** Whether the milestones still belong to an earlier goal, until a Status call after this goal was set has written. */
+  isAwaitingMilestones: boolean
+  source: GoalSource
+}
+
+/** An outcome the goal needs. The Status call writes and moves it by id, as it does a subject. */
+export type Milestone = {
+  id: string
+  name: string
+  status: SubjectStatus
+  /** Where it stands, in a few words. */
+  text: string
+  /** The plan a change replaced, shown until the person looks. */
+  was: string | null
+  changedAt: number
+  closedAt: number | null
+  /** When a NEXT line last moved it ahead of the other queued milestones. It marks the milestone changed, but is no progress, so `changedAt` keeps its time. */
+  madeNextAt?: number
+}
+
+/** What a subject serves: one milestone by its id, or `none` for work the goal does not need. */
+export type Serves = string | 'none'
+
+/**
+ * Why code did not apply the last answer's GOAL or RETIRE line. The next Status call reads it, with the reason
+ * written out as it stands then, so the call can fix the cause.
+ */
+export type GoalRefusal = {
+  line: 'goal' | 'retire'
+  why:
+    /** The person typed the goal, and it is not met. */
+    | 'typed'
+    /** RETIRE on a met goal, which stays until the next goal is set. */
+    | 'met'
+    /** A subject linked to an open milestone is still open. */
+    | 'work-open'
+    /** The goal moved forward under `GOAL_LEFT_MS` ago. */
+    | 'moved'
+    /** No open subject is outside the goal, so there is no work for a new one. */
+    | 'no-work'
+    /** The GOAL line restates the goal, the goal before it or a removed goal. */
+    | 'restates'
+    /** The GOAL line names under `MILESTONES_MIN` milestones. */
+    | 'few-milestones'
+  /**
+   * For a GOAL line that cut part of the goal, the ids of the open subjects it held that the line neither kept under a
+   * milestone it named again nor sent to Other work.
+   */
+  unplaced?: string[]
+}
+
+/** A goal the person removed, with its milestones and the links to them, so Undo can bring it back. */
+export type GoalRemoved = {
+  goal: StatusGoal
+  milestones: Milestone[]
+  serves: Record<string, Serves>
+  askSubjects: Record<string, string[]>
+}
+
+/** The Status tab's list. The Status call changes it by id; code keeps the order and every time. */
+export type SessionStatus = {
+  /** Null until the Status call writes it. */
+  head: StatusHead | null
+  subjects: Subject[]
+  children: Child[]
+  /** The subjects and milestones each ask holds up, by the ask's item id, in the order the Status call linked them. */
+  askSubjects: Record<string, string[]>
+  nextId: number
+  nextChildId: number
+  goal: StatusGoal | null
+  /** The name keys of goals the person removed, newest last, so the call does not set them again. */
+  removedGoals: string[]
+  /** The goal the person last removed, while Undo can bring it back: until a goal is set or a Status call applies. */
+  goalRemoved: GoalRemoved | null
+  milestones: Milestone[]
+  nextMilestoneId: number
+  /** What each subject serves, by subject id, as the Status call linked them. A subject with no entry is not linked yet. */
+  serves: Record<string, Serves>
+  /** Why the last applied answer's GOAL or RETIRE line was not applied. Null when it was, or when the answer wrote none. */
+  goalRefused: GoalRefusal | null
+  /**
+   * The goal the Status call offers while no goal is set or the goal is met, which the person sees after New and takes
+   * with Set. Null when the call offers none, and once a goal is set.
+   */
+  suggestedGoal: string | null
+
+  /** When the person last looked: the last time a look ended. Null before the first look. */
+  lastLookAt: number | null
+  /**
+   * The subjects the last look did not show since they last changed, each with when the person last saw it, or null
+   * for never. Every other subject that changed by `lastLookAt` counts as seen.
+   */
+  missedInLastLook: Record<string, number | null>
+  /** The look in progress, while the Status tab is shown. Null otherwise. */
+  look: { startedAt: number } | null
+  /**
+   * When the last Status call whose answer applied read this Status. Each delegate that finished after it is listed to
+   * the next call, so every finish reaches the call once. Null before the first.
+   */
+  lastCallReadAt: number | null
+  /** When a Status call last changed what the page says. Null before the first change this build saw. */
+  changedAt: number | null
+  /** The Status calls since `changedAt` that read agent activity and changed nothing on the page. */
+  quietCalls: number
+}
+
+/** The folder a session runs in, and its branch when the host last read it. A host keeps the first folder it saves until the session moves away from it or that folder is gone. */
+export type Place = { folder: string; branch: string | null }
+
+export type Item = {
+  id: string
+  kind: 'question' | 'task'
+  /** The agent's own number or id for it ("1", "D3"), so "1. yes" maps back. */
+  label: string | null
+  ask: string
+  /** Why the agent asked a question, from its record's `context`. A record of the open question replaces it. */
+  context?: string
+  options: string[]
+  /** The option the agent recommended, exactly as `options` has it. */
+  rec: string | null
+  /** Why the agent recommended `rec`, as a short clause, when its record gave a reason. Cleared when `rec` changes. */
+  recReason?: string
+  helps: Help[]
+  /** The person-prompt count when the agent asked it. */
+  turn: number
+  /** When the agent asked it; null for an item saved before the mod kept the time. */
+  at: number | null
+  /**
+   * What added it: the agent's record tool, or a NEW or TODO line of the per-reply update. An item saved before the
+   * mod kept this reads as 'update'.
+   */
+  from: 'record' | 'update'
+  /** The open Codex dialog question this item copies. Only the Codex host sets it. */
+  dialog?: DialogLink
+  /**
+   * The agent marked it a design choice: its options are designs or approaches it could try and show side by side.
+   * Only these show Compare. An item saved before the mark kept this has none.
+   */
+  isDesignChoice?: boolean
+  /** When the agent last recorded it again while it was open, as it does to report a comparison. */
+  reportedAt?: number
+  /**
+   * What picking each option does, by its label as `options` has it: from the `option_notes` of the agent's records,
+   * else from a dialog question this item copies.
+   */
+  optionDescriptions?: Record<string, string>
+  /**
+   * The closest answer the person gave to an earlier question, found once when the question was added. Missing on a
+   * task, on a question with no match over the floor, and on an item saved before the search ran.
+   */
+  earlier?: Earlier
+}
+
+/**
+ * An earlier question's answer that matched a new question. `ask` and `answer` are cut to 200 characters. `repo` is the
+ * earlier session's repository name, null when its folder was not in a Git repository. `score` is the match's BM25 score
+ * divided by the best score the new question could reach. `isShown` is false during the first week of the question
+ * history, when the match is recorded and not drawn.
+ */
+export type Earlier = { ask: string; answer: string; at: number; repo: string | null; score: number; isShown: boolean }
+
+/**
+ * A question in a Codex `request_user_input_async` dialog: the call's `call_id`, the question's index in the call's
+ * `questions`, and its title.
+ */
+export type DialogLink = { callId: string; index: number; question: string }
+
+/** A question in an agent's dialog, with each option's description by its label. Codex's dialog gives none. */
+export type DialogQuestion = { question: string; options: string[]; descriptions: Record<string, string> }
+
+/**
+ * A dialog question from ledger turn `turn` that an item may copy: a question of a Codex dialog, which stays open, or
+ * of a dialog the person answered or dismissed in another host. `callId` and `index` name a Codex dialog question, and
+ * `callId` is null in other hosts. `itemId` is the item that copies it, once linked. `answer` is what the person chose
+ * in a dialog they answered; the copy closes with it.
+ */
+export type TurnDialogQuestion = DialogQuestion & {
+  callId: string | null
+  index: number
+  turn: number
+  itemId: string | null
+  answer?: string
+}
+
+/**
+ * A one-press step toward finishing an item. The mod never runs a command:
+ * `run` asks Claude to run it, under the usual permission checks, and
+ * `terminal` copies one that only the person can run.
+ */
+export type Help =
+  | { kind: 'open'; path: string }
+  | { kind: 'copy'; text: string; name: string | null }
+  | { kind: 'run'; command: string; name: string | null }
+  | { kind: 'terminal'; command: string; name: string | null }
+  | { kind: 'link'; url: string; name: string | null }
+
+export type Closed = {
+  id: string
+  kind: Item['kind']
+  ask: string
+  label?: string
+  outcome: string
+  /**
+   * How it closed: the person answered it, marked a task done or ran its
+   * command, or dismissed it; it expired unanswered; Claude closed it with a
+   * reason; or the per-reply update closed it, with an outcome the model wrote.
+   */
+  how: 'answered' | 'done' | 'dismissed' | 'expired' | 'claude' | 'update'
+  at: number
+  /** The item as it was while open, so it can be reopened; missing on a record saved before the mod kept it. */
+  item?: Item
+  /** A Done notification that may have reached the agent, so Undo cannot retract it. */
+  isSentToAgent?: true
+  doneNotification?: { id: string; error?: string }
+  commandId?: string
+}
+
+/**
+ * What a press does, which decides what its row shows at once. Talk asks Claude
+ * to talk or draft; Hand-off gives Claude the row's work, so the row folds;
+ * Local opens or copies on the person's machine; Mark changes state and sends
+ * nothing while it can be undone, or closes a question with its answer; View changes only the screen.
+ */
+export type PressKind = 'talk' | 'handoff' | 'local' | 'mark' | 'view'
+
+export type LastAction = {
+  commandId?: string
+  kind: Exclude<PressKind, 'view'>
+  /** The action's id, as `actionId` makes it, so that action reads "… again". */
+  action: string
+  /** The label of the action pressed, as in "Discuss". */
+  text: string
+  /** The words the person typed, on a reply. Missing on a reply saved before the inbox kept them, which reads without them. */
+  reply?: string
+  at: number
+  /** Order of presses in the Claude host while their saves may overlap. */
+  pressOrder?: number
+  /** The turns started when it was pressed, so a handed-off row folds until the update for a later turn applies. */
+  turnsStarted?: number
+  /** When the turn that followed a hand-off press ended, answered or not. A PR's hand-off button reads "… again" only once a fetch has read the PR after it. */
+  repliedAt?: number
+  /** The latest Local press's outcome: its opens and copies, pending until each has run. Talk, Hand-off and Mark presses clear it. */
+  result?: LocalResult
+  /** Whether the press's message reached the agent. Missing on a press that sent nothing, and on one saved before the mod kept it, which reads as arrived. */
+  delivery?: Delivery
+  /** Undo on a finding Fix handed off, which lists the row again while the agent works on it. */
+  isKept?: true
+  /** It repeated the latest action, so its button keeps reading "… again" while the press is out. */
+  isRepeat?: true
+  /** A PR's Dismiss on a PR only the agent's order showed, so its Undo does not link it. Missing on a Dismiss of a linked PR. */
+  isUnlinked?: true
+  /**
+   * The row's latest explanation, in Claude Code. `replyId` is the transcript row where its reply's text begins, which
+   * Show explanation scrolls to, and a later press on the row keeps it. `isAwaitingReply` marks an Explain press whose
+   * message started a turn of its own and whose reply has not begun; a message that entered a running turn marks none.
+   * `isFirstReply` marks the row's first explanation, whose button waits for that Explain press to settle. Missing on
+   * rows never explained, and on presses saved before the mod kept it.
+   */
+  explanation?: { replyId?: string; isAwaitingReply?: true; isFirstReply?: true }
+}
+
+/**
+ * A sent message's way to the agent: held while Undo can still take the press back, so nothing has left yet,
+ * queued after sending, unconfirmed when an identical arrival cannot identify its press, arrived when identified,
+ * or failed when it will not enter. `sentAt` is when the host sent a message that waited for Undo; missing, the press
+ * sent it, so the press's time is the send's.
+ */
+export type Delivery =
+  | { state: 'held'; message: string; until: number; by: Press | null }
+  | { state: 'queued'; message: string; id?: string; sentAt?: number }
+  | { state: 'unconfirmed'; message: string; id?: string; sentAt?: number }
+  | { state: 'arrived' }
+  | { state: 'failed'; reason: string; id?: string }
+
+/** A message the mod sent, as builds before the shared session saved it. */
+export type SentPrompt = { id: string; sessionId: string; text: string; pressedAt: number | null }
+
+export type LocalPart = {
+  kind: 'open' | 'copy' | 'refresh-prs' | 'rerun' | 'scroll'
+  name: string
+  /** A command only the person can run, so the row says where to run it. */
+  isCommand: boolean
+  /** Null until it ran, and when it worked. */
+  error: string | null
+}
+
+/**
+ * The words are built per surface when the row is drawn. `action` is the id of the action pressed, as `actionId`
+ * makes it, so its button draws as out while the result is pending. Missing on a result saved before the mod kept it.
+ */
+export type LocalResult = {
+  state: 'pending' | 'done' | 'failed'
+  parts: LocalPart[]
+  at: number
+  pressId?: string
+  action?: string
+}
+
+/**
+ * A short note on a row that is not a press's result: a press that found its
+ * row gone or changed.
+ */
+export type RowNote = { note: 'stale'; at: number }
+
+/**
+ * A reply the person began in a row's field and has not sent. `since` is when they began it, as the time of the
+ * view that showed the row open, so a close the person could not have seen then holds the row in place.
+ */
+export type Draft = { text: string; since: number }
+
+export type Finding = {
+  id: string
+  kind: 'issue' | 'opportunity'
+  title: string
+  detail: string
+  /** The file it is about, as Claude gave it. */
+  path: string | null
+  at: number
+  /** The item that replaced this finding by asking about it. A finding closed as "asked as iN" reopens when that item closes with the work undone. */
+  askedAs?: string
+  /** When the question that had replaced it closed with the work undone, which reopened it. */
+  reopenedAt?: number
+}
+
+export type FoldKind = Item['kind'] | Finding['kind']
+
+export type ClosedFinding = Finding & Pick<Closed, 'how' | 'outcome'> & { closedAt: number }
+
+export type PrCheck = {
+  name: string
+  bucket: 'pass' | 'fail' | 'cancelled' | 'pending' | 'skip'
+  url: string | null
+  /** The GitHub Actions workflow that ran it, such as "CI". Absent for a commit status, and on a check saved before the mod kept it. */
+  workflow?: string
+  /** When it started and finished, in ms; absent when GitHub gave no time. */
+  startedAt?: number
+  finishedAt?: number
+}
+
+export type PrThread = {
+  id: string
+  author: string
+  /** The thread's latest comment, when anyone answered the first. Its `at` is as the thread's. */
+  reply: { author: string; body: string; url: string; at: number | null } | null
+  /** Someone other than the viewer wrote its last comment, so it waits on them. */
+  isWaiting: boolean
+  isOutdated: boolean
+  /**
+   * Outdated, and no one else replied after the PR's latest commit: a later
+   * commit changed the lines it was on, and nothing since says that left it unfixed.
+   */
+  isLinesChanged: boolean
+  path: string
+  line: number | null
+  body: string
+  url: string
+  /** When its first comment was written; null when GitHub gave no time, or for a thread saved before the mod kept it. */
+  at: number | null
+}
+
+export type PrView = {
+  /** "owner/repo#123" */
+  ref: string
+  number: number
+  title: string
+  url: string
+  isDraft: boolean
+  state: string
+  base: string
+  mergeable: string
+  reviewDecision: string
+  checks: PrCheck[]
+  threads: PrThread[]
+  /** Whether the person running gh wrote the PR; null when GitHub's answer did not say. */
+  isYours: boolean | null
+  /** Whether a fetch has found the PR open since the tab began tracking it; for a view saved before this field, whether that view was open. */
+  wasSeenOpen: boolean
+  /** Why the last fetch failed; the rest is from the fetch before. */
+  error: string | null
+  /** When a fetch last read the PR's state from GitHub. Absent on a view saved before the inbox kept it. */
+  fetchedAt?: number
+}
+
+/** Where a PR stands, as its block's status line names it. `hooks/prs.ts:readiness` reads it. */
+export type PrStatus = 'ready' | 'blocked' | 'waiting' | 'draft' | 'merged' | 'closed'
+
+/**
+ * What a ranked PR's block showed: its status, read without sent threads, and the ids of its waiting threads and the
+ * `checkKey`s of its failing and cancelled checks.
+ */
+export type RankedPrStatus = { status: PrStatus; threads: string[]; failing: string[] }
+
+/**
+ * The PRs an agent ranked, first to last, as "owner/repo#123", with its short name for the order, as "Merge in this
+ * order", the reason it gave for the order, the agent's name, as "Claude", and when it set it. `statuses` holds each
+ * ranked PR's status from the first view the tab had of it once the order was set. It is null on an order saved before
+ * the inbox kept statuses, which never reads as changed. `dismissed` holds the ranked PRs the person dismissed from the
+ * tab, which keep their place in `refs` for Undo.
+ */
+export type PrOrder = {
+  refs: string[]
+  label: string | null
+  why: string | null
+  statuses: Record<string, RankedPrStatus> | null
+  dismissed: string[]
+  by: string
+  at: number
+}
+
+export type Ledger = {
+  /** The session's Status page; null until the Status call writes one. Saved as `overview`, the tab's earlier name. */
+  overview: SessionStatus | null
+  items: Item[]
+  closed: Closed[]
+  findings: Finding[]
+  /** Findings that closed, oldest first. Kept apart from `closed`, which the model-read texts list. */
+  closedFindings: ClosedFinding[]
+  /** PRs this session created or linked, as "owner/repo#123", until the person dismisses one. The PRs tab leaves out those `isLeftOut` names. */
+  prs: string[]
+  /** The order the agent set for the PRs tab with `order_prs`, or null for the tab's own order. The tab also shows the PRs it ranks, which are not in `prs` unless the session linked them. */
+  prOrder: PrOrder | null
+  nextId: number
+  /** How many prompts the person has sent this session. */
+  turn: number
+  /** The turn whose reply added the newest items; 0 when none. */
+  batchTurn: number
+  /** How many answers of the inbox model have been applied, including answers that changed nothing. */
+  updates: number
+}
+
+/** Why the session halted outside the conversation, from the error Claude Code classified it with. */
+export type Stop = {
+  kind: 'sign-in' | 'billing' | 'usage-limit' | 'api-error'
+  /** Claude Code's word for the error, such as `authentication_failed`. */
+  detail: string
+  /** When a usage limit resets, as Claude Code said it: "7:33pm". */
+  resets: string | null
+  at: number
+}
+
+export type Dialog = {
+  kind: 'permission' | 'question'
+  text: string
+  /** The tool call it is for, so it closes when that call ends. */
+  key: string
+}
+
+/** Whether the person is away from the mod's session, and the minute of the last clock tick while away, so the pane's ages redraw each minute. */
+export type Away = {
+  lastActiveAt: number
+  isAway: boolean
+  minute: number
+}
+
+/** The mod's presence as builds before the shared session kept it. */
+export type OldPresence = Away & {
+  isUpdating: boolean
+  ledgerState: 'current' | 'behind' | 'failed'
+  turnsStarted: number
+  turnsApplied: number
+}
+
+export type Tab = 'needsYou' | 'findings' | 'prs'
+
+/** A tab that shows a page instead of rows. `'overview'` is the Status tab, under the id it was saved with. */
+export type PageTab = 'overview'
+
+/**
+ * A tab's open row: its id, its position, and when a click or key opened it.
+ * `id: null` with `openedAt: 0` means no row was opened in this conversation, so
+ * the pane draws the tab's top row open. `openedAt: 0` with an id means the row
+ * was open by that default when pressed, so it is not guarded.
+ */
+export type Cursor = { id: string | null; index: number; openedAt: number }
+
+/**
+ * A row's collapse: when, and the address of the row's newest entry GitHub gave no time, as it was then. A new such
+ * entry has another address, so it counts as new. A Status parent, a subject or a milestone, also keeps the ids of the
+ * asks and delegates under it that waited on the person then, so one that starts waiting after counts as new.
+ */
+export type RowCollapse = { at: number; untimedUrl?: string; waiting?: string[] }
+
+export type PrViews = {
+  views: Record<string, PrView>
+  branchRef: string | null
+  isFetching: boolean
+  /** The mod sets this when its last fetch found no gh to start. Codex keeps its own flag in the server. */
+  isGhMissing?: boolean
+  /** Set by the last fetch whose gh runs answered: whether one of them asked for a sign-in. */
+  isGhSignedOut?: boolean
+  /** Why the last fetch read none of the PRs. Null, or absent, once a fetch reads them again. */
+  failure?: PrFetchFailure | null
+  /** Why each tracked PR that has no view could not be read, by ref, from the last fetch that tried. */
+  unread?: Record<string, string>
+}
+
+/**
+ * A cause that stopped a whole fetch, so every PR keeps its last view: GitHub's hourly limit is used up until
+ * `resetsAt`, null when GitHub did not say; GitHub could not be reached; gh did not answer in time; or GitHub answered
+ * with an error, whose first line is `text`. `at` is when the fetch failed.
+ */
+export type PrFetchFailure =
+  | { kind: 'limit'; at: number; resetsAt: number | null }
+  | { kind: 'unreachable'; at: number }
+  | { kind: 'timed-out'; at: number }
+  | { kind: 'error'; at: number; text: string }
+
+/**
+ * The turns started in this session, and how many of them reached the
+ * ledger. A load that finds more started than applied catches up.
+ */
+export type Turns = { turnsStarted: number; turnsApplied: number }
+
+/**
+ * The sample state `/inbox demo` shows in place of the session's own. Presses
+ * on it change only this copy, so nothing reaches the real inbox, its store or Claude.
+ */
+export type DemoCopy = {
+  ledger: Ledger
+  stop: Stop | null
+  prViews: PrViews
+  lastActions: Record<string, LastAction>
+  /** Each sample row's latest note, by the row's id. */
+  notes: Record<string, RowNote>
+  turns: Turns
+  /** The sample rows the person collapsed, as `Session.collapsed`. A copy saved before collapsing existed has none. */
+  collapsed?: Record<string, RowCollapse>
+}
+
+export type Exchange = {
+  /** What the person typed; null when something else started the turn. */
+  person: string | null
+  trigger: string | null
+  activity: string[]
+  reply: string
+  /** The person-prompt count when the reply was written. */
+  turn: number
+  press: Press | null
+  screen: string
+  /** The agent's own task list when the reply was written. */
+  tasks: HostTask[]
+}
+
+export type Press = { id: string; action: 'answer' | 'explain' | 'compare' | 'run' | 'done' }
+
+/** The inbox text the agent last read beside a prompt, and the closed items it was told about. */
+export type Told = { inbox: string | null; closed: string[] }
+
+export type HostTaskStatus = 'pending' | 'in-progress' | 'done' | 'dropped' | 'blocked'
+
+/** One task of the agent's own task list, as its host reports it. */
+export type HostTask = { id: string; text: string; status: HostTaskStatus }
+
+/**
+ * A Status call that wrote nothing. `cause` is `no-answer` when the call gave no text, or `refused` when it answered
+ * twice with text the parser refused, and then `answer` holds the start of the second answer. `catchUpsFailed` counts the catch-ups that failed while it stood, and
+ * `catchUpTurn` is `turnsStarted` at the last of them, so the next catch-up waits longer after each (`needsCatchUp`).
+ * Saved failures from before these fields read as none.
+ */
+export type StatusFailure = {
+  at: number
+  cause: 'no-answer' | 'refused'
+  answer: string | null
+  catchUpsFailed?: number
+  catchUpTurn?: number
+}
+
+/**
+ * Which call of an update a model call is. The ledger call reads a reply's exchange, with `isRetry` when the
+ * exchange's first call failed, or the whole conversation for a catch-up. The update flow keeps no mark of a repeated
+ * catch-up, so a catch-up says nothing of retries. The Status call reads a reply's exchange, the running turn or a
+ * catch-up's conversation, with `isRetry` when its first answer held no operation.
+ */
+export type CallKind =
+  | { call: 'ledger'; reads: 'reply'; isRetry: boolean }
+  | { call: 'ledger'; reads: 'catch-up' }
+  | { call: 'status'; reads: 'reply' | 'mid-turn' | 'catch-up'; isRetry: boolean }
+
+/**
+ * A model call run as a process that failed: the binary it ran, its exit code, and the end of the diagnostic lines of
+ * its stderr, its errors and warnings. One that could not start has code -1 and its error's code as `errorCode` when
+ * it has one. One a signal ended has code -1 and the `signal`. One that timed out has code -2 and the `timeoutMs` it
+ * had.
+ */
+export type ProcessFailure = {
+  cli: string
+  code: number
+  stderr: string
+  signal: string | null
+  errorCode: string | null
+  timeoutMs: number | null
+}
+
+/**
+ * A model call that gave no usable answer. `cause` is `process` when the call's process failed, `error` when the
+ * call ended with an error, `no-reply` when it ended with no text, and `unparseable` when its text could not be read
+ * as an answer. `call`, `reads` and `isRetry` come from its `CallKind`; `isRetry` is null for a catch-up's ledger
+ * call. `error` is the start of the host's reason, `answerChars` the length of an unparseable answer, and `ms` how
+ * long the call ran. It keeps no prompt, answer or conversation text. A failure a Codex build saved before this
+ * record reads null for what it did not keep.
+ */
+export type CallFailure = {
+  at: number
+  call: CallKind['call'] | null
+  reads: CallKind['reads'] | null
+  isRetry: boolean | null
+  cause: 'process' | 'error' | 'no-reply' | 'unparseable'
+  model: string | null
+  error: string | null
+  answerChars: number | null
+  ms: number | null
+  process: ProcessFailure | null
+}
+
+/**
+ * One of the update's calls, the ledger call or the Status call: its last failure, and when a call of it first gave
+ * a usable answer after that. `recoveredAt` is null while every call since the failure has failed, and before one fails.
+ */
+export type CallRecord = { lastFailure: CallFailure | null; recoveredAt: number | null }
+
+/**
+ * The latest answer one of the update's calls gave, parsed or not: when it arrived, the `turn` it answered as an
+ * item's `turn` counts turns, what the call read, whether the answer parsed, the start of its text, and the whole
+ * text's length as `chars`. A call that gave no text leaves the answer before it.
+ */
+export type CallAnswer = {
+  at: number
+  turn: number
+  reads: CallKind['reads']
+  isParsed: boolean
+  text: string
+  chars: number
+}
+
+/** One viewer app's lease on this session: rows it has replies on or has seen closed stay in place until `expiresAt` or its release. */
+export type RemoteViewerRecord = {
+  generation: number
+  sequence: number
+  expiresAt: number
+  released: boolean
+  replies: Record<string, number>
+  shownSince: number | null
+  tab: string
+  shownRows: Record<string, number>
+  listActiveAt: number | null
+  listInput?: { since: number; last: number } | null
+}
+
+/** A command a remote viewer sent, and the durable receipt of what happened to it. */
+export type RemoteCommandRecord = {
+  timeWasValid?: boolean
+  issuedAt?: number
+  pendingDelivery?: boolean
+  payload: string
+  acceptedAt: number
+  revision: string
+  state: 'accepted' | 'attempting' | 'applied' | 'stale' | 'failed' | 'uncertain' | 'cancelled' | 'refused' | 'expired'
+  error: string | null
+  row: string
+  deliveryId: string | null
+  delivered: boolean
+}
+
+/** A press from the Herdr look and its outcome: `stale` when `press()` found its row already changed. */
+export type HerdrPressOutcome = { id: string; outcome: 'applied' | 'stale' }
+
+/** One conversation's inbox: what every host saves and the shared session functions change. */
+export type Session = {
+  ledger: Ledger
+  /** What the turn running now gathered for the per-reply update. */
+  turn: {
+    person: string | null
+    /** What started the turn when the person's words did not, such as a task notification. */
+    trigger: string | null
+    activity: string[]
+    press: Press | null
+  }
+  /** The inbox text the agent last read beside a prompt, and the closed items it was told about. */
+  told: Told
+  presence: {
+    /** Prompts that started a turn, and how many of those turns the inbox model has summarized. */
+    turnsStarted: number
+    turnsApplied: number
+    /** `behind`: the ledger may have missed a turn, and a host that can catch up does. Only `failed` shows. */
+    ledgerState: 'current' | 'behind' | 'failed'
+    /**
+     * An exchange failed twice and was dropped, so its reply never reached the ledger. A later update that applies
+     * keeps `failed` until a catch-up covers it.
+     */
+    hasDroppedReply: boolean
+    /** Update attempts in a row whose model answer failed since the ledger was last current, retries included. */
+    failedAttempts: number
+    /** The last catch-up could not read the conversation. The next update tries again, and a catch-up that reads it clears this. */
+    isConversationUnreadable: boolean
+    isUpdating: boolean
+    /** Whether the main agent's turn runs. A subagent's turn does not set it. */
+    isTurnRunning: boolean
+    /** When the running turn started; null when the host did not say. */
+    turnStartedAt: number | null
+    /** When the agent's last turn ended. */
+    lastReplyAt: number | null
+    /**
+     * When the person last sent a message they typed. A message a press sent does not count. A row that settled before
+     * it folds, once its Undo ends.
+     */
+    lastTypedMessageAt: number | null
+  }
+  /** Where the session runs. Null until the host names it. */
+  place: Place | null
+  /**
+   * Exchanges waiting for the inbox model, oldest first, with the turns started when each ended. `failed` marks
+   * one whose first update failed: the next update tries it once more, then drops it.
+   */
+  pending: { ex: Exchange; turnsStarted: number; failed?: true }[]
+  /**
+   * Messages a press sent, saved before delivery. A prompt that arrives can match an accepted
+   * record by its text; an uncertain one stays to block false matches with later presses.
+   */
+  sent: {
+    text: string
+    press: Press | null
+    at: number
+    row: string | null
+    queuedId: string | null
+    /** The row press's time in milliseconds; null for older records or messages without a row. */
+    pressedAt: number | null
+    /** The local press identity; null for older records or messages without a row. */
+    deliveryId: string | null
+    phase?: 'attempting' | 'accepted' | 'uncertain'
+    commandIds?: string[]
+  }[]
+  lastActions: Record<string, LastAction>
+  /**
+   * The last press from the Herdr look this host applied. The session published for the look carries it as
+   * `lastPress`, so the look can tell a press whose row had already changed from one no host applied.
+   */
+  lastHerdrPress?: HerdrPressOutcome
+  remoteCommands: Record<string, RemoteCommandRecord>
+  remoteCommandFloor?: number
+  remoteViewers: Record<string, RemoteViewerRecord>
+  /** The rows the person's replies in progress held at the latest view or press. Every write keeps their closed records. */
+  heldRows: string[]
+  /**
+   * The rows the person collapsed, each with when, by row id: rows of the Asks, Finds and PRs tabs, and Status parents
+   * folded by their name. A row stays collapsed until something new arrives on it, as
+   * `hooks/collapse.ts:collapsedRows` decides.
+   */
+  collapsed: Record<string, RowCollapse>
+  /**
+   * When the look began showing the tab it shows, at the latest write that knew. Null while no look shows the inbox.
+   * Every write keeps the closed records of the rows closed or pressed since then, which stay drawn in place.
+   */
+  shownSince: number | null
+  /** The PRs tab's data: each PR's latest view and the current branch's PR. `isFetching` is always false here; the host knows what runs. */
+  prViews: PrViews
+  /** Why the last turn stopped, until the next turn starts. */
+  stop: Stop | null
+  /** The last Status call that wrote nothing, until a later one writes. Saved under the tab's earlier name. */
+  overviewFailure: StatusFailure | null
+  /** The inbox model's calls with no usable answer, one record for the ledger call and one for the Status call. */
+  callFailures: Record<CallKind['call'], CallRecord>
+  /** The inbox model's latest answer to the ledger call and to the Status call, null before the first. */
+  lastAnswers: Record<CallKind['call'], CallAnswer | null>
+  /** When a Status call last wrote, or failed, or started while a turn ran. Null before the first. Saved under the tab's earlier name. */
+  lastOverviewCallAt: number | null
+  /**
+   * The `turnsApplied` that the Status call which last wrote, or failed, was made for. A call made for fewer turns is
+   * older, and writes nothing. Saved under the tab's earlier name.
+   */
+  overviewTurn: number
+  /** The agent's own task list, when its host reports one. Empty when the agent keeps none. */
+  hostTasks: HostTask[]
+  /**
+   * The dialog questions an item may still copy: those of the current turn, and of a turn whose exchange waits for the
+   * per-reply update.
+   */
+  dialogQuestions: TurnDialogQuestion[]
+  /**
+   * The input fields of each inbox tool the agent has in this conversation, which a tool's answer may ask it to send.
+   * Only the mod saves them, since Claude Code keeps a conversation's first tools when the conversation resumes on a
+   * later build. Null when the session does not know them, as in a session saved before they were kept.
+   */
+  toolFields: ToolFields | null
+}
+
+/** The input fields of each inbox tool, by the tool's name. */
+export type ToolFields = { record: string[]; close: string[]; order_prs: string[] }
+
+declare module 'claude-code' {
+  interface PluginState {
+    inbox: {
+      /** The Claude Code theme in use, such as `dark` or `light-ansi`; '' until read. */
+      theme: string
+      /** The drawn conversation's session. `revision` counts its writes. */
+      session: Session & { revision: number }
+      away: Away
+      tab: Tab
+      /** The page tab shown in place of `tab`, or null while a row tab shows. */
+      page: PageTab | null
+      selection: Record<Tab, Cursor>
+      /** The Status row whose keys work, by id. Null until j or k moves it. */
+      statusSelection: string | null
+      dialogs: Dialog[]
+      /** The row whose free-text field is open, if any. */
+      typing: string | null
+      /** Each row's unsent typed words, by the row's id, kept while the field closes or another row opens. */
+      drafts: Record<string, Draft>
+      /** When the person discarded each held row's reply, by the row's id, so the row folds without settling. */
+      discarded: Record<string, number>
+      /**
+       * The tab the pane shows, whether it shows the sample, and since when. Rows that close since then stay in place.
+       * Null while the pane is closed.
+       */
+      shown: { tab: Tab | PageTab; isDemo: boolean; since: number } | null
+      /** Each row's latest note, by the row's id. */
+      notes: Record<string, RowNote>
+      /** The Asks groups and the kinds of finding whose closed items show. Each starts folded. */
+      unfolded: FoldKind[]
+      /** The Closed folds whose earlier lines the person opened. */
+      closedAll: FoldKind[]
+      /** The Status's done folds whose finished rows show, by the fold's id. Each starts folded. */
+      statusUnfolded: string[]
+      /** The fold under the pointer on desktop: an Asks fold's kind, or `status-` and a Status fold's id. */
+      foldHover: string | null
+      /** The questions whose every option shows, by the row's id. */
+      optionsShown: string[]
+      /** Whether the pane shows its Help page in place of the shown tab's body. */
+      isHelpShown: boolean
+      /** The sample entries the band and pane show instead of the session's own, while `/inbox demo` is on. */
+      demo: DemoCopy | null
+      /** Whether `/inbox demo recording` started the demo, which then leaves out the notices that mark its samples. */
+      isDemoRecording: boolean
+      /** The conversation whose saved session the store could not read. Saves skip it until a read succeeds. */
+      unreadable: string | null
+      /** A fresh value redraws the pane, as when a row's note or a Queued label is due. */
+      redraw: number
+      /** A fresh value redraws only the pane, for the next frame of a running mark. */
+      runningFrame: number
+      /** The line the person sees under each inbox tool call that has one, by the call's `tool_use_id`. */
+      personLines: Record<string, string>
+      /** Builds before the shared session kept the session in these fields. `upgradeDrawn` moves them into `session`. */
+      ledger: Ledger
+      presence: OldPresence
+      prViews: PrViews
+      stop: Stop | null
+      lastActions: Record<string, LastAction>
+      sent: SentPrompt[]
+      untrackedSent: { sessionId: string; text: string }[]
+    }
+  }
+}
+
+// Built by scripts/build-tool-inputs.mjs from the schemas in hooks/tools.ts. Edit a schema, then run it and
+// scripts/build-types.mjs.
+
+declare module 'claude-code' {
+  /** The arguments of the agent's tools, as their schemas in `hooks/tools.ts` give them. */
+  interface McpToolInputs {
+    mcp__inbox__record: {
+      kind: 'question' | 'task' | 'finding'
+      ask?: string
+      context?: string
+      options?: string[]
+      option_notes?: string[]
+      rec?: string
+      why?: string
+      steps?: string[]
+      design_choice?: boolean
+      finding_kind?: 'issue' | 'opportunity'
+      title?: string
+      detail?: string
+      path?: string
+    }
+    mcp__inbox__close: {
+      id: string
+      answer?: string
+      reason?: string
+    }
+    mcp__inbox__order_prs: {
+      repo?: string
+      numbers: number[]
+      label?: string
+      why?: string
+    }
+  }
+}

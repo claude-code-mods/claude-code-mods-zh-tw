@@ -1,0 +1,38 @@
+{
+  "name": "carbon",
+  "version": "1.20.1",
+  "description": "統計你的 Claude Code 工作階段碳排放，支援終端機和 Claude 桌面應用程式。",
+  "author": {
+    "name": "Gaetan Wittebolle",
+    "url": "https://github.com/gwittebolle"
+  },
+  "homepage": "https://github.com/gwittebolle/claude-carbon",
+  "repository": "https://github.com/gwittebolle/claude-carbon",
+  "license": "MIT",
+  "keywords": [
+    "carbon-footprint",
+    "sustainability",
+    "claude-code",
+    "green-it"
+  ],
+  "skills": "./skills/",
+  "statusLine": {
+    "type": "command",
+    "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/statusline.sh\""
+  },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "showPerTurn": {
+      "type": "boolean",
+      "title": "每次回覆的 CO₂ 排放量",
+      "description": "在每輪耗時行末尾顯示該次回覆的 CO₂ 排放量。關閉後只保留會話總計。",
+      "default": true
+    },
+    "showSessionTotal": {
+      "type": "boolean",
+      "title": "終端中顯示 CO₂ 會話總計",
+      "description": "在終端提示符下方固定顯示本次會話的 CO₂ 總計及按 API 價格計算的費用。如果狀態行已顯示（例如帶 claude-carbon 段的 ccstatusline），可關閉此項。桌面應用會保留此項。",
+      "default": true
+    }
+  }
+}

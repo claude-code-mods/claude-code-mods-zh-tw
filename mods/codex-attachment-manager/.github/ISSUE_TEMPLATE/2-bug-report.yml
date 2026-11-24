@@ -1,0 +1,63 @@
+name: 技術問題報告 / Bug report (technical)
+description: 給熟悉命令列的人：附上版本、安裝狀態和日誌 / For developers, with versions, install status and logs
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        謝謝反饋。這個模板要填版本、安裝狀態和日誌；不熟悉命令列的話，用「用著有問題」那個模板就行。
+        Thanks! This one asks for versions, install status and logs. Not into the command line? Use "Something's not right" instead.
+
+        **Codex 連不上時 / If Codex cannot connect:** 先執行解除安裝命令恢復直連（見 INSTALL.md 的 Uninstall），再來提問題。
+        Run the uninstall command from INSTALL.md first to restore the direct connection.
+        **Claude 連不上時 / If Claude Code cannot connect:** 解除安裝 Claude 外掛後，新會話會直接連線。
+        Uninstall the Claude plugin; new sessions then connect directly.
+  - type: dropdown
+    id: app
+    attributes:
+      label: 應用 / App
+      options: [Codex, Claude Desktop]
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 平臺 / Platform
+      options: [Windows, macOS, Linux]
+    validations:
+      required: true
+  - type: input
+    id: codex
+    attributes:
+      label: 應用版本 / App version
+      description: Codex 桌面版的版本號或 `codex --version` 的輸出；Claude 桌面版的版本號或 `claude --version` 的輸出 / The desktop app's version, or the output of `codex --version` or `claude --version`
+    validations:
+      required: true
+  - type: input
+    id: plugin
+    attributes:
+      label: 外掛版本 / Plugin version
+      placeholder: "0.9.0"
+  - type: textarea
+    id: what
+    attributes:
+      label: 發生了什麼 / What happened
+      description: 做了什麼，期望什麼，實際看到什麼 / What you did, what you expected, what you saw
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: 安裝狀態 / Install status
+      description: |
+        Codex：`cam status` 的輸出（不含憑據）；Claude：`claude plugin list` 的輸出。
+        Codex: the output of `cam status` (it contains no credentials). Claude: the output of `claude plugin list`.
+      render: text
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日誌 / Logs
+      description: |
+        資料目錄裡 `plugin-server.jsonl` 和 `proxy/<日期>.jsonl` 的最後幾十行。日誌只記元資料，不含對話內容；貼之前請再看一眼。
+        The last lines of `plugin-server.jsonl` and `proxy/<date>.jsonl` in the data folder. They hold metadata only; please check before pasting.
+      render: text

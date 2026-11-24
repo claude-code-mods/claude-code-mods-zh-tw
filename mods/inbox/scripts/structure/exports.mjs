@@ -1,0 +1,162 @@
+import { execFileSync } from 'node:child_process'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { dirname, join, relative, resolve } from 'node:path'
+
+import { localTarget } from './imports.mjs'
+import { API, nameOf, ts } from './ts.mjs'
+
+/** Committed build output, and types/parts, which scripts/build-types.mjs joins into types/index.d.ts instead of importing. */
+const SKIPPED_DIRS = ['codex/plugin/dist', 'herdr/mod', 'omp/dist', 'types/parts']
+
+/**
+ * Exports whose consumer is outside the repo's imports: a host or a tool loads the file, or a script reads it as text.
+ * `names` lists the exports that consumer takes, or `'*'` for all of them.
+ */
+const ENTRY_POINTS = {
+  'codex/src/server-handler.ts': { names: '*', why: 'codex/src/server-main.ts loads the built handler by URL.' },
+  'codex/src/tab.tsx': { names: '*', why: 'codex/build.mjs bundles it as the tab page script.' },
+  'evals/omp-probe.ts': { names: ['default'], why: 'The agent suite loads it into omp with -e.' },
+  'herdr/src/main.ts': { names: ['default'], why: 'The Herdr app loads the built mod and renders its default export.' },
+  'hooks/clients.ts': { names: ['CLIENTS'], why: 'scripts/structure/clients.mjs reads it.' },
+  'hooks/client-features.ts': { names: ['FeatureId'], why: 'scripts/structure/clients.mjs reads it.' },
+  'hooks/tones.ts': { names: ['DARK_TONES', 'LIGHT_TONES'], why: 'codex/build.mjs reads them for the tab colors.' },
+  'omp/src/host.ts': { names: ['default'], why: 'omp loads the built bundle and calls its default export.' },
+  'prototypes/exact-inbox/app.ts': { names: ['answer', 'grants'], why: 'Exact loads the client data module.' },
+  'prototypes/exact-inbox/app.contract.d.ts': { names: '*', why: 'Exact generates client data-source declarations.' },
+  'types/index.d.ts': { names: '*', why: 'scripts/build-types.mjs builds it from types/parts for the mod.' },
+  'videos/remotion.config.ts': { names: '*', why: 'Remotion loads it by name.' },
+  'videos/src/videos.ts': { names: ['TIMELINES'], why: 'videos/record/drive.py imports it from the built bundle.' },
+}
+
+/** The source files Git tracks or would track, so untracked files .gitignore covers, such as recorded takes, are left out. */
+function sourceFiles(root) {
+  const listed = execFileSync('git', ['-C', root, 'ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  })
+  const isSkipped = path => SKIPPED_DIRS.some(dir => path.startsWith(`${dir}/`))
+  const isSource = path => /\.(?:[cm]?ts|tsx|[cm]?js|jsx)$/.test(path)
+  return [...new Set(listed.split('\0'))]
+    .filter(path => path && isSource(path) && !isSkipped(path) && existsSync(join(root, path)))
+    .sort()
+}
+
+const isExported = node => node.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword) ?? false
+const isDefault = node => node.modifiers?.some(m => m.kind === ts.SyntaxKind.DefaultKeyword) ?? false
+
+function bindingNames(name) {
+  if (ts.isIdentifier(name)) return [name.text]
+  return name.elements.flatMap(element => (ts.isOmittedExpression(element) ? [] : bindingNames(element.name)))
+}
+
+/**
+ * The names an `import()` takes: those it destructures when it reads `const { a, b } = await import(...)`, and every
+ * name otherwise, since the module's object may be used whole.
+ */
+function dynamicImportNames(call) {
+  const awaited = call.parent
+  const declaration = awaited && ts.isAwaitExpression(awaited) ? awaited.parent : null
+  const pattern = declaration && ts.isVariableDeclaration(declaration) ? declaration.name : null
+  if (!pattern || !ts.isObjectBindingPattern(pattern) || pattern.elements.some(e => e.dotDotDotToken)) return ['*']
+
+  const names = pattern.elements.map(e => nameOf(e.propertyName ?? e.name))
+
+  return names.includes(null) ? ['*'] : names
+}
+
+/** The names a file exports itself, and each module it takes names from: `'*'` for every name. */
+function scan(source) {
+  const exported = []
+  const uses = []
+  const use = (specifier, names) => {
+    if (specifier && (ts.isStringLiteral(specifier) || ts.isNoSubstitutionTemplateLiteral(specifier)))
+      uses.push({ from: specifier.text, names })
+  }
+  for (const statement of source.statements) {
+    if (ts.isModuleDeclaration(statement)) continue
+    if (ts.isExportAssignment(statement)) exported.push('default')
+    else if (ts.isExportDeclaration(statement)) {
+      const specifiers =
+        statement.exportClause && ts.isNamedExports(statement.exportClause) ? statement.exportClause.elements : null
+      if (statement.moduleSpecifier)
+        use(statement.moduleSpecifier, specifiers ? specifiers.map(s => nameOf(s.propertyName ?? s.name)) : ['*'])
+      if (specifiers) exported.push(...specifiers.map(s => nameOf(s.name)))
+    } else if (isExported(statement)) {
+      if (ts.isVariableStatement(statement))
+        exported.push(...statement.declarationList.declarations.flatMap(d => bindingNames(d.name)))
+      else exported.push(isDefault(statement) ? 'default' : statement.name.text)
+    }
+  }
+  const visit = node => {
+    if (ts.isImportDeclaration(node)) {
+      const clause = node.importClause
+      const bindings = clause?.namedBindings
+      const names = []
+      if (clause?.name) names.push('default')
+      if (bindings && ts.isNamespaceImport(bindings)) names.push('*')
+      else if (bindings) names.push(...bindings.elements.map(s => nameOf(s.propertyName ?? s.name)))
+      use(node.moduleSpecifier, names)
+    } else if (ts.isImportTypeNode(node)) {
+      const qualifier = node.qualifier
+      let first = qualifier
+      while (first && ts.isQualifiedName(first)) first = first.left
+      use(node.argument.literal, [first ? first.text : '*'])
+    } else if (
+      ts.isCallExpression(node) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) && node.expression.text === 'require'))
+    ) {
+      use(node.arguments[0], node.expression.kind === ts.SyntaxKind.ImportKeyword ? dynamicImportNames(node) : ['*'])
+    } else if (ts.isJsxAttribute(node) && nameOf(node.name) === 'module' && node.initializer) {
+      use(node.initializer, ['default'])
+    }
+    node.forEachChild(visit)
+  }
+  visit(source)
+
+  return { exported, uses }
+}
+
+/** The mod's hooks modules, as hooks/hooks.json names them. The engine calls their exports. */
+function hooksModules(root) {
+  const path = join(root, 'hooks/hooks.json')
+  const config = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null
+  return (config?.modules ?? []).map(path => relative(root, resolve(root, 'hooks', path)))
+}
+
+export function checkExports(root, errors) {
+  const rootDir = realpathSync(root)
+  const files = sourceFiles(rootDir)
+  const used = new Map(files.map(path => [path, new Set()]))
+  const exportsOf = new Map()
+  const api = new API({ cwd: rootDir })
+  try {
+    const snapshot = api.updateSnapshot({ openFiles: files.map(path => join(rootDir, path)) })
+    for (const path of files) {
+      const absolute = join(rootDir, path)
+      const source = snapshot.getDefaultProjectForFile(absolute)?.program.getSourceFile(absolute)
+      if (!source) throw new Error(`Cannot parse ${path}.`)
+      const { exported, uses } = scan(source)
+      exportsOf.set(path, exported)
+      for (const { from, names } of uses) {
+        if (!from.startsWith('.')) continue
+        const target = localTarget(resolve(dirname(absolute), from))
+        const targetPath = target && relative(rootDir, target)
+        for (const name of names) used.get(targetPath)?.add(name)
+      }
+    }
+  } finally {
+    api.close()
+  }
+  for (const path of hooksModules(rootDir)) used.get(path)?.add('*')
+  for (const [path, { names }] of Object.entries(ENTRY_POINTS))
+    for (const name of [names].flat()) used.get(path)?.add(name)
+  for (const [path, exported] of exportsOf) {
+    const names = used.get(path)
+    for (const name of exported)
+      if (!names.has(name) && !names.has('*'))
+        errors.push(
+          `${path} exports ${name}, which nothing imports. Drop the export, or list a real entry point in scripts/structure/exports.mjs.`,
+        )
+  }
+}

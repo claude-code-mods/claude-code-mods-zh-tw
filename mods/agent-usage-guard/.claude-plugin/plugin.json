@@ -1,0 +1,15 @@
+{
+  "name": "agent-usage-guard",
+  "description": "在子 agent 並發展開、超長上下文提示和重試迴圈吃掉你的用量視窗之前將其攔下。它讀取你套餐的用量、統計所有會話中的 agent 數量，並在 Claude Code 自帶的對話方塊裡詢問。",
+  "version": "1.2.1",
+  "author": { "name": "Riccardo Bartoli" },
+  "homepage": "https://github.com/rbartoli/agent-usage-guard",
+  "repository": "https://github.com/rbartoli/agent-usage-guard",
+  "license": "MIT",
+  "icon": "./.claude-plugin/icon.png",
+  "types": "./types/index.d.ts",
+  "documentationUrl": "https://github.com/rbartoli/agent-usage-guard#readme",
+  "supportUrl": "https://github.com/rbartoli/agent-usage-guard/issues",
+  "privacyPolicyUrl": "https://github.com/rbartoli/agent-usage-guard#security-and-privacy",
+  "keywords": ["mod", "usage", "rate-limit", "subagents", "context", "guardrails", "cost"]
+}

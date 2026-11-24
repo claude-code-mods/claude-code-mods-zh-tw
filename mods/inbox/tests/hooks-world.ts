@@ -1,0 +1,537 @@
+import type { Engine, MockClock } from 'claude-code/testing'
+import type { On, PaneOpenArgs, PromptOrigin, RenderSurface } from 'claude-code'
+import { GH_TIMEOUT_MS } from '../hooks/gh'
+import { STATUS_SYSTEM } from '../hooks/status-prompt'
+import { parseStatus } from '../hooks/status'
+import { answersNextGoal } from '../hooks/status-suggest'
+import { prNodeOf, prsAnswerOf, queriedPrs } from './gh-answers'
+import type { PrAnswer, ThreadsJson, ViewJson } from './gh-answers'
+
+export const LEDGER_REPLY = `NEW: decide | 1 | Use Node or Python? | Node / Python | Node
+NEW: decide | 2 | Name the command greet? | - | yes`
+
+class World {
+  ledgerReply = LEDGER_REPLY
+  statusReply: string | null | string[] = 'UNCHANGED'
+  statusPrompts: string[] = []
+  statusHold: Promise<void> | null = null
+  sessionId = 'session-1'
+
+  sent: string[] = []
+
+  ran: string[][] = []
+  ranIn: { argv: string[]; cwd: string | undefined }[] = []
+
+  root = '/tmp/project'
+  folders: string[] = []
+  branches: Record<string, string> = {}
+
+  submitAnswer:
+    'enter' | 'hold' | { drop: string; beforeDrop?: () => Promise<void> } | { rewrite: string; hold?: boolean } =
+    'enter'
+  held: { text: string; origin: PromptOrigin; release: () => void }[] = []
+  inFlight: Promise<unknown>[] = []
+  promptRows = 0
+
+  toolVerdict: 'allow' | 'ask' | 'deny' = 'allow'
+  raisesPostHooks = false
+  toolHold: Promise<void> | null = null
+  stepAnswers: { answer: string; callsTool?: true }[] = []
+  transcriptRows: { role: 'user' | 'assistant'; text: string; toolUses: never[] }[] = []
+
+  dialogAnswer: Record<string, unknown> = { result: 'ok', text: 'ok' }
+  otherToolAnswer: Record<string, unknown> = { result: 'ok', text: 'ok' }
+  spawnedAgentId = 'a1'
+  listedAgents: { id: string; status: string }[] = []
+
+  isGhMissing = false
+  slowGhClock: MockClock | null = null
+
+  ghAnswers: {
+    match: (argv: readonly string[]) => boolean
+    stdout: string
+    hold?: () => Promise<void>
+    fails?: string
+    exitCode?: number
+  }[] = []
+
+  surfaces: RenderSurface[] = []
+
+  files: string[] = []
+  written: Record<string, string> = {}
+  isMoveFailing = false
+  holdMove: (() => Promise<void>) | undefined
+
+  sessionFiles: { pid: number; sessionId: string }[] | undefined
+  endedPids: number[] = []
+  isPsMissing = false
+
+  copied: string[] = []
+  toasts: string[] = []
+
+  theme = ''
+
+  beforeAct: (() => Promise<unknown>) | undefined
+
+  stored = new Map<string, string>()
+  storeRefusal: string | undefined
+  storeHold: (() => Promise<void>) | undefined
+  storeSetHold: ((key: string, value: unknown) => Promise<void>) | undefined
+  storeSetRefusal: string | undefined
+  storeSetLockHeld = 0
+  storeLockedKey: string | undefined
+  isStoreLocked = false
+  storeLimit: number | undefined
+  logged: string[] = []
+  toolRefusal: string | undefined
+  commandRefusal: string | undefined
+  panesOpened: string[] = []
+  paneOpens: PaneOpenArgs[] = []
+  paneState: { isShown: boolean; isFocused: boolean } | null = null
+  missingFiles: string[] = []
+}
+
+export const w = new World()
+
+const CONFIG_DIR = '/tmp/claude-config'
+
+const sessionFiles = () => w.sessionFiles ?? [{ pid: 100, sessionId: w.sessionId }]
+
+function psAnswer(argv: readonly string[]) {
+  const live = (argv[2] ?? '').split(',').filter(pid => !w.endedPids.includes(Number(pid)))
+  return {
+    exitCode: live.length > 0 ? 0 : 1,
+    stdout: live.map(pid => `  ${pid}\n`).join(''),
+    stderr: '',
+    isStdoutTruncated: false,
+    isStderrTruncated: false,
+  }
+}
+
+type GhAnswer = World['ghAnswers'][number]
+
+function answerOf(hit: GhAnswer | undefined) {
+  return {
+    exitCode: hit?.exitCode ?? (hit && !hit.fails ? 0 : 1),
+    stdout: hit && !hit.fails ? hit.stdout : '',
+    stderr: hit ? (hit.fails ?? '') : 'no pull requests found',
+    isStdoutTruncated: false,
+    isStderrTruncated: false,
+  }
+}
+
+const isPrsQuery = (argv: readonly string[]) =>
+  argv[1] === 'api' && argv[2] === 'graphql' && /^query=query \{ viewer/.test(argv[4] ?? '')
+
+/** Whether a graphql answer is in the old one-PR threads form, which the PRs query's answer is then built from. */
+function isThreadsAnswer(hit: GhAnswer): boolean {
+  try {
+    return (
+      hit.fails === undefined &&
+      'pullRequest' in (JSON.parse(hit.stdout) as { data: { repository: object } }).data.repository
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
+ * The PRs query's answer, built from the answers a test gives for each PR in the old form: `gh pr view` by number,
+ * and the one-PR threads query. A PR with no view answer is one GitHub does not find, and one whose view fails
+ * carries that failure. Each view's `hold` waits as it did for its own run.
+ */
+async function prsQueryAnswer(argv: readonly string[]) {
+  const query = (argv[4] ?? '').slice('query='.length)
+  const prs = queriedPrs(query)
+  const answers = new Map<string, PrAnswer>()
+  let viewer: string | undefined
+  for (const { repo, number } of prs) {
+    const [owner, name] = repo.split('/')
+    const viewHit = w.ghAnswers.find(a => a.match(['gh', 'pr', 'view', number, '-R', repo, '--json', 'url']))
+    await viewHit?.hold?.()
+    const threadsArgv = [
+      'gh',
+      'api',
+      'graphql',
+      '-f',
+      'query=threads',
+      '-F',
+      `owner=${owner}`,
+      '-F',
+      `repo=${name}`,
+      '-F',
+      `number=${number}`,
+    ]
+    const threadsHit = w.ghAnswers.find(a => a.match(threadsArgv))
+    const threads =
+      threadsHit && !threadsHit.fails
+        ? (
+            JSON.parse(threadsHit.stdout) as {
+              data: { viewer?: { login: string }; repository: { pullRequest: ThreadsJson } }
+            }
+          ).data
+        : null
+    viewer ??= threads?.viewer?.login
+    const key = `${repo}#${number}`
+    if (!viewHit) answers.set(key, null)
+    else if (viewHit.fails !== undefined) answers.set(key, { error: viewHit.fails })
+    else
+      answers.set(key, {
+        node: prNodeOf(JSON.parse(viewHit.stdout) as ViewJson, threads?.repository.pullRequest ?? {}),
+      })
+  }
+
+  return {
+    exitCode: [...answers.values()].every(a => a && 'node' in a) ? 0 : 1,
+    stdout: prsAnswerOf(query, (number, repo) => answers.get(`${repo}#${number}`) ?? null, viewer),
+    stderr: '',
+    isStdoutTruncated: false,
+    isStderrTruncated: false,
+  }
+}
+
+async function gh(argv: readonly string[]) {
+  const hit = w.ghAnswers.find(a => a.match(argv))
+  if (isPrsQuery(argv) && (!hit || isThreadsAnswer(hit))) return prsQueryAnswer(argv)
+  await hit?.hold?.()
+  if (!hit && (argv[0] === 'open' || argv[0] === 'herdr' || argv[0] === 'hc'))
+    return { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
+
+  return answerOf(hit)
+}
+
+function fileCommand(argv: readonly string[]) {
+  const paths = argv.slice(argv.indexOf('--') + 1)
+  const [from = '', to = ''] = paths
+  if (argv[0] === 'mv' && w.isMoveFailing)
+    return { exitCode: 1, stdout: '', stderr: 'mv: rename failed', isStdoutTruncated: false, isStderrTruncated: false }
+  if (argv[0] === 'mv') w.written[to] = w.written[from] ?? ''
+  for (const path of argv[0] === 'mv' ? [from] : paths) delete w.written[path]
+
+  return { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false }
+}
+
+async function runBeforeAct() {
+  const act = w.beforeAct
+  w.beforeAct = undefined
+  await act?.()
+}
+
+async function storePrompt($: Engine, prompt: { text: string; origin: PromptOrigin }) {
+  const row = {
+    message: { type: 'user' as const, role: 'user' as const, content: [{ type: 'text' as const, text: prompt.text }] },
+    door: 'prompt' as const,
+    origin: prompt.origin,
+    uuid: `prompt-row-${++w.promptRows}`,
+  }
+  await $.session.append(row)
+}
+
+async function storeHeld($: Engine, prompt: (typeof w.held)[number]) {
+  await storePrompt($, prompt)
+  prompt.release()
+}
+
+export function storedLength(stored: Map<string, string> = w.stored): number {
+  return `{${[...stored].map(([key, json]) => `${JSON.stringify(key)}:${json}`).join(',')}}`.length
+}
+
+export async function arrive($: Engine) {
+  const prompts = w.held
+  w.held = []
+  for (const p of prompts) await storeHeld($, p)
+  await Promise.all(w.inFlight)
+  w.inFlight = []
+}
+
+export async function arriveFirst($: Engine) {
+  await storeHeld($, w.held.shift()!)
+}
+
+async function holdUntilStored(prompt: { text: string; origin: PromptOrigin }) {
+  await new Promise<void>(release => w.held.push({ ...prompt, release }))
+}
+
+const withNextGoal = (text: string, prompt: string) => {
+  const answer = parseStatus(text)
+  const isNextGoalMissing = prompt.includes('<next-goal>') && answer !== null && !answersNextGoal(answer)
+
+  return isNextGoalMissing ? `${text}\nSUGGEST: -` : text
+}
+
+export function world($: Engine, on: On, prompts: string[], vars: Record<string, string> = {}) {
+  w.sent = []
+  w.submitAnswer = 'enter'
+  w.held = []
+  w.inFlight = []
+  w.ran = []
+  w.ranIn = []
+  w.root = '/tmp/project'
+  w.folders = ['/tmp/project']
+  w.branches = {}
+  w.toolVerdict = 'allow'
+  w.raisesPostHooks = false
+  w.toolHold = null
+  w.stepAnswers = []
+  w.transcriptRows = []
+  w.dialogAnswer = { result: 'ok', text: 'ok' }
+  w.otherToolAnswer = { result: 'ok', text: 'ok' }
+  w.spawnedAgentId = 'a1'
+  w.listedAgents = []
+  w.ghAnswers = []
+  w.isGhMissing = false
+  w.slowGhClock = null
+  w.ledgerReply = LEDGER_REPLY
+  w.statusReply = 'UNCHANGED'
+  w.statusPrompts = []
+  w.statusHold = null
+  w.sessionId = 'session-1'
+  w.surfaces = []
+  w.files = []
+  w.written = {}
+  w.isMoveFailing = false
+  w.holdMove = undefined
+  w.sessionFiles = undefined
+  w.endedPids = []
+  w.isPsMissing = false
+  w.copied = []
+  w.toasts = []
+  w.theme = ''
+  w.beforeAct = undefined
+  w.stored = new Map()
+  w.storeRefusal = undefined
+  w.storeHold = undefined
+  w.storeSetHold = undefined
+  w.storeSetRefusal = undefined
+  w.storeSetLockHeld = 0
+  w.storeLockedKey = undefined
+  w.isStoreLocked = false
+  w.storeLimit = undefined
+  w.logged = []
+  w.toolRefusal = undefined
+  w.commandRefusal = undefined
+  w.panesOpened = []
+  w.paneOpens = []
+  w.paneState = null
+  w.missingFiles = []
+  on('store.get', async (_$, e) => {
+    if (e.key.startsWith('s:')) await w.storeHold?.()
+    if (w.storeRefusal && e.key.startsWith('s:')) return { deny: w.storeRefusal }
+    const json = w.stored.get(e.key)
+    return { value: json === undefined ? undefined : JSON.parse(json) }
+  })
+  on('store.set', async (_$, e) => {
+    await w.storeSetHold?.(e.key, e.value)
+    if (w.storeSetRefusal && e.key.startsWith('s:')) return { deny: w.storeSetRefusal }
+    if (w.isStoreLocked || e.key === w.storeLockedKey) return { deny: 'Lock file is already being held' }
+    if (w.storeSetLockHeld > 0 && e.key.startsWith('s:')) {
+      w.storeSetLockHeld--
+      return { deny: 'Lock file is already being held' }
+    }
+    const length = storedLength(new Map(w.stored).set(e.key, JSON.stringify(e.value)))
+    if (w.storeLimit !== undefined && length > w.storeLimit)
+      return {
+        deny: `inbox@inline: $.store.set: the store would be ${length} characters, over the ${w.storeLimit} limit`,
+      }
+    w.stored.set(e.key, JSON.stringify(e.value))
+    return { value: undefined }
+  })
+  on('store.delete', (_$, e) => {
+    if (w.isStoreLocked) return { deny: 'Lock file is already being held' }
+    w.stored.delete(e.key)
+    return { value: undefined }
+  })
+  on('store.keys', () => ({ value: [...w.stored.keys()] }))
+  on('ui.log', (_$, e) => {
+    w.logged.push(e.text)
+    return { value: undefined }
+  })
+  on('config.list', () => ({
+    value: w.theme
+      ? [
+          {
+            key: 'theme',
+            label: 'Theme',
+            kind: 'choice' as const,
+            value: w.theme,
+            provider: { plugin: 'engine', tier: 'core' as const },
+            isLocked: false,
+          },
+        ]
+      : [],
+  }))
+  on('session.surfaces', () => ({ value: w.surfaces }))
+  on('session.attach', (_$, e) => ({ clientId: e.clientId }))
+  on('session.id', () => ({ value: w.sessionId }))
+  on('session.end', (_$, e) => ({ sessionId: e.sessionId }))
+  on('session.root', () => ({ value: w.root }))
+  on('env.get', (_$, e) => ({ value: e.name in vars || e.name !== 'CLAUDE_CONFIG_DIR' ? vars[e.name] : CONFIG_DIR }))
+  on('command.register', (_$, e) => (w.commandRefusal ? { deny: w.commandRefusal } : { value: { command: e.name } }))
+  on('tool.register', (_$, e) =>
+    w.toolRefusal ? { deny: w.toolRefusal } : { value: { tool: `mcp__inbox__${e.name}` } },
+  )
+  on('ui.open', (_$, e) => {
+    w.panesOpened.push(e.id)
+    w.paneOpens.push(e)
+    return { value: { isPlaced: true as const } }
+  })
+  on('ui.panes', () => ({
+    value: w.paneState ? [{ id: 'inbox', title: 'Inbox', ...w.paneState, isPlaced: w.paneState.isShown }] : [],
+  }))
+  on('ui.close', () => ({ value: undefined }))
+  on('ui.toast', (_$, e) => {
+    w.toasts.push(e.text)
+    return { value: undefined }
+  })
+  on('ui.copy', (_$, e) => {
+    w.copied.push(e.text)
+    return { value: { isCopied: true as const } }
+  })
+  on('fs.exists', (_$, e) => ({ value: w.folders.includes(e.path) || w.files.some(f => e.path.endsWith(f)) }))
+  on('fs.list', (_$, e) => {
+    const written = Object.keys(w.written).filter(path => path.startsWith(`${e.path}/`))
+    if (written.length > 0)
+      return {
+        value: written.map(path => ({
+          name: path.slice(e.path.length + 1),
+          kind: 'file' as const,
+          size: 1,
+          mtimeMs: 1,
+          isLink: false,
+        })),
+      }
+    if (e.path !== `${CONFIG_DIR}/sessions`) return { deny: `ENOENT: ${e.path}` }
+    const entry = (name: string) => ({ name, kind: 'file' as const, size: 1, mtimeMs: 1, isLink: false })
+    return { value: sessionFiles().flatMap(f => [entry(`${f.pid}.json`), entry(`${f.pid}.key`)]) }
+  })
+  on('fs.read', (_$, e) => {
+    if (e.path in w.written) return { value: w.written[e.path]! }
+    const file = sessionFiles().find(f => e.path === `${CONFIG_DIR}/sessions/${f.pid}.json`)
+    if (file) return { value: JSON.stringify({ ...file, cwd: '/tmp/project', status: 'busy', updatedAt: 1 }) }
+    if (!e.path.endsWith('/.claude-plugin/plugin.json')) throw new Error(`ENOENT: ${e.path}`)
+    return { value: JSON.stringify({ name: 'inbox', version: '1.2.3' }) }
+  })
+  on('fs.stat', (_$, e) =>
+    w.missingFiles.includes(e.path)
+      ? { deny: 'ENOENT' }
+      : {
+          value: {
+            kind: w.folders.includes(e.path) ? ('dir' as const) : ('file' as const),
+            size: 1,
+            mtimeMs: 1,
+            isLink: false,
+          },
+        },
+  )
+  on('fs.write', (_$, e) => {
+    w.written[e.path] = e.text
+    return { value: undefined }
+  })
+  on('process.run', async (_$, e) => {
+    if (e.argv[0] === 'ps') return w.isPsMissing ? { deny: 'spawn ps ENOENT' } : { value: psAnswer(e.argv) }
+    w.ran.push([...e.argv])
+    const cwd = e.init?.cwd
+    w.ranIn.push({ argv: [...e.argv], cwd })
+    if (cwd !== undefined && cwd !== '/' && !w.folders.includes(cwd))
+      return { deny: `posix_spawn '${e.argv[0]}' ENOENT` }
+    const branch = cwd === undefined ? undefined : w.branches[cwd]
+    if (e.argv.join(' ') === 'git branch --show-current' && branch !== undefined)
+      return {
+        value: { exitCode: 0, stdout: `${branch}\n`, stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
+      }
+    if (e.argv[0] === 'mv') await w.holdMove?.()
+    if (e.argv[0] === 'mv' || e.argv[0] === 'rm') return { value: fileCommand(e.argv) }
+    if (w.isGhMissing && e.argv[0] === 'gh') throw new Error('spawn gh ENOENT')
+    if (w.slowGhClock && e.argv[0] === 'gh') {
+      await w.slowGhClock.sleep(GH_TIMEOUT_MS)
+      return { deny: 'killed at the timeout' }
+    }
+    return { value: await gh(e.argv) }
+  })
+  on('model.complete', async (_$, e) => {
+    const isStatusCall =
+      (e.systemBlocks ?? []).some(block => block.text === STATUS_SYSTEM) || e.system === STATUS_SYSTEM
+    if (isStatusCall) w.statusPrompts.push(e.prompt)
+    else prompts.push(e.prompt)
+    if (isStatusCall) await w.statusHold
+    const statusText = !isStatusCall
+      ? null
+      : Array.isArray(w.statusReply)
+        ? (w.statusReply.shift() ?? 'UNCHANGED')
+        : w.statusReply
+    if (isStatusCall && statusText === null) return { deny: 'the Status call failed' }
+
+    return {
+      value: {
+        isAnswered: true,
+        text: isStatusCall ? withNextGoal(statusText!, e.prompt) : w.ledgerReply,
+        usage: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+      },
+    }
+  })
+  on('prompt.submit', async (_$, e) => {
+    if (e.origin.kind !== 'plugin') return { text: e.text, context: e.context }
+    w.sent.push(e.text)
+    if (typeof w.submitAnswer === 'object') {
+      if ('drop' in w.submitAnswer) {
+        await w.submitAnswer.beforeDrop?.()
+        return { drop: w.submitAnswer.drop }
+      }
+      const rewritten = { text: w.submitAnswer.rewrite, origin: e.origin }
+      if (w.submitAnswer.hold) await holdUntilStored(rewritten)
+      else await storePrompt($, rewritten)
+      return { text: rewritten.text, context: e.context }
+    }
+    if (w.submitAnswer === 'hold') await holdUntilStored({ text: e.text, origin: e.origin })
+    else await storePrompt($, { text: e.text, origin: e.origin })
+
+    return { text: e.text, context: e.context }
+  })
+  on('turn.complete', (_$, e) => ({ text: e.answer }))
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  on('turn.start', (_$, e) => ({ turnId: e.turnId }))
+  on('classic.StopFailure', () => ({}))
+  on('classic.PermissionRequest', () => ({}))
+  on('classic.PostToolUse', () => ({}))
+  on('classic.PostToolUseFailure', () => ({}))
+  on('tool.check', () => ({ decision: w.toolVerdict }))
+  on('turn.step', async function* (_$, e) {
+    const { answer, callsTool } = w.stepAnswers[e.index] ?? { answer: '' }
+    const isLast = !callsTool
+
+    return {
+      turnId: e.turnId,
+      index: e.index,
+      answer,
+      toolUses: isLast ? [] : [{ id: `call-${e.index}`, name: 'Bash', input: {} }],
+      stopReason: isLast ? ('end_turn' as const) : ('tool_use' as const),
+      usage: null,
+    }
+  })
+  on('session.messages', () => ({ value: w.transcriptRows }))
+  on('classic.SessionStart', (_$, e) => {
+    w.sessionId = e.session_id
+    return {}
+  })
+  on('tool.call', async (_$, e) => {
+    await w.toolHold
+    const answer = e.tool === 'AskUserQuestion' ? w.dialogAnswer : w.otherToolAnswer
+    if (w.raisesPostHooks && w.toolVerdict !== 'deny') {
+      const call = { tool_name: e.tool, tool_input: e, tool_use_id: e.tool_use_id }
+      if (answer.isError) await $.classic.PostToolUseFailure({ ...call, error: answer.text } as never)
+      else await $.classic.PostToolUse({ ...call, tool_response: answer.result } as never)
+    }
+    return answer as never
+  })
+  on('agent.spawn', () => ({ model: 'sonnet', agentId: w.spawnedAgentId }))
+  on('agent.list', () => ({ value: w.listedAgents as never }))
+  on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
+  on('ui.press', { plugin: 'inbox' }, async (_$, e, next) => {
+    await runBeforeAct()
+    return next(e)
+  })
+  on('ui.input', { plugin: 'inbox' }, async (_$, e, next) => {
+    if (e.kind === 'submit') await runBeforeAct()
+    return next(e)
+  })
+}

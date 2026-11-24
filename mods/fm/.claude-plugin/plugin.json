@@ -1,0 +1,9 @@
+{
+  "name": "fm",
+  "version": "1.0.0",
+  "description": "Firstmate Calm：帆船工作動畫與會話式轉寫展示，與 Pi Calm 擴充套件共用 per-home 的 config/calm 偏好。僅當 CLAUDE_CODE_ENABLE_FUNCTION_HOOKS 恰好為 1 時才生效，否則完全不動作。",
+  "author": {
+    "name": "Firstmate",
+    "url": "https://github.com/kunchenguid/firstmate"
+  }
+}

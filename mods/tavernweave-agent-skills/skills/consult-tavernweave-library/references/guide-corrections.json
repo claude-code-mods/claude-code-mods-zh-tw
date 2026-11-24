@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Reapply reviewed TW corrections after copying the dated source snapshot; retain original sourceHash and recompute targetHash.",
+  "guides": {
+    "C3_HTML美化與CSS.md": [
+      {
+        "before": "> 文件版本：v1.0.0 ｜ 最後更新：2026-07-14",
+        "after": "> 文件版本：v1.0.0 ｜ 最後更新：2026-07-14\n> TW 本地修訂：2026-10-13，僅校正 messageFormatter 適用範圍與歷史 HUD 快取示例邊界；其餘採集日期和專案證據保持原義。"
+      },
+      {
+        "before": "ST 訊息樓層有**兩條** HTML 注入路徑，兩條路徑的產物都經過 DOMPurify 淨化。",
+        "after": "本節對照正則擴充套件和舊資料描述的 messageFormatter 路徑。本冊 v1.14.0 基準沒有證實後者可用，不能據此選擇實現路線。訊息內容仍須遵守目標渲染管線的淨化邊界。"
+      },
+      {
+        "before": "| B：Extension messageFormatter 鉤子 | `beforeRegex` / `afterRegex` / `afterMarkdown` | 各自階段 | DOMPurify 之前處理 | 文件·多源 | **high** [文件·多源] |",
+        "after": "| B：舊資料描述的 messageFormatter 鉤子 | `beforeRegex` / `afterRegex` / `afterMarkdown` | 不適用於本冊 v1.14.0 基準 | 不據此判斷渲染位置 | 同包 A5 的原始碼校準 | **low** [歷史孤證]；採用前須查證實際目標能力 |"
+      },
+      {
+        "before": "### 路徑 B 鉤子約束\n\n- 所有三個鉤子回撥必須**同步返回字串**，不支援 async/Promise 返回。  \n  **來源**：ST 擴充套件開發文件 <https://docs.sillytavern.app/for-contributors/writing-extensions/> ｜ **置信度**：high [文件·多源]",
+        "after": "### 路徑 B 的版本邊界\n\n[A5 的校準記錄](A5_渲染管線與宏.md#6-messageformatter-hook-api) 已指出：v1.14.0 的 `getContext()` 不提供此欄位，不能把舊描述作為該版本的可用介面。2026-10-13 複查固定標籤的 [extensions.js](https://github.com/SillyTavern/SillyTavern/blob/1.14.0/public/scripts/extensions.js) 也只轉出實際上下文介面；其他版本或第三方擴充套件是否提供鉤子，需要 `sillytavern-api-reference` 核對提供者、簽名和呼叫路徑。同步返回、執行階段和淨化位置均隨目標實現查證，不繼承舊結論。"
+      },
+      {
+        "before": "### 完整變數讀取函式（含雙鏈路降級）\n\n**來源**：r5 第 4673–4683 行 ｜ **置信度**：high [執行時原始碼]",
+        "after": "### 歷史 r5 讀取摘錄（不是通用快取介面卡）\n\n**來源**：r5 第 4673–4683 行。摘錄存在本身為 high [執行時原始碼]；快取的跨聊天正確性和移植安全性未由這段程式碼證明。下面保留歷史原文供辨認，不能直接複製為新卡的完整讀取函式。當前狀態列設計以 [MVU 狀態列規範](../../../sillytavern-embedded-ui/references/mvu-statusbar-design.md) 為準。"
+      },
+      {
+        "before": "  return lastGoodHudData || { stat_data: {} };\n}\n```",
+        "after": "  return lastGoodHudData || { stat_data: {} };\n}\n```\n\n**移植時必須補齊的邊界：**\n\n- 快取鍵至少綁定當前聊天標識、訊息樓層及 swipe 分支，並繫結狀態版本或更新序號。先捕獲讀取目標，再核對回撥返回時目標仍一致；遲到的舊結果丟棄。\n- 只在同一目標的有效讀取失敗時，按介面已經約定的策略展示舊值，並明確標記“舊資料/未重新整理”。切換目標不能把上一目標的快取當成當前值；清理舊訂閱並切到當前目標的快取或缺失狀態。\n- `ready`（當前有效值）、`stale`（同目標舊值）、`uninitialized`（已確認未初始化）、`unavailable`（讀取失敗或來源未就緒）分別處理。讀取失敗本身不能證明未初始化；也不能將 `{stat_data:{}}` 當成成功結果。\n- 0、false 和已定義的空集合可以是有效值；先按實際 Schema 判斷，不能靠真值檢查把它們當缺失。缺欄位或非法值須保留問題狀態。\n- 兩條讀取鏈只有在作用域、結構和版本語義一致時才可互為備用。備用鏈不負責初始化、自動修存檔或傳送訊息；顯示重新整理保持只讀。\n\n新實現須分別檢查新聊天未初始化、同目標讀取失敗、聊天/樓層/swipe 切換、遲到回撥和重新載入。以上是當前實現要求，未據此宣稱歷史 r5 已發生串聊天，也不代表目標酒館已經透過實測。"
+      }
+    ],
+    "A0_駕馭工程從零搭建檢查單.md": [
+      {
+        "before": "> 文件版本：v1.1.0 ｜ 最後更新：2026-07-17",
+        "after": "> 文件版本：v1.1.0 ｜ 最後更新：2026-07-17\n> TW 本地修訂：2026-10-15，按使用者批准的主動釐清規則校正重複確認門檻；原始來源日期保留。"
+      },
+      {
+        "before": "每次讓 AI 開工前，過這三格（**任何一格含糊 ＝ 先補齊再開工**）：",
+        "after": "開工前從當前與相關既有上下文檢查這三格。已經明確的內容直接沿用；只在關鍵缺項或衝突會改變方案、範圍、驗收或執行風險時詢問，低風險可逆的小缺口可以說明假設後繼續。具體提問門檻遵守[共用溝通規則](../communication-and-guidance.md)。"
+      },
+      {
+        "before": "- [ ] **複述糾偏**：讓 AI 用三句話回讀它的理解（目標是 X / 紅線是 Y / 驗收是 Z），你逐句確認或糾正，**對上了才開工**。同步的成色不看你說了多少，看 AI 複述得對不對。",
+        "after": "- [ ] **必要時反饋理解**：有歧義時給一句可以糾正的理解，並問真正影響結果的問題。上下文已明確就推進，不要求每次三句話複述或逐句確認；理解與推定也不能代替寫入、釋出等動作所需的授權。"
+      },
+      {
+        "before": "**✘ 常見坑**：跳過複述。你說得再全，AI 理解偏了照樣白乾——複述是唯一能提前暴露理解偏差的手段。",
+        "after": "**✘ 常見坑**：忽略已有上下文，反覆確認已決定的事；或在關鍵衝突未解決時擅自開工。簡短理解反饋、材料核查和有針對性的問題都可幫助發現偏差，按當前需要選用。"
+      },
+      {
+        "before": "- [ ] 每次新會話開工：先讓 AI 讀進度文件 + 上次交接，**複述現狀**，對了再繼續。",
+        "after": "- [ ] 每次新會話開工，先讀進度與交接並核對實際產物。現狀明確就續接；只有關鍵缺項或衝突影響下一步時，簡短反饋理解並詢問，不要求再次確認已決定的事項。"
+      },
+      {
+        "before": "開工前 30 秒把三件事說清，能擋掉一半返工。",
+        "after": "開工前先說清這三件事，減少因目標或邊界不明造成的返工。"
+      }
+    ],
+    "A2_角色卡格式規範.md": [
+      {
+        "before": "# 角色卡格式規範",
+        "after": "# 角色卡格式規範\n\n> TW 導航補充（2026-10-15）：需要先看完整回合時，按需讀[酒館執行基礎](../sillytavern-runtime-foundations.md)。已有上下文不重複載入；本冊保留原專項內容及其版本邊界。"
+      }
+    ],
+    "A3_世界書最佳化.md": [
+      {
+        "before": "# 世界書（World Info / Lorebook）參考手冊章節",
+        "after": "# 世界書（World Info / Lorebook）參考手冊章節\n\n> TW 導航補充（2026-10-15）：需要先看完整回合時，按需讀[酒館執行基礎](../sillytavern-runtime-foundations.md)。已有上下文不重複載入；本冊保留原專項內容及其版本邊界。"
+      }
+    ],
+    "A4_提示詞與預設.md": [
+      {
+        "before": "# 提示詞與預設（Prompts & Presets）參考手冊",
+        "after": "# 提示詞與預設（Prompts & Presets）參考手冊\n\n> TW 導航補充（2026-10-15）：需要先看完整回合時，按需讀[酒館執行基礎](../sillytavern-runtime-foundations.md)。已有上下文不重複載入；本冊保留原專項內容及其版本邊界。"
+      }
+    ],
+    "A5_渲染管線與宏.md": [
+      {
+        "before": "# 渲染管線與宏系統參考手冊",
+        "after": "# 渲染管線與宏系統參考手冊\n\n> TW 導航補充（2026-10-15）：需要先看完整回合時，按需讀[酒館執行基礎](../sillytavern-runtime-foundations.md)。已有上下文不重複載入；本冊保留原專項內容及其版本邊界。"
+      },
+      {
+        "before": "回源基準：SillyTavern v1.14.0 + 本地成熟卡（卡A 2.5.0 / 卡B 2.6.0）",
+        "after": "證據基線：SillyTavern v1.14.0 + 本地成熟卡（卡A 2.5.0 / 卡B 2.6.0）；控制流以當前官方 macros 文件核對"
+      },
+      {
+        "before": "> 來源：官方文件 [文件·多源] | 適用版本：**官方文件記錄，v1.14.0 本地 macros.js 直讀未見實現** | ~~high~~ → **medium·推導未驗證 [文件·多源]**",
+        "after": "> 來源：官方文件 [文件·多源] | 狀態：**當前宏引擎已實現（以官方 macros 文件為基線）** | 置信度：**high [文件·多源]**"
+      },
+      {
+        "before": "> **降級原因**：v1.14.0 `macros.js` `evaluateMacros()` 的 `preEnvMacros` / `postEnvMacros` 中無任何 `{{if}}`/`{{//}}` 的正則處理；`{{//comment}}` 單行註釋正則 `/\\{\\{\\/\\/([\\s\\S]*?)\\}\\}/gm` 在 postEnvMacros 中存在，但 `{{if}}` 塊不存在。控制流宏可能屬於新引擎或更高版本引入。`{{//comment}}` 單行註釋可單獨提升為 high（v1.14.0 直讀）。\n>\n> 真機驗證路徑：在 v1.14.0 中傳送 `{{if true}}SHOW{{/if}}`，觀察是否渲染為 \"SHOW\"。",
+        "after": "> **官方依據**：[Conditional Macros](https://docs.sillytavern.app/usage/core-concepts/macros/#conditional-macros)、[Comments](https://docs.sillytavern.app/usage/core-concepts/macros/#comments)、[Scoped Macros](https://docs.sillytavern.app/usage/core-concepts/macros/#scoped-macros)、[Macro Flags](https://docs.sillytavern.app/usage/core-concepts/macros/#macro-flags)。當前宏引擎已實現 `{{if}}`/`{{else}}`/`{{//}}` 多行註釋，以該官方文件為基線。\n>\n> **邊界**：官方文件對應當前宏引擎（Experimental Macro Engine，新安裝預設啟用）；v1.14.0 本地 `macros.js` 未見 `{{if}}` 實現，舊版本行為仍以該版本實測為準。"
+      },
+      {
+        "before": "| `{{if cond}}...{{/if}}` | 條件渲染 | **medium·推導未驗證 [文件·多源]**（v1.14.0 無此實現） |\n| `{{if cond}}...{{else}}...{{/if}}` | if/else 分支 | **medium·推導未驗證 [文件·多源]** |\n| `{{if !cond}}` | 取反條件 | **medium·推導未驗證 [文件·多源]** |",
+        "after": "| `{{if cond}}...{{/if}}` | 條件渲染 | **high [文件·多源]**（當前宏引擎已實現） |\n| `{{if cond}}...{{else}}...{{/if}}` | if/else 分支 | **high [文件·多源]**（當前宏引擎已實現） |\n| `{{if !cond}}` | 取反條件 | **high [文件·多源]**（當前宏引擎已實現） |"
+      },
+      {
+        "before": "| `{{//}}...{{///}}` | 多行註釋塊 | **medium·推導未驗證 [文件·多源]**（v1.14.0 無此實現） |",
+        "after": "| `{{//}}...{{///}}` | 多行註釋塊 | **high [文件·多源]**（當前宏引擎已實現，官方 Comments 的 scoped 形式） |"
+      }
+    ],
+    "B1_變數更新規則.md": [
+      {
+        "before": "# 變數更新規則參考手冊",
+        "after": "# 變數更新規則參考手冊\n\n> TW 導航補充（2026-10-15）：需要先看完整回合時，按需讀[酒館執行基礎](../sillytavern-runtime-foundations.md)。已有上下文不重複載入；本冊保留原專項內容及其版本邊界。"
+      },
+      {
+        "before": "**核心結論**：bundle.js（master版）中 v 物件定義了 6 個公開事件，另有 2 個 mvu_zod.js 內部事件；另外 bundle.js 還有 2 個底層排程常量（`mag_invoke_mvu`、`mag_update_variable`）不屬於公開生命週期 API。",
+        "after": "**核心結論**：bundle.js（master版）中 v 物件定義了 5 個公開事件，另有 2 個 mvu_zod.js 內部事件；另外 bundle.js 還有 2 個底層排程常量（`mag_invoke_mvu`、`mag_update_variable`）不屬於公開生命週期 API。"
+      },
+      {
+        "before": "| `mag_variable_initialized` | 變數初始化完成後 | ✅ | 第一次從WI載入InitialVariables完成時 |",
+        "after": "| `mag_variable_initiailized` | 變數初始化完成後 | ✅ | 第一次從WI載入InitialVariables完成時（上游 typo 字串） |"
+      },
+      {
+        "before": "| `mag_variable_updated` | 單個變數發生變化時 | ✅ | 細粒度監聽單變數變化 |",
+        "after": "| `mag_variable_updated` | 單個變數發生變化時 | ⚠️ 未在匯出宣告面 | 細粒度監聽單變數變化；medium·單源，需真機驗證 |"
+      },
+      {
+        "before": "來源：`[執行時原始碼]`（bundle.js + mvu_zod.js CDN 實測）+ `[本地實戰]`（卡A2.5.0 mvu_zod_cn.js） | 置信度：公開6事件 **high**；mvu_zod.js 內部事件名 `mag_command_parsed_ended_for_zod` **medium·單源孤證**（僅 WebFetch 摘要）",
+        "after": "來源：`[執行時原始碼]`（bundle.js + mvu_zod.js CDN 實測）+ `[型別宣告]`（@types.txt `Mvu.events` 5 項）+ `[本地實戰]`（卡A2.5.0 mvu_zod_cn.js） | 置信度：公開5事件 **high**；`mag_variable_updated` 未在匯出宣告面、**medium·單源**；mvu_zod.js 內部事件名 `mag_command_parsed_ended_for_zod` **medium·單源孤證**（僅 WebFetch 摘要）"
+      },
+      {
+        "before": "| `mag_variable_initialized` | 執行時原始碼（bundle.js v物件） | 變數初始化完成 | high |",
+        "after": "| `mag_variable_initiailized` | 執行時原始碼（bundle.js v物件）+ 型別宣告 | 變數初始化完成（上游 typo 字串） | high |"
+      },
+      {
+        "before": "| `mag_variable_updated` | 執行時原始碼（bundle.js v物件） | 單個變數變化時 | high |",
+        "after": "| `mag_variable_updated` | bundle.js v 物件摘要（未在匯出宣告面） | 單個變數變化時 | medium·單源 |"
+      }
+    ],
+    "B2_STScript與QuickReplies.md": [
+      {
+        "before": "| `/gen` | `/gen [lock=on/off] [stop=[]] prompt` | 用當前角色 + 聊天曆史生成，注入完整上下文 |",
+        "after": "| `/gen` | `/gen [lock=on/off] prompt` | 用當前角色 + 聊天曆史生成，注入完整上下文 |"
+      },
+      {
+        "before": "**`stop=` 引數**：接受 JSON 陣列格式，如 `stop=[\"END\",\"<stop>\"]`。",
+        "after": "**`stop=` 引數（僅 `/genraw`）**：接受 JSON 陣列格式，如 `stop=[\"END\",\"<stop>\"]`；`/gen` 不支援 `stop=`。"
+      },
+      {
+        "before": "| `/cut` | `/cut index` | 刪除指定訊息 |\n| `/del` | `/del index` | 刪除指定訊息 |",
+        "after": "| `/cut` | `/cut (number\\|range)` | 刪除訊息或連續區間（區間含端點，如 `/cut 0-10`） |\n| `/del` | `/del (number)?` | 進入訊息刪除模式；帶數字引數時自動刪除最後 N 條訊息（按樓層刪除用 `/cut`） |"
+      },
+      {
+        "before": "| `/inject` | `/inject id=ID [position=after/before/chat] [depth=N] text` | 注入提示內容到上下文 |",
+        "after": "| `/inject` | `/inject id=ID [position=before\\|after\\|chat\\|none] [depth=N] [scan=true\\|false] [role=system\\|assistant\\|user] [ephemeral=true\\|false] [filter=closure] text` | 注入提示內容到上下文（詳見下方引數詳解） |"
+      },
+      {
+        "before": "| `position=` | `before`（系統提示前）/ `after`（角色卡後）/ `chat`（聊天曆史內） | 注入位置 |\n| `depth=` | 整數 | `position=chat` 時有效；`0` = 最後一條訊息後，`N` = 倒數第 N 條訊息處 |",
+        "after": "| `position=` | `before`（主提示詞前）/ `after`（主提示詞後，預設）/ `chat`（聊天曆史內）/ `none`（不插入提示詞，但可觸發世界書） | 注入位置 |\n| `depth=` | 整數 | 注入深度，預設 `4`；`position=chat` 時有效（`0` = 最後一條訊息後，`N` = 倒數第 N 條訊息處） |\n| `scan=` | `true`/`false`（預設 `false`） | 注入內容是否參與世界書掃描 |\n| `role=` | `system`（預設）/ `assistant` / `user` | in-chat 注入的訊息角色 |\n| `ephemeral=` | `true`/`false`（預設 `false`） | 是否臨時注入 |\n| `filter=` | closure | 注入過濾閉包 |"
+      },
+      {
+        "before": "| `/rand` | `/rand [min=N] [max=M]` 隨機數 |",
+        "after": "| `/rand` | `/rand [from=N] [to=M] [round=round\\|ceil\\|floor]` 隨機數（預設 `from=0`、`to=1`，含端點） |"
+      },
+      {
+        "before": "| `/addvar` | `/addvar key=name [index=i] increment` | 數值累加；對陣列則 push |",
+        "after": "| `/addvar` | `/addvar key=name increment` | 數值累加；對陣列則 push |"
+      },
+      {
+        "before": "- 變數不存在時自動建立空 `[]`（數字 index）或 `{}`（字串 index）",
+        "after": "- 變數不存在時自動建立空 `[]`（數字 index）或 `{}`（字串 index）\n- `index=` 僅由 `/setvar`、`/getvar`、`/var` 及其全域性同構命令（`/setglobalvar`、`/getglobalvar`）接受；`/addvar` 不支援 `index=`。"
+      },
+      {
+        "before": "| `/foreach` | `/foreach list=[...] {: ... :}` | 遍歷列表，元素透過管道傳入閉包 |",
+        "after": "| `/foreach`（LALib 擴充套件） | `/foreach (list) (closure)` | LALib 擴充套件命令（非 ST 原生）：遍歷 list/dictionary，閉包內用 `{{var::item}}` / `{{var::index}}` 取當前元素與索引 |"
+      },
+      {
+        "before": "  \"keys\": [\"進入市場\", \"來到市集\", \"走進集市\"],",
+        "after": "  \"key\": [\"進入市場\", \"來到市集\", \"走進集市\"],\n  \"keysecondary\": [],\n  \"content\": \"進入市場場景檢測條目。\","
+      },
+      {
+        "before": "  \"position\": \"before_char\",\n  \"enabled\": true,",
+        "after": "  \"position\": 0,\n  \"disable\": false,"
+      },
+      {
+        "before": "// script: /rand min=1 max=100",
+        "after": "// script: /rand from=1 to=100"
+      },
+      {
+        "before": "### 懸案 6：`/foreach` 的 `list=` 引數接受格式",
+        "after": "### 懸案 6：`/foreach` 是否支援變數引用"
+      },
+      {
+        "before": "文件示例用 JSON 陣列字面量（`list=[\"a\",\"b\",\"c\"]`），但未說明是否支援變數引用（`list={{getvar::myArray}}`）。",
+        "after": "`/foreach` 由 LALib 擴充套件提供，採用 `(list) (closure)` 位置引數語法（https://github.com/LenAnderson/SillyTavern-LALib）；文件示例用 JSON 陣列字面量（`/foreach [\"a\",\"b\",\"c\"] {: ... :}`），但未說明第一個位置引數是否支援變數引用（`/foreach {{getvar::myArray}} {: ... :}`）。"
+      },
+      {
+        "before": "/foreach list={{getvar::items}} {:\n    /echo 物品：{{pipe}}\n:}",
+        "after": "/foreach {{getvar::items}} {:\n    /echo 物品：{{var::item}}\n:}"
+      }
+    ],
+    "E5_創意工坊與擴充套件生態.md": [
+      {
+        "before": "- `installedEntryHash`：當前生產程式碼中的 `entry.meta.contentHash`，是安裝後世界書正文的 hash，不等於 Gateway 整包 hash；",
+        "after": "- `installedEntryHash`：當前生產程式碼中的 `entry.extra.contentHash`，是安裝後世界書正文的 hash，不等於 Gateway 整包 hash；"
+      },
+      {
+        "before": "卡A 3.4.9 直接把安裝清單寫進單條世界書 entry 的 `meta/extra`：",
+        "after": "卡A 3.4.9 由示例工坊私有適配層把安裝清單寫進單條世界書 entry 的 `extra` 欄位（TH `WorldbookEntry` 只有 `extra`、沒有 `meta`，`@types.txt:2906`；後文 `meta.*` 即指這份安裝清單物件，與 C2 的 `extra` 用法一致）："
+      },
+      {
+        "before": "entry.meta = {",
+        "after": "entry.extra = {"
+      },
+      {
+        "before": "Gateway `packageContentHash` 可另存於來源/草稿記錄，但不能冒充 `entry.meta.contentHash`。",
+        "after": "Gateway `packageContentHash` 可另存於來源/草稿記錄，但不能冒充 `entry.extra.contentHash`。"
+      }
+    ]
+  }
+}

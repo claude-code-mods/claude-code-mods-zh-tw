@@ -1,0 +1,92 @@
+/**
+ * What a press does, which decides what its row shows at once. Talk asks Claude
+ * to talk or draft; Hand-off gives Claude the row's work, so the row folds;
+ * Local opens or copies on the person's machine; Mark changes state and sends
+ * nothing while it can be undone, or closes a question with its answer; View changes only the screen.
+ */
+export type PressKind = 'talk' | 'handoff' | 'local' | 'mark' | 'view'
+
+export type LastAction = {
+  commandId?: string
+  kind: Exclude<PressKind, 'view'>
+  /** The action's id, as `actionId` makes it, so that action reads "… again". */
+  action: string
+  /** The label of the action pressed, as in "Discuss". */
+  text: string
+  /** The words the person typed, on a reply. Missing on a reply saved before the inbox kept them, which reads without them. */
+  reply?: string
+  at: number
+  /** Order of presses in the Claude host while their saves may overlap. */
+  pressOrder?: number
+  /** The turns started when it was pressed, so a handed-off row folds until the update for a later turn applies. */
+  turnsStarted?: number
+  /** When the turn that followed a hand-off press ended, answered or not. A PR's hand-off button reads "… again" only once a fetch has read the PR after it. */
+  repliedAt?: number
+  /** The latest Local press's outcome: its opens and copies, pending until each has run. Talk, Hand-off and Mark presses clear it. */
+  result?: LocalResult
+  /** Whether the press's message reached the agent. Missing on a press that sent nothing, and on one saved before the mod kept it, which reads as arrived. */
+  delivery?: Delivery
+  /** Undo on a finding Fix handed off, which lists the row again while the agent works on it. */
+  isKept?: true
+  /** It repeated the latest action, so its button keeps reading "… again" while the press is out. */
+  isRepeat?: true
+  /** A PR's Dismiss on a PR only the agent's order showed, so its Undo does not link it. Missing on a Dismiss of a linked PR. */
+  isUnlinked?: true
+  /**
+   * The row's latest explanation, in Claude Code. `replyId` is the transcript row where its reply's text begins, which
+   * Show explanation scrolls to, and a later press on the row keeps it. `isAwaitingReply` marks an Explain press whose
+   * message started a turn of its own and whose reply has not begun; a message that entered a running turn marks none.
+   * `isFirstReply` marks the row's first explanation, whose button waits for that Explain press to settle. Missing on
+   * rows never explained, and on presses saved before the mod kept it.
+   */
+  explanation?: { replyId?: string; isAwaitingReply?: true; isFirstReply?: true }
+}
+
+/**
+ * A sent message's way to the agent: held while Undo can still take the press back, so nothing has left yet,
+ * queued after sending, unconfirmed when an identical arrival cannot identify its press, arrived when identified,
+ * or failed when it will not enter. `sentAt` is when the host sent a message that waited for Undo; missing, the press
+ * sent it, so the press's time is the send's.
+ */
+export type Delivery =
+  | { state: 'held'; message: string; until: number; by: Press | null }
+  | { state: 'queued'; message: string; id?: string; sentAt?: number }
+  | { state: 'unconfirmed'; message: string; id?: string; sentAt?: number }
+  | { state: 'arrived' }
+  | { state: 'failed'; reason: string; id?: string }
+
+/** A message the mod sent, as builds before the shared session saved it. */
+export type SentPrompt = { id: string; sessionId: string; text: string; pressedAt: number | null }
+
+export type LocalPart = {
+  kind: 'open' | 'copy' | 'refresh-prs' | 'rerun' | 'scroll'
+  name: string
+  /** A command only the person can run, so the row says where to run it. */
+  isCommand: boolean
+  /** Null until it ran, and when it worked. */
+  error: string | null
+}
+
+/**
+ * The words are built per surface when the row is drawn. `action` is the id of the action pressed, as `actionId`
+ * makes it, so its button draws as out while the result is pending. Missing on a result saved before the mod kept it.
+ */
+export type LocalResult = {
+  state: 'pending' | 'done' | 'failed'
+  parts: LocalPart[]
+  at: number
+  pressId?: string
+  action?: string
+}
+
+/**
+ * A short note on a row that is not a press's result: a press that found its
+ * row gone or changed.
+ */
+export type RowNote = { note: 'stale'; at: number }
+
+/**
+ * A reply the person began in a row's field and has not sent. `since` is when they began it, as the time of the
+ * view that showed the row open, so a close the person could not have seen then holds the row in place.
+ */
+export type Draft = { text: string; since: number }

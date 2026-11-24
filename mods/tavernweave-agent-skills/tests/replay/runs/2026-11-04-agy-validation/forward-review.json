@@ -1,0 +1,1904 @@
+{
+  "schemaVersion": 1,
+  "kind": "forward",
+  "sourceCommit": "48c1ba69a8d8ac0b847c2e320f5a501034f41a1a",
+  "baselineCommit": "4ddfedeacc9402e7316763dc3de0c5ab8030b7b6",
+  "method": "manual source-contract review of preserved effective answers; no new model trials",
+  "reviewer": "/root/forward_replay_review",
+  "scope": "88 frozen forward prompts and criteria; 86 preserved effective observedResponse texts plus 2 historical cases with missing observedResponse; PR #9 diff reviewed against the named baseline.",
+  "summary": {
+    "cases": 88,
+    "compatible": 83,
+    "needsRevision": 3,
+    "unresolved": 2,
+    "preservedObservedResponses": 86,
+    "missingObservedResponses": 2
+  },
+  "evidenceLimits": [
+    "書面源合同複核，不是 88 次新模型試跑。",
+    "原有 pass 和舊評語不作為本次透過依據；responseSha256 繫結完整有效 observedResponse 的 UTF-8 文字。",
+    "兩條歷史答覆缺失以 null 雜湊保留，不以舊審查結論冒充原答覆。",
+    "本報告不證明 Antigravity 新宿主發現、完整 Soul 啟用、偏好跨會話生效、實際 SillyTavern 或駕駛員驗收。",
+    "對歷史答覆提出的本輪修訂與缺失補答須在獨立檔案評審，不能覆蓋本初評或改寫歷史模型試跑數量。"
+  ],
+  "libraryReceipt": {
+    "primarySkill": "code-quality-workflow",
+    "routeIds": [
+      "code-quality-workflow"
+    ],
+    "loadedDocumentIds": [
+      "ST-A0"
+    ],
+    "snapshotVersion": "2026-08-18",
+    "proposedCandidateIds": [],
+    "writeScope": "new independent evidence report only"
+  },
+  "cases": [
+    {
+      "id": "fixed-greeting-mvu",
+      "primarySkill": "tavern-card-builder",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "fixed-greeting-mvu",
+      "responseSha256": "bdfdd99bb698ef4b88d0db403840090237c51e393f28b12be6e90ba9dc5e4be9",
+      "responsePrimarySkill": "tavern-card-builder",
+      "verdict": "compatible",
+      "rationale": "答覆將三條開場對應到各自完整初始狀態，區分公共預設值與分支差異；示例數值明確不是原卡事實，並要求取得 schema 與宿主版本後核驗儲存、過載和切換。沒有以指令碼冒充初始化，符合現行開場合同；實際方言和三分支狀態仍待目標卡驗證。",
+      "sourceEvidence": [
+        {
+          "path": "skills/tavern-card-builder/references/opening-strategies.md",
+          "lines": "99-115",
+          "reason": "原生分支初始化、支援的更新塊與儲存回讀"
+        },
+        {
+          "path": "skills/tavern-card-builder/SKILL.md",
+          "lines": "204-219",
+          "reason": "保留既有協議和真實執行驗收"
+        }
+      ]
+    },
+    {
+      "id": "mvu-dual-update-routing",
+      "primarySkill": "tavern-card-builder",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "mvu-dual-update-routing",
+      "responseSha256": "359f7e1b332b5598d8af5182ed20bf32d7a2d3ebc090e1f0023f3e7a1a8b1f61",
+      "responsePrimarySkill": "tavern-card-builder",
+      "verdict": "compatible",
+      "rationale": "答覆先查 MVU Zod 是否支援條目名路由，再把劇情規則與更新規則分別送給對應模型，僅必要當前狀態投影共享；單輪仍按正常啟用，另核啟用、觸發、位置、排序和預算，保留舊模式及雙路徑回讀驗收。未把標記誤稱為啟用條件；實際目標版本尚未驗證。",
+      "sourceEvidence": [
+        {
+          "path": "skills/tavern-card-builder/references/variable-systems.md",
+          "lines": "223-260",
+          "reason": "雙模式路由矩陣、共享條目成本和舊卡保留"
+        }
+      ]
+    },
+    {
+      "id": "text-card-custom-cot",
+      "primarySkill": "tavern-card-builder",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "text-card-custom-cot",
+      "responseSha256": "386411877e3007b022f3f6e2b0d31851eb9b9d13f3a10f6dda8555f3e02b523e",
+      "responsePrimarySkill": "tavern-card-builder",
+      "verdict": "compatible",
+      "rationale": "提供不依賴變數的可用判斷文字，涵蓋輸入、知情、成立事實、因果行動、資訊不足回退和只輸出敘事；以普通對話、缺資訊和衝突場景驗行為，明確不讀取隱藏推理。常駐部署仍屬擬用文字，需隨具體卡及預設確定；沒有偽稱已匯入。",
+      "sourceEvidence": [
+        {
+          "path": "skills/tavern-card-builder/references/cot-design-and-authoring.md",
+          "lines": "15-32",
+          "reason": "作者判斷協議與角色心理及隱藏推理的區別"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/cot-design-and-authoring.md",
+          "lines": "194-232",
+          "reason": "無 MVU 的輕量模板、降級及輸出邊界"
+        }
+      ]
+    },
+    {
+      "id": "preset-card-cot-stitching",
+      "primarySkill": "tavern-card-builder",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "preset-card-cot-stitching",
+      "responseSha256": "5388512d6edf63d3aa4f46ff12f8512c3bab6206390232c929361bbdb2a52db8",
+      "responsePrimarySkill": "tavern-card-builder",
+      "verdict": "compatible",
+      "rationale": "保留預設主 CoT，僅補知情與戰鬥條件模組，明確穩定 ID、階段插入、先後依賴、按 ID/含義去重和確定排序；拼接不可用時由獨立維護源生成帶版本、跳過條件的完整回退稿。未複製回增量或虛構目標欄位；真實裝配及模型可見內容仍待檢查。",
+      "sourceEvidence": [
+        {
+          "path": "skills/tavern-card-builder/references/cot-design-and-authoring.md",
+          "lines": "332-429",
+          "reason": "穩定階段、增量宣告、結構保護和生成回退"
+        }
+      ]
+    },
+    {
+      "id": "ensemble-cot-update-script-split",
+      "primarySkill": "tavern-card-builder",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "ensemble-cot-update-script-split",
+      "responseSha256": "431c4f058d3057ad2fe405d77bdeb1ddc7153ebc0a69c85787db83b996cab8a4",
+      "responsePrimarySkill": "tavern-card-builder",
+      "verdict": "compatible",
+      "rationale": "將 NPC 知情/行動理由與互動優先次序歸劇情模型，額外更新模型只從狀態和劇情判斷合法源事件；傷害、資源與冷卻計算歸指令碼，並要求每欄位唯一寫者和失敗回讀。符合群像和確定性計算分工；尚需現有 schema、更新格式及入口才能落地。",
+      "sourceEvidence": [
+        {
+          "path": "skills/tavern-card-builder/references/variable-systems.md",
+          "lines": "262-278",
+          "reason": "劇情、更新、指令碼職責與唯一寫者"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/cot-design-and-authoring.md",
+          "lines": "451-490",
+          "reason": "語義事件與確定性派生計算分別驗收"
+        }
+      ]
+    },
+    {
+      "id": "card-type-runtime-ledger",
+      "primarySkill": "tavern-card-builder",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "card-type-runtime-ledger",
+      "responseSha256": "d97139f2b8eb9ac60d6afc88c454a6addf5ffc9ab43e28879d0469b93ff521f7",
+      "responsePrimarySkill": "tavern-card-builder",
+      "verdict": "compatible",
+      "rationale": "按題設暫定 mvu_zod，又要求實際包中的 schema 註冊鏈，未憑指令碼名稱定型；嵌入 Schema/正則/兩地區指令碼及全球開國內關、宿主 Tavern Helper、Git CDN 遠端與開發 Zod 分列，明確玩家無需獨裝 Zod。對註冊、遠端執行與版本保留未驗證狀態。",
+      "sourceEvidence": [
+        {
+          "path": "skills/tavern-card-builder/references/card-types-and-runtime-dependencies.md",
+          "lines": "147-167",
+          "reason": "嵌入、地區、遠端、宿主和開發依賴分別舉證"
+        }
+      ]
+    },
+    {
+      "id": "safe-decompose",
+      "primarySkill": "sillytavern-card-components",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "safe-decompose",
+      "responseSha256": "161ad1d88aefa4df43e5bc3a933fbac63c2b6ea10085a394cad6a4c7dd1b252a",
+      "responsePrimarySkill": "sillytavern-card-components",
+      "verdict": "compatible",
+      "rationale": "原件位元組/雜湊保護、獨立只讀副本、穩定 ID 和 JSON 指標對映、依賴衝突阻斷及語義/順序/未知欄位往返比較均明確；未把拆包當作共享庫提升授權。沒有輸入路徑時不宣稱已拆分；真實宿主行為仍非此回放證明。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-card-components/SKILL.md",
+          "lines": "51-67",
+          "reason": "沙盒拆分與原件/未知欄位保留"
+        },
+        {
+          "path": "skills/sillytavern-card-components/SKILL.md",
+          "lines": "80-96",
+          "reason": "依賴、衝突、輸出歸屬"
+        },
+        {
+          "path": "skills/sillytavern-card-components/SKILL.md",
+          "lines": "126-147",
+          "reason": "往返、執行門與顯式提升請求"
+        }
+      ]
+    },
+    {
+      "id": "release-package",
+      "primarySkill": "sillytavern-card-pipeline",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "release-package",
+      "responseSha256": "f0ac27e4927daee4dcd1cc3cf9a7447d26faf9571b19f7e94b9e2c3bd4a4f44d",
+      "responsePrimarySkill": "sillytavern-card-pipeline",
+      "verdict": "compatible",
+      "rationale": "先索取維護根、配置、版本、PNG 殼及既有構建命令，再在暫存目錄裝配、復開 JSON、解碼 PNG 比較語義並報告雜湊；把真實匯入、遠端載入和聊天驗收單列，沒有假稱產物已生成。符合專案適配和源/產物分離；釋出與真實宿主仍未完成。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-card-pipeline/SKILL.md",
+          "lines": "55-70",
+          "reason": "查證專案工具能力"
+        },
+        {
+          "path": "skills/sillytavern-card-pipeline/SKILL.md",
+          "lines": "161-216",
+          "reason": "暫存打包、PNG 載荷一致及真實宿主門"
+        }
+      ]
+    },
+    {
+      "id": "runtime-dependency-preflight",
+      "primarySkill": "sillytavern-card-pipeline",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "runtime-dependency-preflight",
+      "responseSha256": "778c7bfc861fcd7f16eb1f8eb59a0542506fdd01df5c742d1d3e3f3f9dea35c6",
+      "responsePrimarySkill": "sillytavern-card-pipeline",
+      "verdict": "compatible",
+      "rationale": "先檢測並對照 active profile/manifest，缺正則、schema、承諾地區指令碼或啟用狀態衝突即阻斷；區分隨卡、宿主、Git CDN 和開發包，不把 Zod 當玩家安裝項。答覆明確缺材料和 ST 實測未完成，未用靜態存在代替執行。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-card-pipeline/SKILL.md",
+          "lines": "118-140",
+          "reason": "實際能力對賬及依賴通知"
+        },
+        {
+          "path": "skills/sillytavern-card-pipeline/SKILL.md",
+          "lines": "164-175",
+          "reason": "必需資產及各地區指令碼/啟用狀態阻斷"
+        }
+      ]
+    },
+    {
+      "id": "bound-worldbook-version-sync",
+      "primarySkill": "sillytavern-card-pipeline",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "bound-worldbook-version-sync",
+      "responseSha256": "6e10fc6f4ffd3724a4a6a7f7c4b0595d95ff962789271c467226b17d0d2524cd",
+      "responsePrimarySkill": "sillytavern-card-pipeline",
+      "verdict": "compatible",
+      "rationale": "把卡和世界書穩定 ID、維護源、機器版本面及兩個輸出繫結到清單；拒絕 2.3.0 或重複繫結，復開檢查附著 2.4.0 和獨立件內容，並增加舊書不得選中的負例。未按檔名選最新，也未聲稱未提供的包已經透過。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-card-pipeline/SKILL.md",
+          "lines": "176-184",
+          "reason": "從 active manifest 按穩定 ID 解析並比較版本/內容"
+        },
+        {
+          "path": "skills/sillytavern-card-pipeline/SKILL.md",
+          "lines": "200-216",
+          "reason": "版本、繫結、源一致及宿主未驗邊界"
+        }
+      ]
+    },
+    {
+      "id": "exact-runtime-signature",
+      "primarySkill": "sillytavern-api-reference",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "exact-runtime-signature",
+      "responseSha256": "9bc5b89a8ca02e19830177a5b65ffbe2c8d0423862e206ac228cdeb9f4962273",
+      "responsePrimarySkill": "sillytavern-api-reference",
+      "verdict": "compatible",
+      "rationale": "具體 hook 與安裝版本缺失時拒絕猜精確簽名，提出按匯出常量/宣告/實現查提交，再於正確 iframe 做訂閱與清理探針。將宣告型別與時機/實參的宿主證據分開，符合現行 API 缺身份時的安全答覆；沒有給未經定位的精確值。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-api-reference/SKILL.md",
+          "lines": "44-75",
+          "reason": "先核具體符號與版本，區別宣告和實際回撥"
+        },
+        {
+          "path": "skills/sillytavern-api-reference/SKILL.md",
+          "lines": "110-123",
+          "reason": "缺身份只請求證據及探針計劃"
+        }
+      ]
+    },
+    {
+      "id": "blank-ui-runtime",
+      "primarySkill": "sillytavern-runtime-debug",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "blank-ui-runtime",
+      "responseSha256": "bad6a02519b202e20bc048db1376c769d6e2c786e13dcf575ad3217248ed1d4a",
+      "responsePrimarySkill": "sillytavern-runtime-debug",
+      "verdict": "compatible",
+      "rationale": "從匯入包、正則/指令碼、遠端就緒、樓層 stat_data 到 DOM/樣式追首個因果錯誤，並顯式畫出宿主/指令碼/訊息/內層 iframe、同源及沙盒許可權；跨域走驅動或文件橋，未建議解除保護。修復維護源後重建實測的路徑成立；沒有宿主材料，原因和修復仍未證實。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-runtime-debug/SKILL.md",
+          "lines": "96-151",
+          "reason": "先復現及幀所有權與分層鏈"
+        },
+        {
+          "path": "skills/sillytavern-runtime-debug/SKILL.md",
+          "lines": "154-209",
+          "reason": "匯入、遠端、控制檯、DOM、資料與重渲染檢查"
+        }
+      ]
+    },
+    {
+      "id": "embedded-control-center",
+      "primarySkill": "sillytavern-embedded-ui",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "embedded-control-center",
+      "responseSha256": "525d37fdf27dd13dfcf1a6c58d8ab83cd14c47b23c6391ac4663e12cb80ca50b",
+      "responsePrimarySkill": "sillytavern-embedded-ui",
+      "verdict": "compatible",
+      "rationale": "按嵌入控制中心處理窄容器、短屏、長中文和軟鍵盤，明確焦點、Escape、回焦及非同步可訪問反饋；把正式狀態、草稿、介面狀態和派生顯示分開，預覽變更且隔離單區壞資料。未強加 React；缺實際原始碼時僅稱基線，未聲稱改好或實機透過。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-embedded-ui/SKILL.md",
+          "lines": "50-102",
+          "reason": "檢查實際掛載、狀態分層及防禦渲染"
+        },
+        {
+          "path": "skills/sillytavern-embedded-ui/SKILL.md",
+          "lines": "192-237",
+          "reason": "控制中心、可訪問性及窄屏驗收"
+        }
+      ]
+    },
+    {
+      "id": "vague-cleanup",
+      "primarySkill": "code-quality-workflow",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "vague-cleanup",
+      "responseSha256": "ca0e30441189978149ada786d387664e93f194eac7f368694089c3a9067a45d8",
+      "responsePrimarySkill": "code-quality-workflow",
+      "verdict": "compatible",
+      "rationale": "把穩定但難看視為只讀調查起點，要求呼叫者/合同/測試/故障或死碼證據，證據不足保持現狀；若確有缺陷再給最小範圍、行數、回滾和驗證，沒有從含糊清理請求推導重寫許可權。材料未給出，未虛構發現。",
+      "sourceEvidence": [
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "lines": "31-54",
+          "reason": "清理預設只讀，具體修復才進入變更門"
+        },
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "lines": "68-85",
+          "reason": "審美不能代替缺陷證據"
+        }
+      ]
+    },
+    {
+      "id": "react-product-ui",
+      "primarySkill": "shadcn-tailwind-ui",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "react-product-ui",
+      "responseSha256": "d700e421992dbf0698ae456f8a61552df813b33f4da83a98f01581750eef04e4",
+      "responsePrimarySkill": "shadcn-tailwind-ui",
+      "verdict": "compatible",
+      "rationale": "尊重 React/shadcn/Radix/Tailwind 選棧，先讀依賴鎖、元件配置和 CSS，複用現有 token 與控制元件；計劃標籤/錯誤關聯、鍵盤迴焦、暗色和窄屏驗證，生成前預覽並保護本地修改。答覆沒有專案時不冒稱頁面完成；實際構建和渲染仍待執行。",
+      "sourceEvidence": [
+        {
+          "path": "skills/shadcn-tailwind-ui/SKILL.md",
+          "lines": "39-60",
+          "reason": "工程檢查、複用和實際頁面驗證"
+        },
+        {
+          "path": "skills/shadcn-tailwind-ui/SKILL.md",
+          "lines": "73-102",
+          "reason": "版本化配置及受保護元件寫入"
+        }
+      ]
+    },
+    {
+      "id": "workshop-incident",
+      "primarySkill": "rolecard-workshop-ops",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "workshop-incident",
+      "responseSha256": "0a0b5b5f3cf110257d6bfb0925d793a75b114ef87fb39f90afca98d9f62fc5b1",
+      "responsePrimarySkill": "rolecard-workshop-ops",
+      "verdict": "compatible",
+      "rationale": "沿代理、Gateway、儲存追 502 的首個錯誤，結合請求時間/ID/路徑、只讀健康和日誌及 API 契約；列多個可能原因而不憑狀態碼定因。針對環境的部署與金鑰變更分別保留授權，未把診斷變成生產操作。當前未取得日誌和現場鏈路。",
+      "sourceEvidence": [
+        {
+          "path": "skills/rolecard-workshop-ops/SKILL.md",
+          "lines": "24-32",
+          "reason": "診斷只讀與部署範圍"
+        },
+        {
+          "path": "skills/rolecard-workshop-ops/SKILL.md",
+          "lines": "52-86",
+          "reason": "閘道器/儲存邊界、診斷次序和回滾"
+        }
+      ]
+    },
+    {
+      "id": "component-only-regex-update",
+      "primarySkill": "sillytavern-component-update",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "component-only-regex-update",
+      "responseSha256": "61e06c323a39ed05100475d4c6e08cf1052df1876eb6ea1f0c2a63408a7a60fc",
+      "responsePrimarySkill": "sillytavern-component-update",
+      "verdict": "compatible",
+      "rationale": "明確 component 模式只輸出角色本地正則測試 JSON 與報告，保留穩定 ID、啟用、順序及未知欄位；新暫存目錄預覽後驗證語法、placement/depth/stage 和樣例，整卡重組未被夾帶。真實匯入與渲染仍待驗證。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-component-update/SKILL.md",
+          "lines": "31-55",
+          "reason": "交付模式及穩定身份"
+        },
+        {
+          "path": "skills/sillytavern-component-update/SKILL.md",
+          "lines": "68-99",
+          "reason": "元件模式禁止整卡輸出、靜態與匯入門分開"
+        }
+      ]
+    },
+    {
+      "id": "component-full-card-handoff",
+      "primarySkill": "sillytavern-component-update",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "component-full-card-handoff",
+      "responseSha256": "5aa4e83d8b563e15207517ae1d898e5054e5f935ff6067231914c224d1e57fb0",
+      "responsePrimarySkill": "sillytavern-component-update",
+      "verdict": "compatible",
+      "rationale": "按明確 full-card 請求鎖兩指令碼並保留按鈕/順序/未知欄位，交接包含 targetCard、componentId 與排除兩目標指令碼後的 expectedUntouchedHash；強調整卡總雜湊不能替代，交由流水線驗證後打包並保留舊版。尚無輸入時未聲稱封裝，舊聊天相容也未關閉。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-component-update/SKILL.md",
+          "lines": "31-38",
+          "reason": "元件產物交給整卡流水線"
+        },
+        {
+          "path": "skills/sillytavern-component-update/SKILL.md",
+          "lines": "75-99",
+          "reason": "交接欄位及非目標語義一致"
+        }
+      ]
+    },
+    {
+      "id": "regex-placement-depth-fixtures",
+      "primarySkill": "sillytavern-render-regex-pipeline",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "regex-placement-depth-fixtures",
+      "responseSha256": "de2d8435a74371348789178a65d7e8c5bb251fb4a323e08a617bd022e3225e77",
+      "responsePrimarySkill": "sillytavern-render-regex-pipeline",
+      "verdict": "compatible",
+      "rationale": "四條 fixture 覆蓋顯示 depth 0/4 命中、提示詞 depth 0 不命中及 depth 5 越界；先確認卡方言、布林標誌和目標版本 placement 數字，輸出有序跳過階段。沒有猜 AI 的列舉數值；實際 fixture 未執行，宿主顯示/提示詞仍待複核。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-render-regex-pipeline/SKILL.md",
+          "lines": "31-70",
+          "reason": "方言、數值 placement、布林階段和顯式 expected"
+        },
+        {
+          "path": "skills/sillytavern-render-regex-pipeline/SKILL.md",
+          "lines": "72-91",
+          "reason": "階段序列與宿主門"
+        }
+      ]
+    },
+    {
+      "id": "regex-host-disagreement",
+      "primarySkill": "sillytavern-render-regex-pipeline",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "regex-host-disagreement",
+      "responseSha256": "b7222938c77ac7295badcffff767dc2dfb5ecfa75801bee41605050329a6e970",
+      "responsePrimarySkill": "sillytavern-render-regex-pipeline",
+      "verdict": "compatible",
+      "rationale": "保留離線選擇條件/JS 替換的有限結論，以 input 到 output 的有序鏈檢查方言和篩選；把宏、Markdown、提示詞拼裝及擴充套件次序列為未模擬。分歧以安裝宿主為準並請求匯入規則、樓層和控制檯，同一訊息再現未被冒稱完成。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-render-regex-pipeline/SKILL.md",
+          "lines": "56-91",
+          "reason": "離線覆蓋限制和現場分歧處理"
+        }
+      ]
+    },
+    {
+      "id": "rolecard-static-security-audit",
+      "primarySkill": "sillytavern-rolecard-security",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "rolecard-static-security-audit",
+      "responseSha256": "f6d0fe8a2a14816a28147b5ac79e6deec1d470aae589ebe67750f1906fe86415",
+      "responsePrimarySkill": "sillytavern-rolecard-security",
+      "verdict": "compatible",
+      "rationale": "先固定雜湊/範圍，以危險 DOM、動態執行、遠端 JS、通配訊息、URL、憑據形態和正則作靜態掃描，再追不可信輸入可達性；只報規則/位置/嚴重度和脫敏說明，明確不匯入、不執行、不聯絡遠端。缺卡檔案不報虛構發現數或安全結論。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-rolecard-security/SKILL.md",
+          "lines": "28-51",
+          "reason": "靜態邊界、雜湊及脫敏掃描"
+        },
+        {
+          "path": "skills/sillytavern-rolecard-security/SKILL.md",
+          "lines": "65-83",
+          "reason": "可達性與緩解區分、禁止執行"
+        }
+      ]
+    },
+    {
+      "id": "rolecard-security-baseline",
+      "primarySkill": "sillytavern-rolecard-security",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "rolecard-security-baseline",
+      "responseSha256": "f1174dee0e082cf3823063ef121f574408e25776b2cd0ced0860010da863c379",
+      "responsePrimarySkill": "sillytavern-rolecard-security",
+      "verdict": "compatible",
+      "rationale": "要求確切候選/已批准基線及雜湊，按穩定規則 ID 比計數，新增或上升阻斷，禁止透過移動/改名/降嚴重度規避；同時保留誤報候選及未做宿主檢查。基線沒有被當成忽略清單；命令僅為擬執行說明，未宣稱已經掃描。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-rolecard-security/SKILL.md",
+          "lines": "56-83",
+          "reason": "按規則計數增量阻斷與完整風險報告"
+        }
+      ]
+    },
+    {
+      "id": "database-rolecard-migration",
+      "primarySkill": "sillytavern-database-rolecards",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "database-rolecard-migration",
+      "responseSha256": "4a9e580792826be9d2bd8c24069aced592b6b661d353a8acf441986db207d1af",
+      "responsePrimarySkill": "sillytavern-database-rolecards",
+      "verdict": "compatible",
+      "rationale": "僅 quests 依次 rename status→state 和為缺項 add progress=0，示例保留 custom 並要求未知資料不變；明確 status/state 同在時衝突停止，不自定覆蓋優先順序，使用 before/expected 與第二次應用證明冪等。多樓層寫回/編輯/過載仍待實機，未把 fixture 當存檔遷移完成。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-database-rolecards/references/rolecard-data-model.md",
+          "lines": "57-106",
+          "reason": "遷移操作、未知資料、重複應用及階段所有權"
+        },
+        {
+          "path": "skills/sillytavern-database-rolecards/scripts/run-database-migrations.mjs",
+          "lines": "69-79",
+          "reason": "add-field 與 rename conflict 實現"
+        }
+      ]
+    },
+    {
+      "id": "database-rolecard-bindings",
+      "primarySkill": "sillytavern-database-rolecards",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "database-rolecard-bindings",
+      "responseSha256": "b21d3ae481a4cb85dbb8a93a795125ba3396bfa80a16c1b2584d821fe5ce8cdf",
+      "responsePrimarySkill": "sillytavern-database-rolecards",
+      "verdict": "compatible",
+      "rationale": "逐 binding 記錄穩定 ID、表/主鍵/欄位、許可權、所有者及重新整理事件，檢查漏路徑與同階段多寫者；UI 生命週期交嵌入介面所有者，正常多樓層覆蓋新訊息、編輯、swipe、切聊及過載。靜態只證明宣告，明確保留 DBR-C8-UNVERIFIED。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-database-rolecards/SKILL.md",
+          "lines": "75-94",
+          "reason": "繫結、階段寫者及多樓層真實矩陣"
+        },
+        {
+          "path": "skills/sillytavern-database-rolecards/SKILL.md",
+          "lines": "33-51",
+          "reason": "同層排除及精確 API 分工"
+        }
+      ]
+    },
+    {
+      "id": "extension-static-scaffold",
+      "primarySkill": "sillytavern-extension-dev",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "extension-static-scaffold",
+      "responseSha256": "8f9e2b4b666a71a7f5619e4d4739c7f8f1aebee9966176ea2e298bc1db938102",
+      "responsePrimarySkill": "sillytavern-extension-dev",
+      "verdict": "compatible",
+      "rationale": "最小 manifest、瀏覽器 ES 入口、可選 CSS 和能力合同符合本地腳手架範圍；同步 activate、名稱空間及清理責任明確，先 dry-run 後獨立暫存校驗。請求版本/快照而不猜相容，未把生成原始碼等同安裝或啟用。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-extension-dev/SKILL.md",
+          "lines": "29-64",
+          "reason": "UI 擴充套件邊界與最小腳手架"
+        },
+        {
+          "path": "skills/sillytavern-extension-dev/SKILL.md",
+          "lines": "75-91",
+          "reason": "同步 activate、清理、名稱空間與驗收缺口"
+        }
+      ]
+    },
+    {
+      "id": "extension-capability-snapshot",
+      "primarySkill": "sillytavern-extension-dev",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "extension-capability-snapshot",
+      "responseSha256": "a46769236f15b0c3a5a541bded4a09f956b2da48fa5a6ba0ea8d7166843b9e10",
+      "responsePrimarySkill": "sillytavern-extension-dev",
+      "verdict": "compatible",
+      "rationale": "將目標例項快照當惰性輸入，必需符號或最低版本不滿足阻斷，可選缺項只用合同非空 fallback；明確預發行不按數字字首冒充穩定版本。快照不能證明簽名、許可權、事件與清理，缺快照時不報透過，符合當前能力合同。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-extension-dev/references/capability-preflight.md",
+          "lines": "26-58",
+          "reason": "能力降級、版本次序和快照侷限"
+        }
+      ]
+    },
+    {
+      "id": "large-rolecard-budget-regression",
+      "primarySkill": "sillytavern-rolecard-performance",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "large-rolecard-budget-regression",
+      "responseSha256": "74074fa2f7cfd4e74b3afd5d40072ab73c3f21525cb67cbe1a7a6f50c8c54662",
+      "responsePrimarySkill": "sillytavern-rolecard-performance",
+      "verdict": "compatible",
+      "rationale": "要求候選和批准基線採用同版本指令碼、同輸入表面，並逐指標報告值/差額/硬上限，覆蓋位元組、提示詞、世界書、正則、指令碼及媒體；僅輸出路徑數字，按所有者提出最小改動並保語義。實際閾值/檔案尚缺，未製造迴歸數字或從體積推流暢度。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-rolecard-performance/SKILL.md",
+          "lines": "29-69",
+          "reason": "同口徑脫敏測量和宣告預算"
+        },
+        {
+          "path": "skills/sillytavern-rolecard-performance/SKILL.md",
+          "lines": "78-93",
+          "reason": "最佳化先歸屬並保行為"
+        }
+      ]
+    },
+    {
+      "id": "rolecard-runtime-performance-sample",
+      "primarySkill": "sillytavern-rolecard-performance",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "rolecard-runtime-performance-sample",
+      "responseSha256": "0b2456bfbbcc0a1078098de69da26e4d0b6c4e60fc3d4202dce6482fac115a43",
+      "responsePrimarySkill": "sillytavern-rolecard-performance",
+      "verdict": "compatible",
+      "rationale": "首屏與 swipe 分開，要求每場景至少五個有限非負毫秒樣本、命名裝置/版本/卡雜湊/擴充套件/聊天長度及 p95 預算，採用最近秩 p50/p95 和最大值，冷熱態分標。沒有樣本不報透過，靜態大小與實測時序仍是獨立門。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-rolecard-performance/references/runtime-sampling.md",
+          "lines": "3-48",
+          "reason": "真實環境、最低樣本數、最近秩及獨立驗收"
+        }
+      ]
+    },
+    {
+      "id": "media-live2d-contract",
+      "primarySkill": "sillytavern-media-live2d-runtime",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "media-live2d-contract",
+      "responseSha256": "efe85cd1170003b7bccd6a15d4627150bd3233295b21fb06b4c5f01b8a911c6b",
+      "responsePrimarySkill": "sillytavern-media-live2d-runtime",
+      "verdict": "compatible",
+      "rationale": "登記本地/遠端音圖影片及 Live2D 模型/動作/表情的身份、來源、預載、壽命和回退；本地查路徑/位元組/hash，遠端只看 HTTPS 宣告且標未取回。provider global/版本探針及 PAGEHIDE 清理明確，不假設通用 API；CORS/WebGL/實際解除安裝未關閉。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-media-live2d-runtime/SKILL.md",
+          "lines": "30-62",
+          "reason": "惰性資產與明確 Live2D 提供者/清理"
+        },
+        {
+          "path": "skills/sillytavern-media-live2d-runtime/SKILL.md",
+          "lines": "79-93",
+          "reason": "瀏覽器/媒體真實驗收獨立"
+        }
+      ]
+    },
+    {
+      "id": "media-preload-audio-lifecycle",
+      "primarySkill": "sillytavern-media-live2d-runtime",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "media-preload-audio-lifecycle",
+      "responseSha256": "7cbc1d6a0a295280b2b2df949958622ddbf5bf52e1f62afcdef068da501791ec",
+      "responsePrimarySkill": "sillytavern-media-live2d-runtime",
+      "verdict": "compatible",
+      "rationale": "不聯網產生 eager/lazy/on-demand 計劃，明確 eagerBytes、lazyBytes、eagerAssets 上限及遠端未知大小不能透過 eager；音訊只用 bgm/ambient 區域性更新並保播放列表，播放/切曲/切聊/PAGEHIDE 對應停止解綁。靜態計劃未被誇成自動播放和銷燬成功。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-media-live2d-runtime/SKILL.md",
+          "lines": "60-84",
+          "reason": "受支援通道、區域性更新、預載及現場門"
+        },
+        {
+          "path": "skills/sillytavern-media-live2d-runtime/scripts/plan-media-preload.mjs",
+          "lines": "14-34",
+          "reason": "實際三類預算欄位和超限檢查"
+        }
+      ]
+    },
+    {
+      "id": "creative-authority-resume",
+      "primarySkill": "tavern-card-builder",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "creative-authority-resume",
+      "responseSha256": "211df9696b474a4e1e732c2a97f4c9b81953136941d05431e02ede27ea2c6241",
+      "responsePrimarySkill": "tavern-card-builder",
+      "verdict": "compatible",
+      "rationale": "先恢復創作權威、NEXT、四態與驗收賬本，再對實際工作樹/具名產物，不重新採訪凍結設定；權威實物衝突時暫停晉級且請求明確入口。沒有材料時不編造 Confirmed，符合單一權威續接；尚未實際讀取目標卡或驗證執行。",
+      "sourceEvidence": [
+        {
+          "path": "skills/tavern-card-builder/references/creative-authority.md",
+          "lines": "121-141",
+          "reason": "續接次序、衝突處理及證據晉級"
+        }
+      ]
+    },
+    {
+      "id": "library-routed-ui-selection",
+      "primarySkill": "consult-tavernweave-library",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "library-routed-ui-selection",
+      "responseSha256": "d4062e3304c63ae7fc759d4c52cb5bf5e68f550c2e2f579575debb2e35df965f",
+      "responsePrimarySkill": "consult-tavernweave-library",
+      "verdict": "compatible",
+      "rationale": "給出 ST-A0/C12/C2/D7、快照版本和三個有來源/預覽的候選，明確 proposed、許可/外站未核及 API/實現/實機/人工門。當前目錄可查 Apple Sheets、Motion spring 與 reduced-motion 的對應記錄；這僅支援候選內容仍存在，歷史檢索工具執行和外站現狀不由本次複核證明。",
+      "sourceEvidence": [
+        {
+          "path": "skills/consult-tavernweave-library/SKILL.md",
+          "lines": "51-76",
+          "reason": "有界路由回執和候選證據等級"
+        },
+        {
+          "path": "skills/consult-tavernweave-library/assets/picker/catalog.json",
+          "lines": "275-283",
+          "reason": "Apple Sheets 來源和本地演示邊界"
+        },
+        {
+          "path": "skills/consult-tavernweave-library/assets/picker/catalog.json",
+          "lines": "5545-5554",
+          "reason": "減弱動效候選"
+        },
+        {
+          "path": "skills/consult-tavernweave-library/assets/picker/catalog.json",
+          "lines": "6961-6970",
+          "reason": "spring 候選與未採用標註"
+        }
+      ]
+    },
+    {
+      "id": "soul-atong-card-guidance",
+      "primarySkill": "activate-tavernweave-soul",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "soul-atong-card-guidance",
+      "responseSha256": "56ab08e71051ac8fda243512fa85f0269f98e5583498b1d7a547ef95fa126c32",
+      "responsePrimarySkill": "activate-tavernweave-soul",
+      "verdict": "compatible",
+      "rationale": "答覆給出當前 Portable、公開核心、畫像未用、無寫回和許可權不變，溫和地從底本與人物/場景小樣本建立原文/推斷/二創來源鏈；技術工作分給 Library、資料庫和制卡 Skill。沒有把百科或建議提升為原作，真實啟用工具記錄及目標材料仍非本輪複核證據。",
+      "sourceEvidence": [
+        {
+          "path": "skills/activate-tavernweave-soul/SKILL.md",
+          "lines": "42-50",
+          "reason": "Portable 啟用回執和工程歸屬"
+        },
+        {
+          "path": "skills/tavern-card-builder/SKILL.md",
+          "lines": "31-40",
+          "reason": "A0 及創作權威/材料鏈"
+        }
+      ]
+    },
+    {
+      "id": "soul-mttt-sir-teachback",
+      "primarySkill": "activate-tavernweave-soul",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "soul-mttt-sir-teachback",
+      "responseSha256": "a0f22db51304300fc980f01ca07e8de527a40df7e68ba7a143afddf9e486da71",
+      "responsePrimarySkill": "activate-tavernweave-soul",
+      "verdict": "needs-revision",
+      "rationale": "訓練主體正確：要求定義 fixture 的物件與斷言，用匯入跳過/iframe 不載入/swipe 丟狀態作反例，並要求複述證據與真實酒館門；語氣未羞辱使用者。但啟用回執僅寫 Portable 和尊重邊界，缺公開核心、畫像狀態、無寫回及許可權不變，未滿足當前必需回執。",
+      "sourceEvidence": [
+        {
+          "path": "skills/activate-tavernweave-soul/SKILL.md",
+          "lines": "42-50",
+          "reason": "必須交代公開核心、畫像、寫回與許可權"
+        },
+        {
+          "path": "skills/activate-tavernweave-soul/references/mttt-sir-mode.md",
+          "lines": "5-23",
+          "reason": "嚴格訓練與尊重邊界"
+        }
+      ],
+      "requiredRevision": "在啟用回執補充實際可證的公開核心/必要模式檔案讀取情況、畫像未用或不可用、沒有寫回及許可權不變；若沒有讀取證據，應改為擬載入/未驗證，不能編造成功。"
+    },
+    {
+      "id": "soul-killer-frontend-review",
+      "primarySkill": "activate-tavernweave-soul",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "soul-killer-frontend-review",
+      "responseSha256": "86fcb7d9db172a860b3db04584d62d1836c878963a7d853b02f9290b077b63e5",
+      "responsePrimarySkill": "activate-tavernweave-soul",
+      "verdict": "needs-revision",
+      "rationale": "前端審查處理正確：無材料就不造故障或優點，計劃按證據/影響/修復/複驗限三項，交給 Library/UI 並區分瀏覽器、ST 與使用者觀感，也披露同人彩蛋。但啟用回執未交代公開核心和畫像狀態、無寫回，當前 SKILL 的必需載入回執不完整；不能用正文的審查許可權說明替代缺項。",
+      "sourceEvidence": [
+        {
+          "path": "skills/activate-tavernweave-soul/SKILL.md",
+          "lines": "42-50",
+          "reason": "統一 Portable 載入回執"
+        },
+        {
+          "path": "skills/activate-tavernweave-soul/references/soul-killer-mode.md",
+          "lines": "13-19",
+          "reason": "缺視覺證據時預審及三項前端問題"
+        }
+      ],
+      "requiredRevision": "補齊與實際讀取證據一致的公開核心、畫像狀態及無寫回回執，並保留已有 Portable、同人彩蛋和審查許可權說明；無實際載入證據時不得追加虛構已載入宣告。"
+    },
+    {
+      "id": "brainstorm-soul-ensemble-first-version",
+      "primarySkill": "orchestrate-project-blueprint",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "brainstorm-soul-ensemble-first-version",
+      "responseSha256": "1d55c4c00cea7086ef3a325f99e9cb202a507d50caab1924fbd1f573fcef91a0",
+      "responsePrimarySkill": "orchestrate-project-blueprint",
+      "verdict": "compatible",
+      "rationale": "三席明示同一 Agent，公開/私有與許可權回執完整；總編排保持四態、本輪兩項宿主/樣本決定與 foundational 4 輪/硬限 5，拆核心/首玩/增長/停車，藍圖集為待確認的規模選擇。沒有把首版建議寫成確認或直接寫原始碼，設計確認和實際宿主驗收仍在後面。",
+      "sourceEvidence": [
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "lines": "45-100",
+          "reason": "有界腦暴、三鏡頭、首版與設計門"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/references/brainstorm-protocol.md",
+          "lines": "7-29",
+          "reason": "四態和討論預算"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/references/blueprint-scaling.md",
+          "lines": "7-26",
+          "reason": "真實領域邊界和漸進提取"
+        }
+      ]
+    },
+    {
+      "id": "giant-project-blueprint-set",
+      "primarySkill": "orchestrate-project-blueprint",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "giant-project-blueprint-set",
+      "responseSha256": "40857447ab5ecdf02cc11343619ed7780753260050e4c727fc792bc9cefbc9dc",
+      "responsePrimarySkill": "orchestrate-project-blueprint",
+      "verdict": "compatible",
+      "rationale": "先查實際多宿主/遷移/獨立交付驗收才選 program 檔，否則縮小；明確三層九直屬上限、不建空殼、唯一 NEXT，以及活動步驟持久藍圖預算 0。普通檢查單不加權威或分母，失敗支線一層且返回父步驟；目標資料未給，未聲稱已建藍圖。",
+      "sourceEvidence": [
+        {
+          "path": "skills/orchestrate-project-blueprint/references/blueprint-scaling.md",
+          "lines": "7-26",
+          "reason": "規模條件、權威鏈與禁止空殼"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "lines": "102-112",
+          "reason": "零持久預算與臨時細分迴歸"
+        }
+      ]
+    },
+    {
+      "id": "runtime-problem-refinement-return",
+      "primarySkill": "orchestrate-project-blueprint",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "runtime-problem-refinement-return",
+      "responseSha256": "12f40e902b3c38bc96d10694c92944b370552b10aeffe6da5dcdc36878f072c4",
+      "responsePrimarySkill": "orchestrate-project-blueprint",
+      "verdict": "compatible",
+      "rationale": "只把已報告的 390px 鍵盤遮擋作為 P7 支線觸發證據，規定 persistent:false/returnTo:P7，不增分母；最小診斷到同機複驗後關閉並返回原退出條件，擴大產品範圍則提案。答覆沒有宣稱故障已修或再造藍圖，實際修復證據仍缺。",
+      "sourceEvidence": [
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "lines": "104-111",
+          "reason": "觀察失敗才細分、保持範圍並返回父步"
+        }
+      ]
+    },
+    {
+      "id": "frontend-fit-decline-and-legacy-reuse",
+      "primarySkill": "orchestrate-project-blueprint",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "frontend-fit-decline-and-legacy-reuse",
+      "responseSha256": "26edace4f1da8ee536ff38b205dbdd88cee1dcd9e069033521f4db2b3c2f7f1f",
+      "responsePrimarySkill": "orchestrate-project-blueprint",
+      "verdict": "compatible",
+      "rationale": "以缺可驗證互動價值和狀態同步成本判斷獨立前端不推薦，提供文字核心/輕顯示回退及重評條件；請求穩定老作品版本與試用證據後再分複用/改造/參考/拒絕。堅持前端仍保原型/實機門，尚未見產物而沒有把舊等於穩定。",
+      "sourceEvidence": [
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "lines": "53-57",
+          "reason": "前端適配與使用者 override"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "lines": "122-124",
+          "reason": "真實穩定作品複用"
+        }
+      ]
+    },
+    {
+      "id": "mirror-vibe-code-growth-recheck",
+      "primarySkill": "reflect-on-vibe-code-growth",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "mirror-vibe-code-growth-recheck",
+      "responseSha256": "73b3588ef17d6917687354ce310fd9170579cf01b329eaa3c78d29b61357e380",
+      "responsePrimarySkill": "reflect-on-vibe-code-growth",
+      "verdict": "compatible",
+      "rationale": "完整能力網涵蓋深思、上游架構和創新的具體證據，舊分不作錨點；exact/自報/估算/行為分/不可核分列，Codex/Chat 用量不混加，維度對映後才算差值。雙輸出同源、原生整塊按鈕、不可改歷史鏈和三檔案雜湊追加均明確；缺當前記錄所以沒有造分或儲存回執。",
+      "sourceEvidence": [
+        {
+          "path": "skills/reflect-on-vibe-code-growth/SKILL.md",
+          "lines": "20-78",
+          "reason": "重新評估、分類證據、量表可比性"
+        },
+        {
+          "path": "skills/reflect-on-vibe-code-growth/SKILL.md",
+          "lines": "82-114",
+          "reason": "雙輸出視覺、原生按鈕與不可改歷史儲存"
+        }
+      ]
+    },
+    {
+      "id": "mirror-text-assessment-only",
+      "primarySkill": "reflect-on-vibe-code-growth",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "mirror-text-assessment-only",
+      "responseSha256": "6fa68ac1c81cd58247eab9f3751a570c673d38cf62a5f54d0ef14f063e6261dc",
+      "responsePrimarySkill": "reflect-on-vibe-code-growth",
+      "verdict": "compatible",
+      "rationale": "按文字-only 交付連續 Markdown，逐列判斷/證據/限制/下一步覆蓋 11 能力、四核心、Token、六門、歷史與行動；無材料一致標不可評分，不寫零、不混加用量、不把未驗歷史稱成長。未生成畫板或擅存履歷，符合文字單獨輸出例外；當前能力仍未完成實證評估。",
+      "sourceEvidence": [
+        {
+          "path": "skills/reflect-on-vibe-code-growth/SKILL.md",
+          "lines": "38-58",
+          "reason": "完整能力網與六門"
+        },
+        {
+          "path": "skills/reflect-on-vibe-code-growth/SKILL.md",
+          "lines": "84-99",
+          "reason": "單份文字和必需資訊結構"
+        }
+      ]
+    },
+    {
+      "id": "rewrite-one-shot-light",
+      "primarySkill": "rewrite-natural-prose",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "rewrite-one-shot-light",
+      "responseSha256": "b939177f10ac5a8848c9e94b8501b4c711b099a378028cb59cab2a74db9956f2",
+      "responsePrimarySkill": "rewrite-natural-prose",
+      "verdict": "compatible",
+      "rationale": "單句刪去套話與重複時間表達，保留可匯出 3 種格式和不支援離線同步兩個核心事實；直接給輕改結果，沒有持續模式或檔案問卷。屬於聊天文字變更，不涉及儲存或宿主驗收。",
+      "sourceEvidence": [
+        {
+          "path": "skills/rewrite-natural-prose/SKILL.md",
+          "lines": "21-39",
+          "reason": "直接單次輕潤色且保意義"
+        }
+      ]
+    },
+    {
+      "id": "rewrite-three-strengths",
+      "primarySkill": "rewrite-natural-prose",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "rewrite-three-strengths",
+      "responseSha256": "2f105f1a28008103202b8dde7c335b1adb0b0ee2d9db4cd2945caf5827aaf398",
+      "responsePrimarySkill": "rewrite-natural-prose",
+      "verdict": "compatible",
+      "rationale": "原說明缺失時先索取正文，分別定義句子清理、結構重排和重建表達；同一事實核對表保護視角、數值、否定、限制、不確定性及技術串。沒有為湊三版虛構原文；三份實際改寫尚未產出。",
+      "sourceEvidence": [
+        {
+          "path": "skills/rewrite-natural-prose/SKILL.md",
+          "lines": "23-39",
+          "reason": "三種強度和無目標時取材料"
+        }
+      ]
+    },
+    {
+      "id": "rewrite-character-voices",
+      "primarySkill": "rewrite-natural-prose",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "rewrite-character-voices",
+      "responseSha256": "0012db9104feee0d805632a7296ffff803dd39ce438cd739fa2b43106d4c073d",
+      "responsePrimarySkill": "rewrite-natural-prose",
+      "verdict": "compatible",
+      "rationale": "先請求缺失原文，保留寡言/直率表達差異、既有關係與事件順序，不為了生動加動作或動機；承諾按既定聲音一版交付而不強制統一口語。因缺材料不能評價具體改寫效果，答覆也未聲稱已完成。",
+      "sourceEvidence": [
+        {
+          "path": "skills/rewrite-natural-prose/references/editing-guide.md",
+          "lines": "5-15",
+          "reason": "人物語氣、視角與原意保留"
+        },
+        {
+          "path": "skills/rewrite-natural-prose/SKILL.md",
+          "lines": "27-39",
+          "reason": "強度邊界及缺正文處理"
+        }
+      ]
+    },
+    {
+      "id": "rewrite-protected-mixed",
+      "primarySkill": "rewrite-natural-prose",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "rewrite-protected-mixed",
+      "responseSha256": "8f6789afe20c44624b14ff8a8aea38b97291f3caadbca42b3a965a1cb393ac8e",
+      "responsePrimarySkill": "rewrite-natural-prose",
+      "verdict": "compatible",
+      "rationale": "僅限已識別正文字串，先解析 JSON 再改並複核鍵/型別與受保護片段，明確宏、stat_data.hp、EJS、正則、指令碼逐字保留，同時複查事實數字否定。沒有輸入便不造稿或稱儲存；真實位元組/解析比對仍待輸入後執行。",
+      "sourceEvidence": [
+        {
+          "path": "skills/rewrite-natural-prose/references/editing-guide.md",
+          "lines": "17-21",
+          "reason": "混合檔案欄位邊界與結構/保護串複核"
+        }
+      ]
+    },
+    {
+      "id": "rewrite-task-output-and-exit",
+      "primarySkill": "rewrite-natural-prose",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "rewrite-task-output-and-exit",
+      "responseSha256": "13b6d587ed924f7f59492b4a4b74ab43b17c49784e5284f1636eabb962026c60",
+      "responsePrimarySkill": "rewrite-natural-prose",
+      "verdict": "compatible",
+      "rationale": "顯式記 inherit→on，只作用當前自然語言輸出並保程式碼/證據/嚴重程度；未來直接 exit 才設 off，不寫持久檔案、不取消工程或獨立溝通偏好，off 下單次請求仍可用。沒有把題乾的未來退出描述當即時退出，符合任務狀態合同。",
+      "sourceEvidence": [
+        {
+          "path": "skills/rewrite-natural-prose/SKILL.md",
+          "lines": "33-49",
+          "reason": "直接命令、任務覆蓋與單次例外"
+        },
+        {
+          "path": "skills/rewrite-natural-prose/SKILL.md",
+          "lines": "55-57",
+          "reason": "載入證據及溝通偏好獨立"
+        }
+      ]
+    },
+    {
+      "id": "rewrite-workspace-persistence",
+      "primarySkill": "rewrite-natural-prose",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "rewrite-workspace-persistence",
+      "responseSha256": "eb37202c454e16cac5a05538f648d4857d03da60fcb4c439b7588e4f4517d3bc",
+      "responsePrimarySkill": "rewrite-natural-prose",
+      "verdict": "compatible",
+      "rationale": "保留的歷史答覆限定 Codex 指令鏈，先解析非空 override/AGENTS/配置 fallback，再展示目標、受控塊和備份，用已批准預覽令牌寫入回讀；檔案與新任務載入分開。PR 新增 AGY 累計來源沒有取消這條 Codex 合同，本答覆不能用於證明 AGY 或跨宿主儲存已驗收。",
+      "sourceEvidence": [
+        {
+          "path": "skills/rewrite-natural-prose/references/persistent-modes.md",
+          "lines": "5-15",
+          "reason": "按真實宿主分別解析，Codex 合同保留"
+        },
+        {
+          "path": "skills/rewrite-natural-prose/references/persistent-modes.md",
+          "lines": "26-44",
+          "reason": "預覽/審批令牌、位元組保留和狀態證據"
+        }
+      ]
+    },
+    {
+      "id": "rewrite-client-persistence-and-status",
+      "primarySkill": "rewrite-natural-prose",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "rewrite-client-persistence-and-status",
+      "responseSha256": "9e43502ec5815c085c0c1ee5b72e2dd79cf1182f03db2c28ca9ca3e7818b1f6c",
+      "responsePrimarySkill": "rewrite-natural-prose",
+      "verdict": "compatible",
+      "rationale": "客戶端範圍與工作區分開，先查實際配置和有效檔案，只有受控塊的具體預覽獲准後才寫回；狀態獨立列 task/workspace/client/hostLoading，缺檢查不報開啟。該主機中性的步驟仍相容 PR 新 AGY 適配，但未包含 AGY 實際發現/儲存成功證據。",
+      "sourceEvidence": [
+        {
+          "path": "skills/rewrite-natural-prose/SKILL.md",
+          "lines": "37-55",
+          "reason": "客戶端持久操作和檔案證據邊界"
+        },
+        {
+          "path": "skills/rewrite-natural-prose/references/persistent-modes.md",
+          "lines": "26-46",
+          "reason": "精確範圍與各層狀態分開"
+        }
+      ]
+    },
+    {
+      "id": "rewrite-scope-disable",
+      "primarySkill": "rewrite-natural-prose",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "rewrite-scope-disable",
+      "responseSha256": "723a11d3e8aabf02606cf44cf07e6e3b7af50f96e81ce49fbb13a20f819474ce",
+      "responsePrimarySkill": "rewrite-natural-prose",
+      "verdict": "compatible",
+      "rationale": "只移除工作區標記塊、保客戶端及其他位元組，先核實際檔案和預覽，依據同一已批准令牌回讀；分別報告仍有效的其他層和實際載入。沒有給路徑時不謊稱關閉，且沒有把工作區移除等同所有精修停止。歷史 Codex 檔案鏈不證明 AGY 累計規則發現。",
+      "sourceEvidence": [
+        {
+          "path": "skills/rewrite-natural-prose/references/persistent-modes.md",
+          "lines": "26-46",
+          "reason": "移除範圍、其餘位元組和跨層狀態"
+        },
+        {
+          "path": "skills/rewrite-natural-prose/SKILL.md",
+          "lines": "41-47",
+          "reason": "任務退出與指定持久層刪除區分"
+        }
+      ]
+    },
+    {
+      "id": "quality-full-scan-inventory",
+      "primarySkill": "code-quality-workflow",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "quality-full-scan-inventory",
+      "responseSha256": "a0fc1ca2798aa51dd7b117270c4f04394e559ead5143c60780fbb542483dfd87",
+      "responsePrimarySkill": "code-quality-workflow",
+      "verdict": "compatible",
+      "rationale": "明確 full-scan/general 與只讀，先凍結根/版本/工作樹清單，按實際角色覆蓋實現、配置、測試、介面、遷移、manifest/鎖；生成/二進位制排除說明原因並追源，各路徑留已讀/部分/未讀/排除。測試全綠不代完整覆蓋，未憑缺材料聲稱結束審查。",
+      "sourceEvidence": [
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "lines": "56-66",
+          "reason": "模式對映與有界覆蓋"
+        },
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "lines": "89-96",
+          "reason": "凍結清單、分片及所有發現"
+        }
+      ]
+    },
+    {
+      "id": "quality-software-architecture",
+      "primarySkill": "code-quality-workflow",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "quality-software-architecture",
+      "responseSha256": "cc1cafad40afc7af48698f2114ebd0c6cb2ac539f202b4166d657de8e85b047d",
+      "responsePrimarySkill": "code-quality-workflow",
+      "verdict": "compatible",
+      "rationale": "選架構熱點模式而非全倉，沿真實入口追狀態所有權、依賴、呼叫/消費、公開合同、錯誤與版本及初始化/遷移/關閉清理，關注全域性和雙事實源。P0–P3 及未讀範圍保留，未見程式碼不造發現；真實架構結論仍待原始碼。",
+      "sourceEvidence": [
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "lines": "58-66",
+          "reason": "熱點與全量的不同覆蓋"
+        },
+        {
+          "path": "skills/code-quality-workflow/references/architecture-review.md",
+          "lines": "3-7",
+          "reason": "實際核心流、生命週期與狀態來源"
+        }
+      ]
+    },
+    {
+      "id": "quality-card-architecture",
+      "primarySkill": "code-quality-workflow",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "quality-card-architecture",
+      "responseSha256": "e802d17f79a67db1fd7c9dfebc239a4461008d417d2ca14bb49fe5f7c2a387ed",
+      "responsePrimarySkill": "code-quality-workflow",
+      "verdict": "compatible",
+      "rationale": "純文字卡只查現有創作權威、身份關係、開場/世界書、知情/玩家自主、啟用/預算與源產物鏈；明確沒有 MVU/獨立前端不是缺陷，後續建議仍是隻讀審查候選。缺卡包不能給真實發現，宿主行為另驗。",
+      "sourceEvidence": [
+        {
+          "path": "skills/code-quality-workflow/references/architecture-review.md",
+          "lines": "9-20",
+          "reason": "按實際卡系統審查，文字卡無需可選執行層"
+        }
+      ]
+    },
+    {
+      "id": "quality-mixed-full-architecture",
+      "primarySkill": "code-quality-workflow",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "quality-mixed-full-architecture",
+      "responseSha256": "7f67f659ddfe1a523415794ccbf6f75063f73838daeb71e3bb16b9b124551079",
+      "responsePrimarySkill": "code-quality-workflow",
+      "verdict": "compatible",
+      "rationale": "選 full-scan/architecture，卡與前端一起追 schema/指令碼/投影/訊息樓層/狀態面板及構建宿主邊界，未知邊顯式待核，關注雙寫、漂移和生命週期。全覆蓋表、全部嚴重度及分階段建議保留，建議未變授權補丁，也未把無材料當審查完成。",
+      "sourceEvidence": [
+        {
+          "path": "skills/code-quality-workflow/references/architecture-review.md",
+          "lines": "22-28",
+          "reason": "跨邊界狀態、報告及全量覆蓋"
+        },
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "lines": "89-96",
+          "reason": "快照清單和完整發現"
+        }
+      ]
+    },
+    {
+      "id": "quality-coverage-merge-legacy",
+      "primarySkill": "code-quality-workflow",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "quality-coverage-merge-legacy",
+      "responseSha256": "3136818fe035c8e4f0390e38a6cc8f64d6606e66ece91d01f86f167cce0a162f",
+      "responsePrimarySkill": "code-quality-workflow",
+      "verdict": "compatible",
+      "rationale": "舊格式無 coverage 記 unrecorded，現有發現仍保留；覆蓋只按 path/status/reason/evidence 精確組合去重並留來源，不讓 reviewed 覆蓋 unread/partial，衝突與排除理由照存。須同源版本再統一狀態，沒有據合併記錄推全倉審完。",
+      "sourceEvidence": [
+        {
+          "path": "skills/code-quality-workflow/references/audit-and-sweep.md",
+          "lines": "155-180",
+          "reason": "舊報告相容、覆蓋衝突與確定合併"
+        }
+      ]
+    },
+    {
+      "id": "soul-killer-full-findings",
+      "primarySkill": "activate-tavernweave-soul",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "soul-killer-full-findings",
+      "responseSha256": "17e51f50ccfcaa9ecc5b2fc7710be85fddb686e11e60fdd9b356028acb3aa224",
+      "responsePrimarySkill": "activate-tavernweave-soul",
+      "verdict": "needs-revision",
+      "rationale": "全量架構路由給 code-quality-workflow、僅開頭三條摘要而完整儲存五條發現和覆蓋，且將使用者所述五條與已核實事實分開，這些都正確。但 Portable 啟用回執缺公開核心、畫像狀態及無寫回，與當前統一回執要求不符；已有隻讀/不擴權句未覆蓋這些缺項。",
+      "sourceEvidence": [
+        {
+          "path": "skills/activate-tavernweave-soul/SKILL.md",
+          "lines": "42-50",
+          "reason": "Portable 載入回執必需欄位"
+        },
+        {
+          "path": "skills/activate-tavernweave-soul/references/soul-killer-mode.md",
+          "lines": "5-11",
+          "reason": "全量模式三條僅限制摘要"
+        },
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "lines": "93-96",
+          "reason": "完整發現不截斷"
+        }
+      ],
+      "requiredRevision": "補齊與實際已讀資源一致的公開核心/必要 Soul 參考、畫像狀態和無寫回回執；保留已有 Portable、同人披露、code-quality 路由、全部五條發現與覆蓋邊界，不能虛構載入成功。"
+    },
+    {
+      "id": "guidance-global-without-modes",
+      "primarySkill": "orchestrate-project-blueprint",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "guidance-global-without-modes",
+      "responseSha256": "b1608f27d96c92e47ab26cb59e686e1d099717360927047cec73a7f3fbdcb261",
+      "responsePrimarySkill": "orchestrate-project-blueprint",
+      "verdict": "compatible",
+      "rationale": "以普通網頁核心操作和可見結果組織下一階段，續用需求/總設計/NEXT，缺檔案不編進度；從自動回執、目標視口瀏覽器到使用者親試分層判斷。沒有啟用人格/精修、暗設擋位或測評問卷；實際頁面和真實驗收尚待材料。",
+      "sourceEvidence": [
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "lines": "20-24",
+          "reason": "自然願望與普通問答不強制引導"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "lines": "70-112",
+          "reason": "首版核心流、驗收與後續試用"
+        }
+      ]
+    },
+    {
+      "id": "guidance-contextual-terms",
+      "primarySkill": "consult-tavernweave-library",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "guidance-contextual-terms",
+      "responseSha256": "152e61cc91bb7ff592bce2f09af60bfc313bf89dc08dd78b298183253d2875e3",
+      "responsePrimarySkill": "consult-tavernweave-library",
+      "verdict": "compatible",
+      "rationale": "保留 API/Schema 原術語並以呼叫入口和欄位結構解釋，XP/EXP/QR 使用題設專案含義，不按常見縮寫改義；涉及增減和精確 API 仍指向專案規則/目標版本，未假裝知道未給語義。",
+      "sourceEvidence": [
+        {
+          "path": "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+          "lines": "8-10",
+          "reason": "術語結合上下文與保留未知"
+        }
+      ]
+    },
+    {
+      "id": "guidance-novice-step",
+      "primarySkill": "tavern-card-builder",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "guidance-novice-step",
+      "responseSha256": "836c7f36110fb231f9b7089440a5fecdcd94e24fbb690e0fd9ea6da4a6d337b2",
+      "responsePrimarySkill": "tavern-card-builder",
+      "verdict": "compatible",
+      "rationale": "沿使用者已選新人檔只給一小步：交目標句與實際卡，解釋開場用途、為何要看原設定以及可用 JSON/PNG 的替代入口；後續改稿/試讀/再調整有預期結果，原件和匯出不混淆。沒有把本次表現推斷為換檔；具體修改未執行。",
+      "sourceEvidence": [
+        {
+          "path": "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+          "lines": "11-19",
+          "reason": "新人單步與實際材料路徑"
+        },
+        {
+          "path": "skills/tavern-card-builder/SKILL.md",
+          "lines": "42-44",
+          "reason": "接手先解釋原卡"
+        }
+      ]
+    },
+    {
+      "id": "guidance-entry-detailed",
+      "primarySkill": "tavern-card-builder",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "guidance-entry-detailed",
+      "responseSha256": "43ac16a495f02fdf46ccdc3b025d0c27a6c79072343dcb8059b61bf5444ac4ee",
+      "responsePrimarySkill": "tavern-card-builder",
+      "verdict": "compatible",
+      "rationale": "保留入門選擇，以定義一條成長規則為小階段，解釋原狀態儲存和唯一寫/讀者，區分敘事文字與跨回合累計；未觸發/一次/重複和回讀驗證連到舊聊天遷移或僅新局的取捨。尚未見卡時不造欄位或數值，匯入成功也未觸發升級擋位。",
+      "sourceEvidence": [
+        {
+          "path": "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+          "lines": "11-16",
+          "reason": "入門階段說明及換檔許可權"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/retrofit-and-text-cards.md",
+          "lines": "31-45",
+          "reason": "最小必要狀態與保文字卡路線"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/variable-systems.md",
+          "lines": "114-142",
+          "reason": "初始化、舊存檔及寫者規則"
+        }
+      ]
+    },
+    {
+      "id": "guidance-proficient-stage",
+      "primarySkill": "sillytavern-embedded-ui",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "guidance-proficient-stage",
+      "responseSha256": "98a47d0b1230ad239b38f0b1254b300a2b586bc2fb52b4e3e71a99f4ca170a9b",
+      "responsePrimarySkill": "sillytavern-embedded-ui",
+      "verdict": "compatible",
+      "rationale": "按熟練檔把查圖源/宿主、原頁面入口/臨時彈層、清理和驗證成階段組織；Esc/回焦、窄屏滾動、失敗態、冪等掛載以及事件/滾動鎖/DOM 統一清理都對應現行介面合同。缺源不稱已加，未改變檔位，真實切聊天仍待測。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-embedded-ui/SKILL.md",
+          "lines": "106-118",
+          "reason": "冪等、清理和實際上下文"
+        },
+        {
+          "path": "skills/sillytavern-embedded-ui/SKILL.md",
+          "lines": "202-222",
+          "reason": "彈層焦點/窄屏和可訪問性"
+        }
+      ]
+    },
+    {
+      "id": "guidance-veteran-routine",
+      "primarySkill": "code-quality-workflow",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "guidance-veteran-routine",
+      "responseSha256": "500e44858801d4576840bf2e684574b7d2696ab8f3276a73528ad39502409a93",
+      "responsePrimarySkill": "code-quality-workflow",
+      "verdict": "compatible",
+      "rationale": "要求以改動差異、版本、實際檢查結果和下一宿主門簡報；四條 fixture 只是明確的示例而非本次捏造資料，缺 diff/回執不填透過結論。老手壓縮基礎背景但保留未匯入、swipe/edit 待測，符合報告證據邊界。",
+      "sourceEvidence": [
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "lines": "185-216",
+          "reason": "精簡不能刪證據及真實宿主缺口"
+        },
+        {
+          "path": "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+          "lines": "13-15",
+          "reason": "老手與必要解釋"
+        }
+      ]
+    },
+    {
+      "id": "guidance-bug-all-tiers",
+      "primarySkill": "sillytavern-runtime-debug",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "guidance-bug-all-tiers",
+      "responseSha256": "f08593a649ba9b7fb3f694766ade59ceb22f023d6bb5e6f187ed6dd4ea2ca406",
+      "responsePrimarySkill": "sillytavern-runtime-debug",
+      "verdict": "compatible",
+      "rationale": "四檔共享實際報錯/預期結果/僅假設的根因及修復相容風險，再分別給從記錄動作到請求響應、分層解析、具名樣本的取證深度；同環境修前後複驗貫穿各檔。未從一句報錯斷定網路或解析器故障，未把 fixture 替實機，也未修改長期擋位。",
+      "sourceEvidence": [
+        {
+          "path": "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+          "lines": "12-16",
+          "reason": "四檔故障均須解釋原因不確定與影響"
+        },
+        {
+          "path": "skills/sillytavern-runtime-debug/SKILL.md",
+          "lines": "81-106",
+          "reason": "環境與復現邊界"
+        }
+      ]
+    },
+    {
+      "id": "guidance-scoped-explanation-waiver",
+      "primarySkill": "sillytavern-runtime-debug",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "guidance-scoped-explanation-waiver",
+      "responseSha256": "4fcd85ebff709d9e845e144d86bee427108c18fe69cf6b55dfb35ea79f739082",
+      "responsePrimarySkill": "sillytavern-runtime-debug",
+      "verdict": "compatible",
+      "rationale": "明確上個故障免解釋只對指定故障生效，結果/失敗/未知仍保留；新 bug 恢復條件、實際/預期、證據與猜測、影響/複驗說明，老手長期檔位不變。缺新故障步驟時沒有偽診斷，符合臨時豁免不能擴充套件的合同。",
+      "sourceEvidence": [
+        {
+          "path": "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+          "lines": "14-17",
+          "reason": "限定豁免、後續故障恢復及獨立偏好"
+        },
+        {
+          "path": "skills/sillytavern-runtime-debug/SKILL.md",
+          "lines": "96-106",
+          "reason": "新故障先復現"
+        }
+      ]
+    },
+    {
+      "id": "guidance-explicit-client-preference",
+      "primarySkill": "consult-tavernweave-library",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "guidance-explicit-client-preference",
+      "responseSha256": "82e85ac43fb18990a26cc866f7c88004e9ac0339f7cc04be789465fdcb4f2c77",
+      "responsePrimarySkill": "consult-tavernweave-library",
+      "verdict": "compatible",
+      "rationale": "承認使用者已批准當前客戶端預覽，使用獨立偏好管理器、相同絕對目標/備份/令牌，變化後重預覽而不重複索取同一許可；儲存與新任務載入回執分離，回放無實際值所以不假報永久設定。PR 新 AGY 發現分支未推翻此通用流程，跨宿主真實持久化仍未驗。",
+      "sourceEvidence": [
+        {
+          "path": "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+          "lines": "44-64",
+          "reason": "明確選擇、獨立管理器、預覽令牌與升級保護"
+        }
+      ]
+    },
+    {
+      "id": "guidance-inherited-png-continuation",
+      "primarySkill": "tavern-card-builder",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "guidance-inherited-png-continuation",
+      "responseSha256": "5c64a030f44da17de6e716c23d9756f5a67d11aafa1d1362e6cb9ab22858c2ae",
+      "responsePrimarySkill": "tavern-card-builder",
+      "verdict": "compatible",
+      "rationale": "先保原 PNG 與聊天，檢查解出內容和依賴並解釋玩法，明確提取工作副本不等於原維護倉庫；沿使用者已定續更方向只問保留項/第一改動，判斷舊存檔直接相容/遷移/新局並在測試副本試舊新聊天。沒有覆蓋唯一原件或把缺原始碼隱去。",
+      "sourceEvidence": [
+        {
+          "path": "skills/tavern-card-builder/references/retrofit-and-text-cards.md",
+          "lines": "58-70",
+          "reason": "PNG 接手、來源類別、首次改動及舊聊天"
+        }
+      ]
+    },
+    {
+      "id": "guidance-first-success-second-change",
+      "primarySkill": "orchestrate-project-blueprint",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "guidance-first-success-second-change",
+      "responseSha256": "f3ed7645a9086ffd276585465a5e7c84e8b789ff58e62e594360ce9b0156f8ce",
+      "responsePrimarySkill": "orchestrate-project-blueprint",
+      "verdict": "compatible",
+      "rationale": "把使用者報告的按鈕可點作為首次試用反饋，第二次僅改現有位置，說明手機桌面選擇、同入口新版及點選/鍵盤/窄屏/舊行為迴歸；沒有把首次成功當最終接受。缺網頁路徑/目標位置時不虛稱已交新版，保持普通網頁和入門檔。",
+      "sourceEvidence": [
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "lines": "106-112",
+          "reason": "首版後用戶試用、二次小改和驗收"
+        },
+        {
+          "path": "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+          "lines": "12-19",
+          "reason": "階段解釋及首次成功再調整"
+        }
+      ]
+    },
+    {
+      "id": "guidance-upgrade-preserves-choice",
+      "primarySkill": "consult-tavernweave-library",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "guidance-upgrade-preserves-choice",
+      "responseSha256": "3c4dcae80c6f09bf1234f7319c8e219702d754b3dded9030a9c21e48ce594800",
+      "responsePrimarySkill": "consult-tavernweave-library",
+      "verdict": "compatible",
+      "rationale": "隔離環境先記入門偏好與自寫位元組/hash，再按授權升級/重灌後比較，要求無新增選擇或覆蓋，模板只更新發行擁有內容；檔案成功後還需新任務觀察載入。無安裝包/執行證據不報透過，舊偏好與發行模板分離仍符合 PR 擴充套件後的合同。",
+      "sourceEvidence": [
+        {
+          "path": "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+          "lines": "50-66",
+          "reason": "宿主目標、獨立偏好、重複設定和升級保持"
+        }
+      ]
+    },
+    {
+      "id": "work-library-novel",
+      "primarySkill": "build-work-library",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "work-library-novel",
+      "responseSha256": "a0cb2deba8233a15f13ceaa3dd4c7d8e2ccb37c4a611ec63c04bc5782272d9ce",
+      "responsePrimarySkill": "build-work-library",
+      "verdict": "compatible",
+      "rationale": "從版本/改編/用途/劇透範圍選普通、別名關係和跨階段衝突樣本，先形成 Markdown、來源位置/hash/短引與 JSONL 回查；token 只把具名回執記實測，失敗重試也計入，樣本後才限定批次呼叫預算。沒有虛構後臺能力或已轉全書；實際樣本質量和用量仍未執行。",
+      "sourceEvidence": [
+        {
+          "path": "skills/build-work-library/SKILL.md",
+          "lines": "20-46",
+          "reason": "Markdown/JSONL、來源證據和樣本先行"
+        },
+        {
+          "path": "skills/build-work-library/SKILL.md",
+          "lines": "44-58",
+          "reason": "有界批次、真實用量與宿主繼續能力"
+        }
+      ]
+    },
+    {
+      "id": "work-library-fanwork",
+      "primarySkill": "build-work-library",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "work-library-fanwork",
+      "responseSha256": "141329e4973fb2a3c2cb4194c9c35324df762f3f0fd0ce233d9fabf478bb5a99",
+      "responsePrimarySkill": "build-work-library",
+      "verdict": "compatible",
+      "rationale": "canon/fanon 身份與 confirmed/inference/uncertain 證據程度分列，每條有 continuity/edition、階段、位置/hash，改編衝突並排而不合一；Markdown 為可編輯源、JSONL 派生、SQLite 可選。作品材料缺失不編庫，百科僅定位符合當前來源邊界。",
+      "sourceEvidence": [
+        {
+          "path": "skills/build-work-library/SKILL.md",
+          "lines": "20-40",
+          "reason": "版本、身份與確定性相互獨立"
+        },
+        {
+          "path": "skills/build-work-library/SKILL.md",
+          "lines": "50-58",
+          "reason": "索引、匯出及原文抽核"
+        }
+      ]
+    },
+    {
+      "id": "work-library-web",
+      "primarySkill": "build-work-library",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "work-library-web",
+      "responseSha256": "29ba27e80abaa4d409d4e83dc3307a8899617f951c12b00ffc96dd581eb4476a",
+      "responsePrimarySkill": "build-work-library",
+      "verdict": "compatible",
+      "rationale": "先確定作品與範圍、續用 NEXT，優先實際官網/出版社/製作方原頁，搜尋摘要僅定位；開啟後登記 URL/機構/版本/時間/短引/hash，正文與 JSONL 同源。沒有作品名時不捏造聯網來源或官方結論；本次也未替歷史答覆執行網頁採集。",
+      "sourceEvidence": [
+        {
+          "path": "skills/build-work-library/SKILL.md",
+          "lines": "22-40",
+          "reason": "當前用途、實際原頁與可追出處"
+        },
+        {
+          "path": "skills/build-work-library/SKILL.md",
+          "lines": "54-58",
+          "reason": "抽查原文和交付證據"
+        }
+      ]
+    },
+    {
+      "id": "work-library-image",
+      "primarySkill": "build-work-library",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "work-library-image",
+      "responseSha256": "27795841945d7be45da42e29c4a39e4a8a1ce59a9f54224893e1d093dd3da7a6",
+      "responsePrimarySkill": "build-work-library",
+      "verdict": "compatible",
+      "rationale": "把候選搜尋與真正看原圖區分，未見原圖不寫顏色款式結論；登記頁面/原圖 URL、作者、版本、查看回執與觀察區域，原作/改編/同人分開，許可未知保留。預設參考連結，下載/裁切/入庫/分發另按選材許可權；未有圖片實際檢查結論。",
+      "sourceEvidence": [
+        {
+          "path": "skills/build-work-library/SKILL.md",
+          "lines": "24-38",
+          "reason": "影像操作範圍與實際檢視要求"
+        }
+      ]
+    },
+    {
+      "id": "work-library-creator-pack",
+      "primarySkill": "build-work-library",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "work-library-creator-pack",
+      "responseSha256": "8e12cfd52ce46d38b6516723dc91300bf01c730d468f1431c9531bb7d2b58949",
+      "responsePrimarySkill": "build-work-library",
+      "verdict": "compatible",
+      "rationale": "按開局時間/版本檢索人物別名、關係、場景和未決衝突，每項保留條目 ID、身份、階段與來源；新鉤子另標本次創作，後期情報不倒灌。沒見庫先請求路徑，不虛構人名關係；資料包尚未實際產出。",
+      "sourceEvidence": [
+        {
+          "path": "skills/build-work-library/SKILL.md",
+          "lines": "34-40",
+          "reason": "階段及衝突保留"
+        },
+        {
+          "path": "skills/build-work-library/SKILL.md",
+          "lines": "50-58",
+          "reason": "按現有條目與來源交付二創資料包"
+        }
+      ]
+    },
+    {
+      "id": "work-library-handoff",
+      "primarySkill": "build-work-library",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "work-library-handoff",
+      "responseSha256": "283577725f9cea8c9fafdc3b6aadca6ec9f77d514da5ced5c499e3b621c42c7d",
+      "responsePrimarySkill": "build-work-library",
+      "verdict": "compatible",
+      "rationale": "人工潤色後讀當前 Markdown/hash，編輯日誌只記觀察，不猜作者；重建索引、舊 base_sha256 衝突保留不覆蓋，繼續既有 active 批次而不重跑已提交項，失敗用量同記。JSONL/SQLite 匯出是本地操作不加模型呼叫；未見目錄不假報已續接。",
+      "sourceEvidence": [
+        {
+          "path": "skills/build-work-library/SKILL.md",
+          "lines": "42-58",
+          "reason": "既有批次、人工編輯衝突與本地匯出"
+        }
+      ]
+    },
+    {
+      "id": "frontend-sandbox-single",
+      "primarySkill": "sillytavern-embedded-ui",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "frontend-sandbox-single",
+      "responseSha256": "055e0c61a00b126e8fed5628418703fba80f6f62712d14b2900bac32c06ed04d",
+      "responsePrimarySkill": "sillytavern-embedded-ui",
+      "verdict": "compatible",
+      "rationale": "保真實源入口、版本/hash 和三層視窗/橋歸屬，只加最小隔離狀態事件適配，缺介面顯式失敗而非每層灌假全域性；注入先示批次/目標/差異確認，寫後回讀對照顯示。採用已獲同意的沙盒路線，但尚未搭建；真實 ST/裝置/人工門另驗。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-embedded-ui/references/sandbox-workflow.md",
+          "lines": "5-20",
+          "reason": "真實源拓撲及資料確認/回讀"
+        },
+        {
+          "path": "skills/sillytavern-embedded-ui/references/sandbox-workflow.md",
+          "lines": "45-51",
+          "reason": "沙盒與真實宿主分別交接"
+        }
+      ]
+    },
+    {
+      "id": "frontend-sandbox-joint",
+      "primarySkill": "sillytavern-embedded-ui",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "frontend-sandbox-joint",
+      "responseSha256": "bbfd9cda5960d6129b3b6f8ff8e0c191991595d60f08ba10a1545289e557421f",
+      "responsePrimarySkill": "sillytavern-embedded-ui",
+      "verdict": "compatible",
+      "rationale": "聯合裝真實 HUD/手機/控制中心與共享狀態事件，列未接入/不支援/未測/失敗；注入預覽和回讀比較各對映檢視與事件順序。滑條基線/復位與業務狀態分離，匯出綁源/hash，選定回落原始碼後移除臨時覆蓋重測。沒有把頁面開啟或模擬成功當 ST 透過。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-embedded-ui/references/sandbox-workflow.md",
+          "lines": "7-20",
+          "reason": "聯合真實源/共享適配與狀態對照"
+        },
+        {
+          "path": "skills/sillytavern-embedded-ui/references/sandbox-workflow.md",
+          "lines": "23-49",
+          "reason": "缺口清單、引數隔離與源回落"
+        }
+      ]
+    },
+    {
+      "id": "frontend-sandbox-skip",
+      "primarySkill": "sillytavern-embedded-ui",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "frontend-sandbox-skip",
+      "responseSha256": "066f779f9f47acd353fbe38c90471c61c58b68313848cb33395c07f285bf1d01",
+      "responsePrimarySkill": "sillytavern-embedded-ui",
+      "verdict": "compatible",
+      "rationale": "複用使用者明確 skip 決定，不建立沙盒也不記失敗，繼續現有源/構建和準確成品的 ST 佈局、互動、樓層生命週期檢查；未見續接時沒有稱某版構建已完成。可選沙盒不阻塞正常製作且不替宿主門。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-embedded-ui/references/sandbox-workflow.md",
+          "lines": "3-11",
+          "reason": "沿用採用/跳過決定"
+        },
+        {
+          "path": "skills/sillytavern-embedded-ui/references/sandbox-workflow.md",
+          "lines": "45-49",
+          "reason": "真實產物交接與獨立驗收"
+        }
+      ]
+    },
+    {
+      "id": "project-board-evidence-percentages",
+      "primarySkill": "orchestrate-project-blueprint",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "project-board-evidence-percentages",
+      "responseSha256": "fbe0fc8e05af4a0f1f2ea9133994cc1e2ccd00bcb0d7599b84b411a1ccbf5a4b",
+      "responsePrimarySkill": "orchestrate-project-blueprint",
+      "verdict": "compatible",
+      "rationale": "舊總設計/藍圖/NEXT 為權威，只初始化缺少的專案板，不遷移舊藍圖；分開按確認範圍、事項/檢查點權重和證據算實現/驗收，parking 不進分母，缺分母不報數。來源變化及證據缺失/hash 變動會暫停有效百分比，100% 不等釋出；尚無輸入故未造進度。",
+      "sourceEvidence": [
+        {
+          "path": "skills/orchestrate-project-blueprint/references/progress-board.md",
+          "lines": "68-94",
+          "reason": "來源繫結、有效百分比及加權口徑"
+        }
+      ]
+    },
+    {
+      "id": "project-board-persisted-feedback",
+      "primarySkill": "orchestrate-project-blueprint",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "project-board-persisted-feedback",
+      "responseSha256": "1aab24ffb59b981d9a4c1b9193ed24eb79b9bd9fe2775066be1ffa7f50d55174",
+      "responsePrimarySkill": "orchestrate-project-blueprint",
+      "verdict": "compatible",
+      "rationale": "反饋原話、穩定 ID、歷史及提交時 boardRevision/baseline/sourceHashes 獨立儲存；雙標籤以已讀 feedback revision 樂觀鎖，衝突保留草稿不強推，成功原子替換並回讀。靜態頁面只草稿不能宣稱落盤，稽核文字不自動成為驗收；實際併發與重開仍待測。",
+      "sourceEvidence": [
+        {
+          "path": "skills/orchestrate-project-blueprint/references/progress-board.md",
+          "lines": "96-118",
+          "reason": "反饋原話、版本衝突、原子儲存與回讀"
+        }
+      ]
+    },
+    {
+      "id": "project-board-blocking-bug-retest",
+      "primarySkill": "orchestrate-project-blueprint",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "project-board-blocking-bug-retest",
+      "responseSha256": "c9c2f397f23a2ae2d1e3776c7d7df216f398109a394e21ee866f284176e36b82",
+      "responsePrimarySkill": "orchestrate-project-blueprint",
+      "verdict": "compatible",
+      "rationale": "關聯已確認阻斷 bug 後保留實現證據但驗收待複測，即使本輪不修也在 NEXT 留缺口；修程式碼不能直接關單，須 resolution/verification/真實 verificationEvidence 再生成板。未把實現進度或反饋原話提升為使用者接受，後續複驗尚未發生。",
+      "sourceEvidence": [
+        {
+          "path": "skills/orchestrate-project-blueprint/references/progress-board.md",
+          "lines": "98-110",
+          "reason": "阻斷 bug、延期、複測關閉與反饋非驗收"
+        }
+      ]
+    },
+    {
+      "id": "project-board-design-next-sync",
+      "primarySkill": "orchestrate-project-blueprint",
+      "responseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "responseId": "project-board-design-next-sync",
+      "responseSha256": "3d54cdcd4ff57964ffd254060424331ae27a7c0c301ec238d76102e34934c78c",
+      "responsePrimarySkill": "orchestrate-project-blueprint",
+      "verdict": "compatible",
+      "rationale": "使用實際設計/NEXT 的獨立範圍/狀態塊並核正文一致，source-plan 繫結板/反饋版本、源和所有證據 SHA；變化拒絕舊計劃，保歷史再回讀投影/NEXT。結構壞或漏項先修權威不手填 JSON，自動/瀏覽器/實機/driver 門分開；未有目標檔案不虛稱同步。",
+      "sourceEvidence": [
+        {
+          "path": "skills/orchestrate-project-blueprint/references/progress-board.md",
+          "lines": "17-23",
+          "reason": "雙源職責及精確覆蓋"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/references/progress-board.md",
+          "lines": "66-75",
+          "reason": "審批/雜湊繫結同步與正文含義核對"
+        }
+      ]
+    },
+    {
+      "id": "worldbook-prose-only",
+      "primarySkill": "worldbook-design-and-writing",
+      "responseFile": "runs/2026-10-16-v4-premerge/new-written-responses.json",
+      "responseId": "worldbook-prose-only",
+      "responseSha256": "2560bed07819ca158910255bc63f7a3fa10acb0b86be0bebdc1904c91515e3bc",
+      "responsePrimarySkill": "worldbook-design-and-writing",
+      "verdict": "compatible",
+      "rationale": "正文改為守衛通常不放行尚未核實身份者，緊急撤離由值班長可批例外，保留頻率、否定、條件和許可權強度，沒有承諾核實即通行或撤離自動例外。明確只聊天草稿，尚缺原條目技術語法，觸發/載入/整卡未改，符合窄正文邊界。",
+      "sourceEvidence": [
+        {
+          "path": "skills/worldbook-design-and-writing/SKILL.md",
+          "lines": "24-35",
+          "reason": "正文精修不擴大世界書/整卡範圍"
+        },
+        {
+          "path": "skills/worldbook-design-and-writing/references/writing-contracts.md",
+          "lines": "68-104",
+          "reason": "通常/可與例外語義"
+        },
+        {
+          "path": "skills/worldbook-design-and-writing/references/writing-contracts.md",
+          "lines": "202-225",
+          "reason": "逐義比較和靜態侷限"
+        }
+      ]
+    },
+    {
+      "id": "worldbook-native-first",
+      "primarySkill": "worldbook-design-and-writing",
+      "responseFile": "runs/2026-10-16-v4-premerge/new-written-responses.json",
+      "responseId": "worldbook-native-first",
+      "responseSha256": "0a6ec067903f248d0350e6c476ea5d5798fea6246e14c2b3cfafbc5b8be9f51c",
+      "responsePrimarySkill": "worldbook-design-and-writing",
+      "verdict": "compatible",
+      "rationale": "固定港規和人物事實先用短常駐/可靠姓名別名的原生條目，正文承載事實而非僅標題；沿現行掃描深度 2、雙向遞迴關，預算/最終請求待核。給漏載、真實狀態分支和預算浪費的升級條件，未強加 MVU/模板；小型只是待確認提議，未接管整卡交付。",
+      "sourceEvidence": [
+        {
+          "path": "skills/worldbook-design-and-writing/SKILL.md",
+          "lines": "29-40",
+          "reason": "新書規模選擇和專屬範圍"
+        },
+        {
+          "path": "skills/worldbook-design-and-writing/references/planning-and-loading.md",
+          "lines": "60-88",
+          "reason": "原生策略與深度/遞迴合同"
+        },
+        {
+          "path": "skills/worldbook-design-and-writing/references/planning-and-loading.md",
+          "lines": "112-134",
+          "reason": "最簡單充分機制及升級成本"
+        }
+      ]
+    },
+    {
+      "id": "worldbook-condition-boundaries",
+      "primarySkill": "worldbook-design-and-writing",
+      "responseFile": "runs/2026-10-16-v4-premerge/new-written-responses.json",
+      "responseId": "worldbook-condition-boundaries",
+      "responseSha256": "34658f84e63f6d85cc0f920c1f73c8fcd30282d97d3398018d9c73809497db7e",
+      "responsePrimarySkill": "worldbook-design-and-writing",
+      "verdict": "compatible",
+      "rationale": "分別給漲水關閉、正常可通與缺失/無效/未初始化無法判斷，缺值不寫正常；先入口可達再條件輸出，沒命中不能算已執行。清楚區分原生一起送三規則和版本核實的嚴格擇一輸出，並保目標接收模型/最終請求待驗，不修改宿主。",
+      "sourceEvidence": [
+        {
+          "path": "skills/worldbook-design-and-writing/references/planning-and-loading.md",
+          "lines": "112-145",
+          "reason": "可達性、條件處理與實際接收請求"
+        },
+        {
+          "path": "skills/worldbook-design-and-writing/references/planning-and-loading.md",
+          "lines": "181-199",
+          "reason": "缺值/false 區別和只讀狀態"
+        }
+      ]
+    },
+    {
+      "id": "worldbook-era-precedence",
+      "primarySkill": "worldbook-design-and-writing",
+      "responseFile": "runs/2026-10-16-v4-premerge/new-written-responses.json",
+      "responseId": "worldbook-era-precedence",
+      "responseSha256": "a4ef4984264e44ce32b0d0cb00cfa9cc8d07c4cea58acb71f15b6aefc9ef2655",
+      "responsePrimarySkill": "worldbook-design-and-writing",
+      "verdict": "compatible",
+      "rationale": "把同名白塔拆成建築/救援組織的穩定身份，正文有類別時代，當前現代狀態維持；明確比較可帶標籤並列歷史參照但不寫時代，也不推出建築今天仍在。歧義按已確認狀態並在影響結果時澄清，實際別名命中尚待檢查。",
+      "sourceEvidence": [
+        {
+          "path": "skills/worldbook-design-and-writing/references/planning-and-loading.md",
+          "lines": "151-179",
+          "reason": "確認狀態、跨時代比較、提及與寫入分離"
+        }
+      ]
+    },
+    {
+      "id": "worldbook-mixed-budget",
+      "primarySkill": "worldbook-design-and-writing",
+      "responseFile": "runs/2026-10-16-v4-premerge/new-written-responses.json",
+      "responseId": "worldbook-mixed-budget",
+      "responseSha256": "d9113efae398768f363630da24ea8f7eb45ccdab850c07d0dd76944f595b2a37",
+      "responsePrimarySkill": "worldbook-design-and-writing",
+      "verdict": "compatible",
+      "rationale": "原生/控制器以共同內容身份和權威版本去重，無全域性仲裁就設計互斥單入口，不假設區域性 Set 刪除原生已注入內容；按接收模型整個請求預算，必要規則/例外整體保留，可選按批准優先順序省略，必需放不下就報不足。未截斷規則或把靜態長度當 token 實測。",
+      "sourceEvidence": [
+        {
+          "path": "skills/sillytavern-rolecard-performance/references/worldbook-output-budget.md",
+          "lines": "3-22",
+          "reason": "共同身份/仲裁、必要依賴及實際請求預算"
+        },
+        {
+          "path": "skills/worldbook-design-and-writing/SKILL.md",
+          "lines": "81-99",
+          "reason": "API/預算交接與設計不寫狀態"
+        }
+      ]
+    },
+    {
+      "id": "worldbook-semantic-comparison",
+      "primarySkill": "worldbook-design-and-writing",
+      "responseFile": "runs/2026-10-16-v4-premerge/new-written-responses.json",
+      "responseId": "worldbook-semantic-comparison",
+      "responseSha256": "59a79f1d8d28fc21cb059b35327381785c60001d1548b00047fca1c0f8bcae94",
+      "responsePrimarySkill": "worldbook-design-and-writing",
+      "verdict": "compatible",
+      "rationale": "有效修訂答覆凍結語義和評分，普通/邊界/例外場景不把核實身份當必放行；發現樣本與未見檢查分離，修稿用過的轉回歸。措辭與位置分開實驗，固定模型/設定/狀態/上下文，記錄 token 長差/實際位置/裁剪，獨立重置、平衡順序、同重復計劃和全部失敗；明確未呼叫模型、不許諾勝者。",
+      "sourceEvidence": [
+        {
+          "path": "skills/worldbook-design-and-writing/references/behavioral-validation.md",
+          "lines": "14-58",
+          "reason": "凍結條件、未見集與措辭控制"
+        },
+        {
+          "path": "skills/worldbook-design-and-writing/references/behavioral-validation.md",
+          "lines": "94-152",
+          "reason": "位置、混淆因素、全結果和 not-run 邊界"
+        }
+      ]
+    },
+    {
+      "id": "soul-ensemble-brainstorm-ownership",
+      "primarySkill": "orchestrate-project-blueprint",
+      "responseFile": "runs/2026-10-18-review-fixes/review.json",
+      "responseId": "soul-ensemble-brainstorm-ownership",
+      "responseSha256": null,
+      "responseAvailability": "missing-observedResponse",
+      "verdict": "unresolved",
+      "rationale": "凍結 prompt/判據可明確路由編排 Skill 並讓 Soul 只供聯席聲音；當前原始碼也支援這一邊界。但 results.json 沒有 replayRecord，所指 2026-10-18 review.json 僅有結論/來源說明，全 tests/replay 檢索未找到該 ID 的 observedResponse，無法逐句複核或計算答覆雜湊。舊 pass 不能替代缺失原答覆。",
+      "sourceEvidence": [
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "lines": "30-68",
+          "reason": "聯席由編排管流程並共享同一賬本"
+        },
+        {
+          "path": "skills/activate-tavernweave-soul/SKILL.md",
+          "lines": "21-40",
+          "reason": "Soul 只為疊加聲音及顯式路由"
+        },
+        {
+          "path": "tests/replay/results.json",
+          "lines": "3700-3703",
+          "reason": "此案只有舊審查證據指標無 replayRecord"
+        }
+      ],
+      "requiredRevision": "定位並保留原始完整 observedResponse 後再評審；若確實不存在，另行記錄本輪新寫答覆及獨立評審，不覆蓋歷史缺口，也不稱歷史模型試跑。"
+    },
+    {
+      "id": "bare-architecture-review-no-soul",
+      "primarySkill": "code-quality-workflow",
+      "responseFile": "runs/2026-10-18-review-fixes/review.json",
+      "responseId": "bare-architecture-review-no-soul",
+      "responseSha256": null,
+      "responseAvailability": "missing-observedResponse",
+      "verdict": "unresolved",
+      "rationale": "裸“架構審查”的凍結判據與當前 code-quality 的 architecture-hotspot-scan/architecture、只讀、不自動開啟 Soul 一致；但這隻能確認規範，不能確認歷史答覆。該案沒有 replayRecord，所指舊 review 也不含 observedResponse，全庫未找到完整答覆，故雜湊缺失並保留未決。",
+      "sourceEvidence": [
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "lines": "31-66",
+          "reason": "只讀架構路由與不啟用 Soul"
+        },
+        {
+          "path": "tests/replay/results.json",
+          "lines": "3705-3708",
+          "reason": "舊 pass 僅指審查結論，不是答覆記錄"
+        }
+      ],
+      "requiredRevision": "補取原始完整答覆及來源；無法找回時把新書面答覆作為獨立新增記錄評審，保留本案歷史缺失結論，不能為不存在文字製造 SHA-256。"
+    }
+  ]
+}

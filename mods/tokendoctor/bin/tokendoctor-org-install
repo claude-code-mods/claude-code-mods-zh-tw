@@ -1,0 +1,124 @@
+#!/usr/bin/env node
+// Installs tokendoctor as this machine's own mod, so the slide runs where Claude Code's built-in guard
+// (cc-plugin-sec-default) sends compaction past the mods a person installs: a Team or Enterprise
+// /login, or any machine with managed settings. See lib/guard.mjs.
+//
+// Two halves, dry run by default:
+//   tokendoctor-org-install [--write]                 your settings: turn the marketplace copy off and
+//                                                     carry its options over to the machine copy
+//   sudo tokendoctor-org-install --system [--write]   the system folder: a root-owned copy of the plugin,
+//                                                     a marketplace naming it, and managed-settings.d/50-tokendoctor.json
+//   ... --uninstall                                   undoes the half it is run for
+//
+// The drop-in adds three keys (extraKnownMarketplaces, enabledPlugins, appendPlugins) and touches no
+// other managed setting. A machine whose organization delivers server-managed settings or an MDM
+// profile ignores files, so there the administrator has to add it (the command says so).
+import { cpSync, existsSync, lchownSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { describePlan, planOps, valueAt, writePlan } from '../lib/apply.mjs'
+import { guardInputs, settingsPath } from '../lib/collect.mjs'
+import { blockedNote, dropInSettings, guardState, marketplaceManifest, orgPaths, USER_ID } from '../lib/guard.mjs'
+
+const args = process.argv.slice(2)
+const write = args.includes('--write')
+const uninstall = args.includes('--uninstall')
+const system = args.includes('--system')
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const paths = orgPaths()
+// What the plugin needs at run time; the site, the benchmark and the tests stay out.
+const PARTS = ['.claude-plugin/plugin.json', '.claude-plugin/icon.png', 'bin', 'hooks', 'lib', 'skills', 'templates', 'package.json', 'LICENSE', 'README.md']
+
+const state = guardState(guardInputs())
+const say = (s = '') => console.log(s)
+
+if (system) runSystem()
+else runUser()
+
+function runSystem() {
+  if (process.platform === 'win32') {
+    say('在 Windows 上请手动复制文件：见本脚本顶部的说明。')
+    process.exit(2)
+  }
+  const isRoot = process.getuid?.() === 0
+  if (uninstall) {
+    say(`${write ? '正在删除' : '将删除'}：\n  ${paths.dropIn}\n  ${paths.marketplace}`)
+    if (!write) return say('\n试运行。以 root 身份加 --write 重新运行即可应用。')
+    if (!isRoot) fail('需要 root 权限：请用 sudo 运行。')
+    rmSync(paths.dropIn, { force: true })
+    rmSync(paths.marketplace, { recursive: true, force: true })
+    return say('完成。请重启 Claude Code。')
+  }
+  if (state.filesHidden) {
+    say('这台机器的策略来自服务端托管设置或 MDM 配置，它们会隐藏托管')
+    say('设置文件：在这里放 drop-in 不会起作用。请让管理员把 tokendoctor 添加为')
+    say('organization mod: https://code.claude.com/docs/en/plugins/mods/admin.md#install-your-organizations-mods')
+    process.exit(1)
+  }
+  const dropIn = JSON.stringify(dropInSettings(), null, 2) + '\n'
+  say(`${write ? '正在安装' : '将安装'}：`)
+  say(`  ${paths.plugin}   ${root} 的 root 所有副本`)
+  say(`  ${join(paths.marketplace, '.claude-plugin', 'marketplace.json')}`)
+  say(`  ${paths.dropIn}:`)
+  say(dropIn.replace(/^/gm, '    '))
+  if (!write) return say('试运行。以 root 身份（sudo）加 --write 重新运行即可应用。')
+  if (!isRoot) fail('需要 root 权限：托管设置及它们加载的内容必须只有管理员能写。')
+  rmSync(paths.plugin, { recursive: true, force: true })
+  for (const part of PARTS) {
+    const from = join(root, part)
+    if (existsSync(from)) cpSync(from, join(paths.plugin, part), { recursive: true })
+  }
+  mkdirSync(join(paths.marketplace, '.claude-plugin'), { recursive: true })
+  writeFileSync(join(paths.marketplace, '.claude-plugin', 'marketplace.json'), JSON.stringify(marketplaceManifest(), null, 2) + '\n')
+  mkdirSync(paths.dropInDir, { recursive: true })
+  writeFileSync(paths.dropIn, dropIn)
+  // A copied file keeps its owner: everything the machine loads as its own must be root's, or the
+  // person (or anything running as them) could rewrite the mod the guard trusts (admin.md).
+  rootOwn(paths.marketplace)
+  rootOwn(paths.dropIn)
+  say('完成。现在不用 sudo，运行 `tokendoctor-org-install --write` 处理你自己的设置，然后重启 Claude Code。')
+  say('tokendoctor 更新后，再次运行此命令以刷新副本。')
+}
+
+function runUser() {
+  if (process.getuid?.() === 0) fail('这一步请以你自己的身份运行，不要用 root：它会修改你自己的设置。')
+  if (!uninstall) {
+    if (!state.seated) {
+      say('这里没有守卫就位（没有托管设置，也不是 Team 或 Enterprise 登录）：slide 已经可以')
+      say('从你安装的插件运行。无需操作。')
+      return
+    }
+    const note = blockedNote(state)
+    if (note) say(note + '\n')
+  }
+  // Two copies would each register the hooks, the tools and /tokendoctor: the marketplace one goes
+  // off. The options stay under its id, where /tokendoctor writes them and the machine copy reads them.
+  const user = JSON.parse(existsSync(settingsPath('user')) ? readFileSync(settingsPath('user'), 'utf8') : '{}')
+  const wasOn = valueAt(user, `enabledPlugins.${USER_ID}`)
+  const ops = uninstall
+    ? wasOn === false ? [{ op: 'set', key: `enabledPlugins.${USER_ID}`, value: true }] : []
+    : [{ op: 'set', key: `enabledPlugins.${USER_ID}`, value: false }]
+  const plan = planOps(settingsPath('user'), 'user', ops)
+  say(`${write ? '正在应用' : '将修改'}（user）：${describePlan(plan)}`)
+  if (write) {
+    const r = writePlan(plan)
+    say(r.written ? `  已写入${r.backup ? `，备份：${r.backup}` : ''}` : `  已跳过：${r.reason}`)
+  }
+  const me = join(root, 'bin', 'tokendoctor-org-install')
+  say('')
+  say(uninstall ? '以及系统部分：' : '系统部分（需要你输入一次密码）：')
+  say(`  sudo node "${me}" --system${uninstall ? ' --uninstall' : ''} --write`)
+  if (!write) say('\n试运行。加 --write 重新运行即可应用你这一半。')
+  if (!uninstall && state.orgInstalled) say('\n系统部分已经就位。')
+}
+
+function rootOwn(path) {
+  lchownSync(path, 0, 0)
+  if (!lstatSync(path).isDirectory()) return
+  for (const name of readdirSync(path)) rootOwn(join(path, name))
+}
+
+function fail(message) {
+  console.error(message)
+  process.exit(1)
+}

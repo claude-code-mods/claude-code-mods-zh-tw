@@ -1,0 +1,20 @@
+{
+  "name": "ctx-handoff",
+  "version": "0.8.2",
+  "description": "把你教會 Claude 的東西沉澱為專案筆記，抓住它常犯的疏漏，在你離開時保持快取溫熱，並能接續長會話。",
+  "author": {
+    "name": "CabLate",
+    "url": "https://github.com/cablate"
+  },
+  "homepage": "https://github.com/cablate/ctx-handoff-mod",
+  "repository": "https://github.com/cablate/ctx-handoff-mod",
+  "license": "MIT",
+  "keywords": [
+    "context",
+    "handoff",
+    "prompt-cache",
+    "memory",
+    "mod"
+  ],
+  "types": "./types/index.d.ts"
+}

@@ -1,0 +1,222 @@
+{
+  "name": "lot-map",
+  "version": "0.12.1",
+  "description": "聊天旁的即時地圖：記憶、檔案、shell、網路、模型、agents、技能與 hooks 在被使用時依次亮起。",
+  "author": {
+    "name": "Aleksei Volodin",
+    "url": "https://github.com/alexeyw"
+  },
+  "homepage": "https://github.com/alexeyw/lot-map",
+  "repository": "https://github.com/alexeyw/lot-map",
+  "supportUrl": "https://github.com/alexeyw/lot-map/issues",
+  "privacyPolicyUrl": "https://github.com/alexeyw/lot-map/blob/main/PRIVACY.md",
+  "keywords": ["mod", "map", "visualization", "activity", "tool calls", "hooks", "subagents", "memory"],
+  "license": "MIT",
+  "icon": "./.claude-plugin/icon.png",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "語言",
+      "options": [
+        "en",
+        "ru",
+        "es",
+        "fr",
+        "de",
+        "it",
+        "pt"
+      ],
+      "default": "en",
+      "description": "地圖上標籤的語言。"
+    },
+    "coreName": {
+      "type": "string",
+      "title": "中心名稱",
+      "default": "CLAUDE",
+      "description": "地圖中央圓圈顯示的文字，最多十個字元。"
+    },
+    "memoryServers": {
+      "type": "string",
+      "multiple": true,
+      "title": "記憶伺服器",
+      "default": [
+        "memory"
+      ],
+      "description": "工具會點亮“記憶”站的 MCP 伺服器。"
+    },
+    "memoryCommands": {
+      "type": "string",
+      "multiple": true,
+      "title": "記憶命令",
+      "default": [],
+      "description": "會點亮“記憶”站的 Shell 命令或指令碼。名稱本身是命令，或以命令加連字元、下劃線、句點開頭，都算匹配。"
+    },
+    "memorySubcommands": {
+      "type": "string",
+      "multiple": true,
+      "title": "記憶子命令",
+      "default": [],
+      "description": "記憶命令之後可以顯示在地圖上的詞，如 add 或 search。未設定時，記憶命令只顯示自身名稱，因為其後的詞可能是內容。"
+    },
+    "memoryPaths": {
+      "type": "string",
+      "multiple": true,
+      "title": "記憶路徑",
+      "default": [],
+      "description": "使檔案成為記憶的路徑片段。Claude Code 自帶的記憶資料夾始終計入。"
+    },
+    "memoryLabels": {
+      "type": "string",
+      "multiple": true,
+      "title": "記憶標籤",
+      "default": [],
+      "description": "記憶工具的短名稱，每個寫成 tool=name。未設定的工具使用其自身名稱。"
+    },
+    "serverStations": {
+      "type": "string",
+      "multiple": true,
+      "title": "伺服器所屬站點",
+      "default": [],
+      "description": "將 MCP 伺服器的工具放到地圖的某個站點上，每個寫成 server=station。站點包括 files、shell、web、browser、agents、skills 和 you。記憶使用 memoryServers；若伺服器同時出現在兩處，以記憶為準。未配置或站點未知的伺服器按模組預設方式放置。"
+    },
+    "hookRecords": {
+      "type": "boolean",
+      "title": "鉤子新增編號記錄",
+      "default": false,
+      "description": "如果你的某個鉤子會新增類似 [#123] 的編號記憶記錄，請開啟此項：地圖會在“記憶”站按編號顯示這些記錄。任何鉤子文字中的此類編號都會被計入，不限於記憶鉤子。"
+    },
+    "hookReasons": {
+      "type": "boolean",
+      "title": "顯示鉤子拒絕的原因",
+      "default": false,
+      "description": "顯示鉤子拒絕理由的第一行，最多 72 個字元。關閉時，地圖只顯示哪個工具被阻止：拒絕理由中可能引用鉤子發現的內容。"
+    },
+    "guardedHooks": {
+      "type": "boolean",
+      "title": "守衛會跳過的鉤子",
+      "default": true,
+      "description": "在 Team 或 Enterprise 賬戶下，如果記錄中不斷出現 lot-map 鉤子被跳過的提示，請關閉此項。關閉後，地圖將不再顯示“鉤子”站、鉤子新增的記錄、手輸斜槓命令所在行以及壓縮標記；其餘功能保持不變。"
+    },
+    "openAtStart": {
+      "type": "boolean",
+      "title": "會話開始時打開面板",
+      "default": true,
+      "description": "關閉後，面板會一直保持關閉，直到你輸入 /lot-map。地圖仍會從會話的第一次呼叫開始記錄，因此開啟時內容是完整的。"
+    },
+    "subagentNames": {
+      "type": "boolean",
+      "title": "在行中顯示子代理名稱",
+      "default": false,
+      "description": "子代理的模型步驟會顯示它是哪個子代理，取啟動時的前幾個詞，最多 40 個字元。關閉時只顯示它是子代理。"
+    },
+    "contextCost": {
+      "type": "boolean",
+      "title": "每次呼叫增加的上下文量",
+      "default": false,
+      "description": "每一行大致顯示該呼叫的回覆使上下文增長了多少 token，地圖會在每個站點的計數後加上合計。這是估算值：一個模型步驟的增長量（其中也包含模型自己的輸出、鉤子新增的內容，以及回合開始時共享給該步驟各次呼叫的訊息）。顯示會滯後一步，回合最後一步的呼叫不顯示。"
+    },
+    "contextWindow": {
+      "type": "string",
+      "title": "環形進度的參照範圍",
+      "options": [
+        "model",
+        "compaction"
+      ],
+      "default": "model",
+      "description": "中央圓環及其百分比衡量上下文的基準：model 表示模型的完整視窗，與狀態行相同；compaction 表示自動壓縮視窗（例如透過 autoCompactWindow 設定的視窗），它小於模型視窗。若未設定或關閉自動壓縮，compaction 顯示與 model 相同。"
+    },
+    "theme": {
+      "type": "string",
+      "title": "配色",
+      "options": [
+        "auto",
+        "dark",
+        "light"
+      ],
+      "default": "auto",
+      "description": "地圖的配色：dark（深色）、light（淺色）或 auto（自動，深色介面用深色，淺色介面用淺色）。"
+    },
+    "background": {
+      "type": "string",
+      "title": "背景",
+      "options": [
+        "solid",
+        "transparent"
+      ],
+      "default": "solid",
+      "description": "地圖自身的背景，或 transparent（透明），讓下方面板透出來。"
+    },
+    "paneBackground": {
+      "type": "string",
+      "title": "面板背景",
+      "default": "theme",
+      "description": "面板的繪製方式：theme 為 Claude Code 自帶樣式；transparent 讓下方終端透出；或使用 #rrggbb 格式的顏色。"
+    },
+    "colors": {
+      "type": "string",
+      "multiple": true,
+      "title": "自定義顏色",
+      "default": [],
+      "description": "替換地圖自身配色的顏色，每個寫成 name=#rrggbb。可用名稱：background、node、line、spoke、text、label、faint、accent、active、error、memory、memoryActive、route。使用時請將 theme 設為 dark 或 light。"
+    },
+    "layout": {
+      "type": "string",
+      "title": "佈局",
+      "options": [
+        "you-top",
+        "you-bottom"
+      ],
+      "default": "you-top",
+      "description": "你在地圖上的位置：頂部，或底部（此時網路和瀏覽器位於頂部）。"
+    },
+    "motion": {
+      "type": "string",
+      "title": "動畫",
+      "options": [
+        "full",
+        "reduced"
+      ],
+      "default": "full",
+      "description": "設為 reduced 時，地圖上的元素不會飛散或旋轉：呼叫只點亮其站點和連線，變化僅以淡入淡出呈現。"
+    },
+    "textSize": {
+      "type": "string",
+      "title": "文字大小",
+      "options": [
+        "caption",
+        "footnote",
+        "body"
+      ],
+      "default": "footnote",
+      "description": "地圖下方各行的字號：caption 較小，body 較大。終端只有一種字號，會忽略此設定。"
+    },
+    "logRows": {
+      "type": "string",
+      "title": "地圖下方的行數",
+      "options": [
+        "16",
+        "fill"
+      ],
+      "default": "16",
+      "description": "地圖下方列表顯示的行數：16，或 fill（填滿面板在地圖下方的空間，且不少於 16 行）。fill 適用於桌面應用的停靠面板；終端、編輯器和移動端應用仍顯示 16 行。"
+    },
+    "terminalView": {
+      "type": "string",
+      "title": "終端檢視",
+      "options": [
+        "text",
+        "picture",
+        "braille"
+      ],
+      "default": "text",
+      "description": "地圖在終端中的呈現方式：text 僅顯示各行；picture 在行之上顯示由模組繪製的地圖圖片，適用於支援圖片的終端，如 kitty、Ghostty 或 3.7.8 及以上版本的 iTerm2，早期 iTerm2 不支援（它會保留每一幀）；braille 則用盲文點和字母在行之上顯示地圖，適用於字型支援盲文的任意終端，如 Windows Terminal。"
+    },
+    "cellShape": {
+      "type": "number",
+      "title": "終端單元格形狀",
+      "default": 2.4,
+      "description": "用於終端圖片：終端單元格的高寬比，使圖片填滿其區域。iTerm2 的 Monaco 12 約為 2.4，kitty 的 Menlo 約為 2。如果地圖下方留白或看起來被縱向拉長，請調大；如果留白在右側或地圖看起來被壓扁，請調小。範圍 1.2 到 4。"
+    }
+  }
+}

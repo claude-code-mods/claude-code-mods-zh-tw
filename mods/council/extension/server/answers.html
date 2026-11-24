@@ -1,0 +1,50 @@
+<!doctype html>
+<!-- ABOUTME: The council answers panel Claude Desktop draws under a council_ask call (an MCP App page) -->
+<!-- ABOUTME: One card per seat with its answer or its error; the data arrives as the tool's result -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>议事厅回答</title>
+<style>
+  /* @include panel-style.css */
+  /* @include seat-cards.css */
+</style>
+</head>
+<body>
+<main>
+  <header><h1>议事厅回答</h1><span id="status" role="status"></span></header>
+  <p class="lead" id="question">正在等待问题。</p>
+  <div id="seats" class="seat-list" aria-live="polite"></div>
+</main>
+<script>
+'use strict'
+// @include panel-host.js
+// @include panel-page.js
+// @include marks.js
+// @include markdown.js
+// @include seat-cards.js
+const question = document.getElementById('question')
+const seats = document.getElementById('seats')
+
+function showResult(result) {
+  if (!result?.isError && Array.isArray(result?.structuredContent?.seats) && result.structuredContent.question) question.textContent = result.structuredContent.question
+  showAnswers(result, seats, 'Claude 已收到完整内容。')
+}
+
+host.connect('council-answers', {
+  'ui/notifications/tool-input': params => {
+    if (typeof params?.arguments?.question === 'string') question.textContent = params.arguments.question
+    report('正在询问议事厅')
+    host.reportSize()
+  },
+  'ui/notifications/tool-result': showResult,
+  'ui/notifications/tool-cancelled': () => {
+    report('已取消', true)
+    seats.replaceChildren(element('p', { className: 'lead', textContent: '议事厅提问在回答返回前已被取消。' }))
+    host.reportSize()
+  },
+}).catch(err => { seats.replaceChildren(element('p', { className: 'lead bad', textContent: `无法连接到 Claude Desktop（${err.message}）。` })) })
+</script>
+</body>
+</html>

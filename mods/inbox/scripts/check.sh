@@ -1,0 +1,152 @@
+#!/bin/sh
+# Checks the mod: formatting with Prettier, that no file is over its token
+# limit, with scripts/check-sizes.mjs, its plugin structure with
+# `claude plugin validate`, the imports and docs that keep the three looks in
+# step, and the plugin directory's rules for the hooks module, with
+# scripts/check-structure.mjs, that every export has an importer, with
+# scripts/check-exports.mjs, that the three plugin manifests give one version,
+# with scripts/check-versions.mjs, that the comparison page matches its parts, with
+# scripts/build-compare-page.mjs, that types/index.d.ts matches its parts, with
+# scripts/build-types.mjs, that the inbox tools' input types match their
+# schemas, with scripts/build-tool-inputs.mjs, its types with tsc, and its tests with
+# `claude plugin test`. Then the Codex plugin in codex/, the omp extension in
+# omp/ and the Herdr look in herdr/, and, when the Herdr app is installed, a
+# load of the built Herdr mod in the app's own runtime with `herdr-app check`.
+# Exits 1 on any failure, and when a check cannot run.
+#
+# Needs npx, bun, the claude CLI and the Herdr app, whose type files the
+# Herdr look's types check against.
+#
+# Usage: ./scripts/check.sh
+
+set -eu
+
+DIR=$(CDPATH='' cd "$(dirname "$0")/.." && pwd -P)
+# Prettier changes its output between minor versions, so a pinned version
+# keeps the check from failing on files nobody changed.
+PRETTIER=prettier@3.9.9
+status=0
+log=$(mktemp)
+herdr_scratch=
+trap 'rm -f "$log"; [ -z "$herdr_scratch" ] || rm -rf "$herdr_scratch"' EXIT
+
+# Runs one check and prints the check's output only when it fails. A log that
+# lists every test, as the root tests step's does, prints each failed test's
+# name with the error under it and the totals, not the lines of the tests that
+# passed. Other logs print whole. bun test prints no passed tests and puts a
+# failure's error before its name, so its log is short and prints whole.
+check() {
+    label=$1
+    shift
+    if "$@" >"$log" 2>&1; then
+        echo "  ok $label"
+    else
+        echo "  x $label"
+        if grep -q '^(pass)' "$log" && grep -q '^(fail)' "$log"; then
+            grep -A1 -E '^\(fail\)| pass$| fail$|^Ran ' "$log" | grep -v '^--$' | sed 's/^/      /'
+        else
+            sed 's/^/      /' "$log"
+        fi
+        status=1
+    fi
+}
+
+# Prettier reads .prettierignore and .gitignore from the folder it runs in.
+cd "$DIR"
+before=$status
+check "prettier" npx -y "$PRETTIER" --check .
+[ "$status" = "$before" ] || echo "      Fix: npx -y $PRETTIER --write ."
+
+check "file sizes" node "$DIR/scripts/check-sizes.mjs"
+
+check "plugin validate" claude plugin validate "$DIR"
+check "structure" node "$DIR/scripts/check-structure.mjs"
+check "exports" node "$DIR/scripts/check-exports.mjs"
+check "versions" node "$DIR/scripts/check-versions.mjs"
+check "compare page" node "$DIR/scripts/build-compare-page.mjs" --check
+check "types parts" node "$DIR/scripts/build-types.mjs" --check
+# Claude Code writes these types into this folder when a session loads the mod
+# from it, through --plugin-dir or CLAUDE_CODE_PLUGIN_DIRS, with or without -p.
+# A session that only starts here writes none. The types name no paths, so a
+# worktree that has none uses the main checkout's.
+types="$DIR/.claude-plugin/types"
+main=$(git -C "$DIR" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')
+if [ ! -e "$types" ] && [ -n "$main" ] && [ -f "$main/.claude-plugin/types/tsconfig.json" ]; then
+    cp -R "$main/.claude-plugin/types" "$types"
+    echo "  - types: copied from $main"
+fi
+if [ -f "$types/tsconfig.json" ]; then
+    # The inbox tools' inputs come from their schemas, not from the MCP tools of
+    # the session that last wrote the types, which tsconfig.json leaves out.
+    check "tool inputs" node "$DIR/scripts/build-tool-inputs.mjs" --check
+    # The TypeScript that codex/ pins, which the structure check also loads. An
+    # unpinned tsc changes with each TypeScript release.
+    check "types" "$DIR/codex/node_modules/.bin/tsc" --noEmit -p "$DIR"
+else
+    echo "  x types: not checked. Start one interactive session to write them: claude --plugin-dir $DIR"
+    status=1
+fi
+check "tests" claude plugin test "$DIR"
+
+# The Codex plugin in codex/: its committed bundles match its sources, its
+# types, and its tests. Its tools come from its own package.json.
+if [ -d "$DIR/codex/node_modules" ]; then
+    check "codex bundles" npm --prefix "$DIR/codex" run --silent check
+    check "codex types" npm --prefix "$DIR/codex" run --silent types
+    check "codex tests" npm --prefix "$DIR/codex" test --silent
+    # The eval case files, with no model calls: every saved ledger loads, and every Compare case gives its press and
+    # checks that no close of the agent's takes effect. The check is TypeScript, so Codex's esbuild bundles it first.
+    cases=$(mktemp -d)
+    check "eval cases" sh -c '"$1/codex/node_modules/.bin/esbuild" "$1/evals/check-cases.ts" --bundle --platform=node \
+        --format=esm --outfile="$2/check-cases.mjs" --log-level=warning && node "$2/check-cases.mjs" "$1"' _ "$DIR" "$cases"
+    rm -rf "$cases"
+else
+    echo "  x codex: not checked. Install its tools once: npm --prefix $DIR/codex ci"
+    status=1
+fi
+
+# The omp extension in omp/: its committed bundle matches its sources, its types and its tests. omp runs on Bun, and its
+# types come from omp's own packages in omp/node_modules.
+if ! command -v bun >/dev/null 2>&1; then
+    echo "  x omp: not checked. Install Bun: https://bun.sh"
+    status=1
+elif [ ! -d "$DIR/omp/node_modules" ]; then
+    echo "  x omp: not checked. Install its tools once: bun install --cwd $DIR/omp --frozen-lockfile --ignore-scripts"
+    status=1
+else
+    check "omp bundle" npm --prefix "$DIR/omp" run --silent check
+    check "omp types" npm --prefix "$DIR/omp" run --silent types
+    check "omp tests" bun test --cwd "$DIR/omp" tests
+fi
+
+# The Herdr look in herdr/: its committed mod matches its sources, its types and its tests. Its types check against
+# the type files of the Herdr app installed here, which herdr/herdr-types.ts copies in.
+if ! command -v bun >/dev/null 2>&1; then
+    echo "  x herdr: not checked. Install Bun: https://bun.sh"
+    status=1
+elif [ ! -d "$DIR/herdr/node_modules" ]; then
+    echo "  x herdr: not checked. Install its tools once: bun install --cwd $DIR/herdr --frozen-lockfile --ignore-scripts"
+    status=1
+else
+    check "herdr mod" npm --prefix "$DIR/herdr" run --silent check
+    check "herdr types" npm --prefix "$DIR/herdr" run --silent types
+    check "herdr tests" bun test --cwd "$DIR/herdr" tests
+fi
+
+# The Herdr app's own check loads the built mod once in the app's runtime, which lacks globals Bun has, such as Intl.
+# It runs on a copy of the mod folder, since it writes type files beside the mod. env -i leaves out HC_TERMINAL_ID and
+# every HERDR_ variable of the shell, and HOME and HERDR_APP_HOME both name the scratch folder, so no variable the
+# check reads names the real app home.
+if command -v herdr-app >/dev/null 2>&1; then
+    herdr_scratch=$(mktemp -d)
+    mkdir "$herdr_scratch/home" "$herdr_scratch/inbox"
+    cp "$DIR/herdr/mod/inbox/main.js" "$DIR/herdr/mod/inbox/mod.json" "$herdr_scratch/inbox/"
+    check "herdr app check" env -i PATH="$PATH" HOME="$herdr_scratch/home" HERDR_APP_HOME="$herdr_scratch/home" \
+        herdr-app check "$herdr_scratch/inbox"
+    rm -rf "$herdr_scratch"
+    herdr_scratch=
+else
+    echo "  - herdr app check: skipped, herdr-app is not installed"
+fi
+
+exit "$status"

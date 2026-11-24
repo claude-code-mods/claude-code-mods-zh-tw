@@ -1,0 +1,146 @@
+.group-end {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+/* Keeps the fold's margin inside, so its height is the whole end's content height. */
+.group-end-content {
+  display: flow-root;
+  position: relative;
+}
+.group-empty {
+  padding: var(--row-pad) var(--edge) var(--row-pad) var(--text-x);
+  color: var(--muted);
+}
+/* A group's empty note fades out in its place, and its space closes once the note has gone. */
+.group-empty.leaving {
+  pointer-events: none;
+  animation: fade-out var(--leave-fade) forwards;
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+.fold {
+  display: block;
+  margin: var(--list-margin) 0 0 calc(var(--text-x) - var(--unit));
+  padding: 0 var(--unit);
+  border-radius: 5px;
+  color: var(--muted);
+}
+.fold:hover {
+  color: var(--text);
+}
+.fold .fold-end {
+  white-space: nowrap;
+}
+.fold .icon {
+  width: 12px;
+  height: 12px;
+  margin-left: var(--unit);
+  vertical-align: -1px;
+}
+.closed-list {
+  --mark-x: calc(var(--edge) + var(--mark));
+  --text-x: calc(var(--edge) + 2 * var(--mark));
+}
+/* The gap above a Closed list's rows is content, not padding, so the list opens from and closes to 0. */
+.closed-list::before {
+  content: '';
+  display: block;
+  height: var(--list-gap);
+}
+.closed-list .row {
+  padding-top: var(--row-pad);
+  padding-bottom: var(--row-pad);
+}
+.outcome {
+  color: var(--age);
+}
+.settled-head {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.row.settled.was-open {
+  transition: background-color var(--fade);
+  @starting-style {
+    background-color: var(--selected);
+  }
+}
+.settled-line {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* A settled row's title and its result each take one line, cut with an ellipsis, in every look, so the list does not
+   jump when the row folds into the one-line Closed fold. */
+.settled-line .what,
+.settled-line .settled-result {
+  white-space: nowrap;
+  overflow: clip;
+  text-overflow: ellipsis;
+}
+.settled .outcome-label {
+  color: var(--muted);
+}
+/* The pill keeps the line's height, so the row does not grow. */
+.key.undo {
+  flex: none;
+  white-space: nowrap;
+  border-color: transparent;
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  margin: calc(-1 * var(--unit)) 0 calc(-1 * var(--unit)) var(--item-gap);
+  background: color-mix(in oklab, var(--soft) 45%, transparent);
+}
+.key.undo.undoing {
+  color: var(--muted);
+}
+.key.undo.spent {
+  visibility: hidden;
+}
+.key.undo.undoing .icon {
+  animation: undo-turn 900ms linear infinite;
+}
+@keyframes undo-turn {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+.time-left {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--soft);
+  transform-origin: left;
+  animation-name: empty;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+.key.undo:not(:disabled):hover .time-left {
+  background: var(--soft-hover);
+}
+.time-left.paused {
+  animation-play-state: paused;
+}
+@keyframes empty {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+/* "Show 4 earlier" lists the rest of a Closed fold. Its whole line takes the click. */
+button.earlier {
+  display: block;
+  width: 100%;
+  text-align: left;
+  color: var(--muted);
+}
+button.earlier:hover {
+  color: var(--text);
+}

@@ -1,0 +1,40 @@
+{
+  "name": "shared-session",
+  "displayName": "Shared Sessions",
+  "version": "0.11.53",
+  "description": "用連結或與團隊共享 Claude Code 會話。隊友從自己的 Claude Code 加入並對話：一個會話幹活，所有人即時看到每一輪，由主機批准在自己機器上執行的操作。團隊用 GitHub 或 Google 登入，一鍵加入。除非你自建伺服器，共享走本專案的公共伺服器（見 README 中的隱私說明）。",
+  "author": {
+    "name": "scoootscooob",
+    "url": "https://github.com/scoootscooob"
+  },
+  "homepage": "https://github.com/Paradigm-Study/claude-share",
+  "repository": "https://github.com/Paradigm-Study/claude-share",
+  "license": "MIT",
+  "keywords": [
+    "collaboration",
+    "multiplayer",
+    "share",
+    "pair-programming",
+    "teams",
+    "sessions"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "server": {
+      "type": "string",
+      "title": "Share server",
+      "description": "Leave empty to share through the public server. To use your own, its https address (README: \"Host a server\"). Joining a link always uses the server in that link."
+    }
+  },
+  "mcpServers": {
+    "traces": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/relay/traces-mcp.mts"
+      ],
+      "env": {
+        "SHARED_SESSION_OPTION_SERVER": "${user_config.server}"
+      }
+    }
+  }
+}

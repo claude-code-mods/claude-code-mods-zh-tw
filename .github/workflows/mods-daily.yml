@@ -1,0 +1,33 @@
+name: Mods daily check
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Refresh mod dataset
+        run: python scripts/fetch-mod-data.py
+
+      - name: Check catalogue drift
+        id: drift
+        run: |
+          python scripts/select_mods.py --check > drift.txt 2>&1 || echo "drift=1" >> "$GITHUB_OUTPUT"
+          cat drift.txt
+
+      - name: Fail when the catalogue is behind
+        if: steps.drift.outputs.drift == '1'
+        run: exit 1

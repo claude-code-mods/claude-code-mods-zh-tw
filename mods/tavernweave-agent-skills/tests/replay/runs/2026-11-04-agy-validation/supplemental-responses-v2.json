@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "runId": "2026-11-04-agy-validation",
+  "sourceCommit": "48c1ba69a8d8ac0b847c2e320f5a501034f41a1a",
+  "writer": "/root",
+  "method": "Minimal revisions after separate written assessment; initial supplemental answers remain unchanged; no host/model trials.",
+  "cases": [
+    {
+      "id": "soul-ensemble-brainstorm-ownership",
+      "kind": "forward",
+      "prompt": "腦暴模式，Soul 聯席",
+      "primarySkill": "orchestrate-project-blueprint",
+      "supportingSkill": "activate-tavernweave-soul",
+      "observedResponse": "進入腦暴流程：由 orchestrate-project-blueprint 負責整理目標、收束決定和控制範圍；activate-tavernweave-soul 提供當前任務級 / Portable 的三席表達。已讀取公開人格核心、Portable 模式合同和三席及各席模式說明；私人畫像未使用，無寫回，許可權不變。三席是同一個 Agent 的三個視角，共用事實、許可權和一份決定賬本，不是三套獨立模型或持久記憶。\n\n[阿瞳]：先說你想做成什麼，最想保留哪一點體驗。\n[MTTT.sir]：接著把第一版能做的動作和可觀察的成功條件寫清楚；沒有執行證據的部分保留待驗證。\n[強尼·銀手]：我以同人彩蛋人格看呈現與操作是否合適，建議仍是建議，不替你拍板。\n\n先確認兩件事：這是新專案，還是接著已有專案？你希望第一版讓使用者完成哪件事？不知道可以說“你推薦”。如果是續接，我先讀取現有總設計和 NEXT，沿用已確認決定；新想法按已確認、提案中、待決定、已否決收束，每輪推進一個相鄰方向，優先一兩個必要問題，三席合計不超過四個。現在只有流程選擇，沒有批准新的產品方案、檔案寫入、模型付費呼叫或釋出；未使用私人檔案，也沒有把引導擋位自行設成預設值。",
+      "sourceEvidence": [
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "lines": "31-68",
+          "reason": "Brainstorm ownership, direct commands, bounded decisions and ensemble lenses"
+        },
+        {
+          "path": "skills/activate-tavernweave-soul/SKILL.md",
+          "lines": "21-50",
+          "reason": "Portable persona scope, shared facts, permission and loading boundaries"
+        }
+      ],
+      "previousResponseFile": "supplemental-responses.json",
+      "previousResponseSha256": "a0c63263430c460b8615e309175a9253220e307ccc6831f64585aa28547bb73e",
+      "revisionReason": "獨立初評發現啟用回執缺公開核心/必要模式讀取及無寫回說明，最小補齊，保留原腦暴主流程和決定邊界。"
+    },
+    {
+      "id": "bare-architecture-review-no-soul",
+      "kind": "forward",
+      "prompt": "架構審查",
+      "primarySkill": "code-quality-workflow",
+      "observedResponse": "我會用 code-quality-workflow 做只讀架構審查，模式為 architecture-hotspot-scan，重點為 architecture。先核對當前專案的說明、維護源和版本，沿真實入口追蹤幾個核心流程，檢查職責劃分、依賴方向、狀態歸屬、介面約定、錯誤傳播及能否驗證；角色卡專案還會檢查世界書、變數、指令碼和介面之間的實際關係。\n\n這條請求沒有啟動 Soul，也沒有授權重寫或修程式碼。若當前工作區已有明確專案，就從它開始；如果沒有可訪問的專案，請給出要審查的倉庫或目錄。結論會列出具體位置、問題觸發條件、影響、嚴重程度及最小修正建議，並保留未讀區域和未做的執行驗證。熱點檢查不會被寫成全倉覆蓋，檔案層面透過也不會被寫成真實宿主驗收。拿到證據前不先判定需要重構。",
+      "sourceEvidence": [
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "lines": "55-66",
+          "reason": "Architecture hotspot route, read-only boundary and no Soul activation"
+        },
+        {
+          "path": "skills/code-quality-workflow/references/architecture-review.md",
+          "lines": "1-28",
+          "reason": "Software/card ownership flows, bounded findings and runtime limits"
+        }
+      ],
+      "previousResponseFile": "supplemental-responses.json",
+      "previousResponseSha256": "f46630ae75dfb76077b55d21e531b9c128a14c4198ac0a99a4919b7127b0eddf",
+      "revisionReason": "答覆正文不變；修正引用行號上界，使其落在當前檔案實際範圍。"
+    }
+  ]
+}

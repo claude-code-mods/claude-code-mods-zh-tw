@@ -1,0 +1,6 @@
+{
+  "name": "agentctl",
+  "version": "0.3.1",
+  "description": "面向單個 Claude Code 會話的 Agent 控制面板：任務範圍、證據與交接。它是控制與展示層，不是隔離邊界。",
+  "author": { "name": "sd0xdev" }
+}

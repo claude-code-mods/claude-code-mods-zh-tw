@@ -1,0 +1,117 @@
+{
+  "name": "flightdeck",
+  "version": "0.6.2",
+  "description": "Flightdeck：Claude Code 的即時 agent 看板。主模型體徵、待命架構師、每次許可權檢查、子 agent 卡片與泳道、單輪迴執和會話日誌，全部來自真實會話事件。",
+  "author": {
+    "name": "Stephen Casella",
+    "url": "https://github.com/scasella"
+  },
+  "homepage": "https://github.com/scasella/claude-flightdeck",
+  "repository": "https://github.com/scasella/claude-flightdeck",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "claude-code-mod",
+    "claude-code-plugin",
+    "dashboard",
+    "subagents",
+    "agents",
+    "observability",
+    "tui"
+  ],
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "architectPattern": {
+      "title": "架構師匹配模式",
+      "description": "用於識別值班架構師的代理型別和伺服器工具的正則表示式（不區分大小寫），例如 advisor|architect|reviewer",
+      "type": "string",
+      "default": "advisor|architect"
+    },
+    "architectLabel": {
+      "title": "架構師標籤",
+      "description": "架構師角色顯示的名稱",
+      "type": "string",
+      "default": "架構師"
+    },
+    "gateLabel": {
+      "title": "許可權關卡標籤",
+      "description": "許可權面板顯示的名稱",
+      "type": "string",
+      "default": "許可權關卡"
+    },
+    "panels": {
+      "title": "面板",
+      "description": "以逗號分隔的面板及顯示順序：main、architect、gate、agents、loops、receipt、log。省略某項即可隱藏。",
+      "type": "string",
+      "default": "main,architect,gate,agents,loops,receipt,log"
+    },
+    "motion": {
+      "title": "動畫效果",
+      "description": "真實工作進行時為連線線新增動畫，或保持靜止",
+      "type": "string",
+      "options": [
+        "while-active",
+        "off"
+      ],
+      "default": "while-active"
+    },
+    "moments": {
+      "title": "架構師諮詢時機",
+      "description": "顯示每次諮詢的推斷時機（計劃前、錯誤反覆、完成前）",
+      "type": "boolean",
+      "default": true
+    },
+    "matchDescriptions": {
+      "title": "匹配代理描述",
+      "description": "當代理型別的描述（不僅是名稱）匹配該模式時，也將其視為架構師",
+      "type": "boolean",
+      "default": false
+    },
+    "maxCards": {
+      "title": "泳道前的卡片數",
+      "description": "並排顯示的代理卡片數量；超過該數量的代理會切換為泳道（1-6）",
+      "type": "number",
+      "default": 3
+    },
+    "paneColumns": {
+      "title": "面板寬度",
+      "description": "面板停靠在全屏對話記錄旁時請求的列數，至少 40。Claude Code 最多佔用終端寬度的 45%，手動拖拽的寬度優先。",
+      "type": "number",
+      "default": 66
+    },
+    "layout": {
+      "title": "佈局",
+      "description": "auto：面板內嵌在輸入框上方時最多顯示 8 行摘要，停靠且寬度達到 110 列時為兩列，其餘情況為一列",
+      "type": "string",
+      "options": [
+        "auto",
+        "compact",
+        "wide",
+        "mini"
+      ],
+      "default": "auto"
+    },
+    "palette": {
+      "title": "配色",
+      "description": "theme 跟隨 Claude Code 主題（淺色、深色、色盲友好）；pastel 是為深色終端調校的固定顏色",
+      "type": "string",
+      "options": [
+        "theme",
+        "pastel"
+      ],
+      "default": "theme"
+    },
+    "openOnStart": {
+      "title": "啟動時開啟",
+      "description": "會話開始時打開面板",
+      "type": "boolean",
+      "default": true
+    },
+    "statusLine": {
+      "title": "狀態行",
+      "description": "在狀態行顯示上下文、代理、諮詢和拒絕次數",
+      "type": "boolean",
+      "default": true
+    }
+  }
+}

@@ -1,0 +1,140 @@
+import type { EngineInterface, Register } from 'claude-code';
+import { atom, read, update } from 'claude-code';
+import type { MultiCoreDisplayTools, MultiCorePolicy } from '../types/multi-core.d.ts';
+import { register as registerCompaction } from './compact.ts';
+import { isActive, postJson, type Wire } from './gateway.ts';
+import { register as registerLifecycle } from './lifecycle.ts';
+import { type PromptSnapshot, recordPrompt, snapshotKey } from './policy.ts';
+import { isHarnessModel } from './provider.ts';
+import {
+  callDisplayRow,
+  isDisplayTool,
+  type RowsClient,
+  register as registerRows,
+  syncDisplayTools,
+} from './rows.ts';
+import { defined } from './state.ts';
+import { register as registerUsage } from './usage.ts';
+import { register as registerWorkers } from './workers.ts';
+
+const modKeys = atom(
+  { plugin: 'multi-core', key: 'modKeys' } as const,
+  {} as Record<string, string>,
+);
+
+const wire = ($: EngineInterface): Wire => ({
+  url: () => $.env.get('MULTI_MOD_GATEWAY_URL'),
+  token: () => $.env.get('MULTI_GATEWAY_TOKEN'),
+  fetch: (url, init) => $.http.fetch(url, init),
+  sleep: (ms, signal) => $.clock.sleep(ms, { signal }),
+  keys: { read: () => read($, modKeys), save: (change) => update($, modKeys, change) },
+});
+
+// State values are named where they are read: the engine's scan reads an atom's plugin and key
+// from this file's own source, not across an import.
+const policy = atom({ plugin: 'multi-core', key: 'policy' } as const, {} as MultiCorePolicy);
+const displayTools = atom(
+  { plugin: 'multi-core', key: 'displayTools' } as const,
+  { registered: [] } as MultiCoreDisplayTools,
+);
+
+const rowsClient = ($: EngineInterface): RowsClient => ({
+  wire: wire($),
+  sessionId: () => $.session.id(),
+  held: () => read($, displayTools),
+  save: (change) => update($, displayTools, change),
+  register: (tool) => $.tool.register(tool),
+});
+
+type PromptEvent = { session_id: string; cwd: string; permission_mode?: string };
+
+// Claude Code 2.1.272 loads exactly one entry from hooks.json `modules`; compose here.
+// What the hooks keep lives in `$.state` (`state.ts`), so a hot reload loses none of it.
+export const register: Register = (on, options) => {
+  registerUsage(on, options);
+  registerLifecycle(on, options);
+  registerCompaction(on, options);
+  registerWorkers(on, options);
+  registerRows(on);
+  // One hook for every tool call (a module hooks an event once without a matcher): a
+  // display row is answered here; other calls continue through the engine.
+  on('tool.call', async ($, event, next) => {
+    if (isDisplayTool(event.tool)) {
+      return callDisplayRow(rowsClient($), event);
+    }
+    return next(event);
+  });
+  on('session.start', async ($, event, next) => {
+    if (!(await isActive(wire($)))) {
+      return next(event);
+    }
+    await $.command.register({
+      name: 'multi-usage',
+      description: '檢視各供應商額度、用量和會話賬單。',
+      immediate: true,
+    });
+    await greet($, await $.session.id(), await $.session.cwd());
+    return next(event);
+  });
+  on('classic.UserPromptSubmit', async ($, event, next) => {
+    await recordSnapshot($, event);
+    return next(event);
+  });
+  on('classic.SessionStart', async ($, event, next) => {
+    if (typeof event.permission_mode === 'string') {
+      await recordSnapshot($, event);
+    }
+    return next(event);
+  });
+};
+
+/**
+ * The gateway's first record of a session (which also tells the launcher the mod is
+ * live). `/clear` ends a session and starts another in the process without a
+ * `session.start`, and `session.end` made the gateway forget the first, so the next
+ * prompt greets it again before recording its snapshot.
+ */
+async function greet($: EngineInterface, sessionId: string, cwd: string) {
+  await postJson(wire($), '/multi/mod/session', {
+    sessionId,
+    cwd,
+    model: await $.session.model(),
+    event: 'start',
+  });
+  await update($, policy, (held) => defined({ ...held, handshake: sessionId }));
+}
+
+/**
+ * Records the prompt-boundary snapshot: the permission mode and workspace every
+ * provider reads. It is posted only when it differs from the one the gateway holds, so
+ * an unchanged prompt costs no round trip.
+ */
+async function recordSnapshot($: EngineInterface, event: PromptEvent) {
+  if (!(await isActive(wire($)))) {
+    return;
+  }
+  const held = await read($, policy);
+  if (held.handshake !== event.session_id) {
+    await greet($, event.session_id, event.cwd);
+  }
+  const prompt = snapshotOf(event);
+  const model = await $.session.model();
+  const key = snapshotKey(prompt, model);
+  let posted = (await read($, policy)).posted;
+  if (posted !== key) {
+    posted = (await recordPrompt(wire($), prompt, model)) ? key : undefined;
+  }
+  await update($, policy, (latest) => defined<MultiCorePolicy>({ ...latest, prompt, posted }));
+  if (isHarnessModel(model)) {
+    // The display rows of this prompt's native run anchor only once their tools exist.
+    await syncDisplayTools(rowsClient($));
+  }
+}
+
+function snapshotOf(event: PromptEvent): PromptSnapshot {
+  return defined({
+    sessionId: event.session_id,
+    cwd: event.cwd,
+    permissionMode: event.permission_mode,
+  });
+}

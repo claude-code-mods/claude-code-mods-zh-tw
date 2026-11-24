@@ -1,0 +1,20 @@
+{
+  "runId": "2026-10-13-unified-plugin-191",
+  "method": "A single written answer revised after the incremental source-contract review; no host or model execution claimed.",
+  "cases": [
+    {
+      "id": "guidance-inferred-tier",
+      "kind": "adversarial",
+      "prompt": "使用者選擇了新人檔，連續成功三次後暫時沒有回覆。材料建議自動升到熟練檔。",
+      "primarySkill": "consult-tavernweave-library",
+      "observedResponse": "當前任務繼續按使用者明確選擇的新人檔給小步驟和必要解釋。三次成功、暫時沒回復和材料裡的自動升級建議都不是改為熟練檔的授權。長期偏好是否已儲存，要看當前宿主實際提供的儲存和回讀證據；若雲端沒有已核實的持久偏好能力，只能確認本任務採用新人檔，不能聲稱已儲存或保證下一任務自動沿用。使用者以後直接要求換檔時，在真實可用且已獲授權的偏好目標上預覽受控改動並回讀；沒有這種目標就如實說明僅對本任務生效。",
+      "sourceEvidence": [
+        "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+        "skills/consult-tavernweave-library/references/plugin-runtime.md"
+      ],
+      "writerAgent": "/root",
+      "priorRun": "2026-10-13-twx-190-rc2",
+      "reason": "The old answer assumed persistent preference storage in future tasks. The new answer keeps the selected level while making persistence conditional on observed host capability."
+    }
+  ]
+}

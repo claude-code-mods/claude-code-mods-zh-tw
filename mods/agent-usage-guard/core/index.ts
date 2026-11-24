@@ -1,0 +1,55 @@
+// The harness-agnostic core of agent-usage-guard. It performs no I/O and reads
+// no clock: an adapter reports facts, asks for verdicts, and carries them out.
+// See docs/architecture.md for the contract an adapter keeps.
+
+export { type AgentRequest, agentGate, heldForQuestion, highestLimit, isHaiku, resolveAgentAsk } from './agents.ts'
+export { type Command, DEFAULT_ALLOW_MINUTES, applyOverride, helpText, parseCommand, resumeGuard } from './commands.ts'
+export { type Config, SPECS, SWITCHES, defaultConfig, parseConfig } from './config.ts'
+export { type JournalEvent, type JournalRow, formatReport, isJournalRow, journalKey, splitJournalKeys } from './journal.ts'
+export { lockoutKind } from './lockout.ts'
+export {
+  type SpawnFacts,
+  type TokenUsage,
+  expireAgents,
+  observeAgentActive,
+  observeAgentRunEnd,
+  observeAgentStart,
+  observeCompaction,
+  observeLimits,
+  observeMainContext,
+  observeResponse,
+  observeSpawn,
+  observeToolResult,
+  observeToolStart,
+  observeTurnEnd,
+  releaseStart,
+  reserveStart,
+} from './observe.ts'
+export {
+  type PromptOutcome,
+  type PromptRequest,
+  type PromptSource,
+  markerScope,
+  promptGate,
+  promptNotes,
+  resolvePromptAsk,
+} from './prompts.ts'
+export {
+  type AgentKind,
+  type AgentRecord,
+  type LimitReading,
+  type LoopId,
+  MAIN,
+  type PeerRecord,
+  type Scope,
+  type SessionState,
+  livePeers,
+  newSession,
+  peerRecord,
+  prune,
+} from './state.ts'
+export { SIMULATED, type SimulatedRule, simulate } from './simulate.ts'
+export { type Asking, USAGE, bandExpiry, bandLine, statusLine, statusLineExpiry, statusReport } from './status.ts'
+export { agentTokensBucket, canonical, contextBucket, fingerprint } from './text.ts'
+export { type HeavyOutcome, type ToolRequest, isScheduling, resolveHeavyAsk, scheduleGate, toolGate } from './tools.ts'
+export { type Ask, type Deny, type Family, HEADER, type Rule, SIGNATURE, type Verdict } from './verdict.ts'

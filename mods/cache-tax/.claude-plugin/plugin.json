@@ -1,0 +1,58 @@
+{
+  "name": "cache-tax",
+  "version": "2.4.2",
+  "description": "在休息期間保持一小時 prompt 快取溫熱，冷啟動傳送前先詢問並顯示預計重寫成本。保活會消耗模型請求和 token。需要 Claude Code 2.1.287+。",
+  "author": {
+    "name": "Karan Bansal",
+    "url": "https://karanbansal.in/"
+  },
+  "homepage": "https://cachetax.aidojo.si/",
+  "repository": "https://github.com/karanb192/cache-tax",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "claude-mods",
+    "prompt-caching",
+    "prompt-cache",
+    "keepwarm",
+    "cache-cost",
+    "cost-visibility"
+  ],
+  "userConfig": {
+    "headless": {
+      "type": "string",
+      "title": "無介面提示詞",
+      "description": "guard（預設）：對 CLI 和 SDK 提示詞保留冷傳送守衛。send：允許非互動式 SDK 提示詞不經詢問直接傳送，除非明確設定了 guard refuse。遠端人工提示詞始終保留守衛。",
+      "default": "guard",
+      "options": ["guard", "send"]
+    },
+    "autoWarm": {
+      "type": "string",
+      "title": "自動保溫",
+      "description": "on：支付冷快取寫入費用後，保溫功能自動啟用三小時（預設）。off：只有透過 /keepwarm 手動啟用時才會執行。",
+      "default": "on",
+      "options": [
+        "on",
+        "off"
+      ]
+    },
+    "pingFloor": {
+      "type": "number",
+      "title": "ping 費用下限",
+      "description": "將每次空閒期的 ping 花費限制為預計重寫成本除以該數值（含下一次預計的 ping）。預設為 2；0 表示不限制。第一次 ping 沒有可用於估算的憑據。",
+      "default": 2,
+      "min": 0
+    },
+    "display": {
+      "title": "顯示方式",
+      "description": "cache-tax 顯示狀態的位置。band：輸入框上方的橫條（預設）。status：改為輸入框下方的狀態條目，不顯示橫條。",
+      "type": "string",
+      "options": [
+        "band",
+        "status"
+      ],
+      "default": "band"
+    }
+  },
+  "types": "./types/index.d.ts"
+}

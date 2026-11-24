@@ -1,0 +1,3029 @@
+{
+  "title": "TavernWeave 雙任務升級：源到目標核對記錄",
+  "date": "2026-10-15",
+  "status": "本地候選原始碼與靜態合同；未釋出、未安裝、非模型回放或酒館執行結果",
+  "baseline": {
+    "repository": "https://github.com/LiarMTTT/TavernWeave",
+    "commit": "9a8274f9b0a714256195845cab4e4f6ad73e2997",
+    "release": "1.9.1",
+    "baselineSkills": 22,
+    "candidateSkills": 23
+  },
+  "input": {
+    "presetSha256": "f7c3a88836bda71f35353d2193d0db0ec0430d1af275d1e9957bdf6930936e4a",
+    "inventoryCount": 151,
+    "indexConvention": "prompts 零基陣列索引 P000–P150；不是世界書 UID",
+    "cardSha256": "d2de21bc259711f984a4163a1f71812ea52460ea1e81e95398dc271ae4f8986d",
+    "rawInputsRedistributed": false,
+    "rawInputCodeExecuted": false
+  },
+  "evidenceLimits": [
+    "逐條索引、名稱與 identifier 已與原 JSON 核對；長理論按相關方法與結構審閱，不聲稱逐句完整教材審計。",
+    "長正則、HTML、遠端載入器沒有逐行完整安全審計，也未執行。",
+    "候選文件/路由/自寫離線夾具透過不能推出目標安裝、實際最終提示或模型行為透過。",
+    "歷史模型 replay 結果和指紋保留原樣；源變動後釋出門需要重新核驗。"
+  ],
+  "counts": {
+    "total": 151,
+    "excluded": 85,
+    "partialMethodOnly": 29,
+    "unresolved": 1,
+    "reuseExisting": 36,
+    "actualDecisionCounts": {
+      "實際缺失，補充": 1,
+      "已有但不足，區域性改造": 28,
+      "已有足夠好，複用": 36,
+      "待核對": 1,
+      "排除": 85
+    }
+  },
+  "methodGroups": {
+    "expression": {
+      "baselineComparison": [
+        {
+          "path": "skills/rewrite-natural-prose/references/natural-chinese-review.md",
+          "section": "既有自然中文診斷與語義保護"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/card-writing.md",
+          "section": "6. Prompt economy"
+        }
+      ],
+      "decision": "既有能力足夠，保留獨立去八股權威；僅補非人物壓縮語義反例及提示表達交接。P049–051 沒有任何提取或替換名稱。",
+      "targets": [
+        {
+          "path": "skills/rewrite-natural-prose/references/editing-guide.md",
+          "section": "Compression without changing force"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md",
+          "section": "從效果到最小交付"
+        }
+      ],
+      "verification": [
+        "tests/general-methods-integration.test.mjs"
+      ]
+    },
+    "prompt-spec": {
+      "baselineComparison": [
+        {
+          "path": "skills/orchestrate-project-blueprint/references/first-version-contract.md",
+          "section": "首版合同"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/references/autonomy-and-gates.md",
+          "section": "決定/執行/驗證邊界"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/card-writing.md",
+          "section": "6. Prompt economy"
+        }
+      ],
+      "decision": "複用合同與決定機制；補消費者、固定/待填欄位、樣例歸納與未見輸入的最小交接。",
+      "targets": [
+        {
+          "path": "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md",
+          "section": "全文，按區域性提示任務載入"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "section": "區域性提示規格與樣例歸納"
+        }
+      ],
+      "verification": [
+        "tests/general-methods-integration.test.mjs",
+        "tests/dual-task-integration.test.mjs"
+      ]
+    },
+    "clarification": {
+      "baselineComparison": [
+        {
+          "path": "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+          "section": "TW 大白話與使用者引導、擋位的選擇和儲存"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "section": "腦暴流程、設計確認門"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/references/brainstorm-protocol.md",
+          "section": "防跑偏"
+        }
+      ],
+      "decision": "共享入口新增主動釐清的唯一規則；blueprint 只接既有四態和任務規格。A0 機械逐句確認與使用者裁決衝突，按單獨批准作最小定向修訂。",
+      "targets": [
+        {
+          "path": "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+          "section": "主動釐清需求"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/references/brainstorm-protocol.md",
+          "section": "防跑偏"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md",
+          "section": "從效果到最小交付"
+        },
+        {
+          "path": "skills/worldbook-design-and-writing/references/planning-and-loading.md",
+          "section": "1. Scope, size and authority"
+        }
+      ],
+      "verification": [
+        "tests/general-methods-integration.test.mjs",
+        "tests/worldbook-design-writing.test.mjs",
+        "tests/dual-task-integration.test.mjs"
+      ]
+    },
+    "authority-routing": {
+      "baselineComparison": [
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "section": "恢復權威，不重開宇宙；路由實施能力"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/authoring-workflow.md",
+          "section": "既有創作權威鏈及 Content map"
+        },
+        {
+          "path": "skills/consult-tavernweave-library/scripts/query-library.mjs",
+          "section": "既有路由"
+        }
+      ],
+      "decision": "複用，不新建模組選擇或上下文引擎；只為新世界書獨立入口和非世界書提示規格接線。",
+      "targets": [
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "section": "路由實施能力"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/authoring-workflow.md",
+          "section": "Content map"
+        },
+        {
+          "path": "skills/consult-tavernweave-library/references/route-map.json",
+          "section": "任務路由"
+        }
+      ],
+      "verification": [
+        "tests/dual-task-integration.test.mjs",
+        "tests/card-authoring-routing.test.mjs"
+      ]
+    },
+    "sources": {
+      "baselineComparison": [
+        {
+          "path": "skills/build-work-library/SKILL.md",
+          "section": "資料來源、用途、證據與增量批次"
+        },
+        {
+          "path": "skills/build-work-library/references/data-and-commands.md",
+          "section": "初始化與來源、樣本與計劃輸入"
+        }
+      ],
+      "decision": "來源與樣例輸入已有，複用；只補從有證資料到候選規格的雙向交接，不復制 BOOK 容器。",
+      "targets": [
+        {
+          "path": "skills/build-work-library/references/data-and-commands.md",
+          "section": "從資料到提示規格"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md",
+          "section": "從目標樣例歸納候選規則"
+        }
+      ],
+      "verification": [
+        "tests/general-methods-integration.test.mjs"
+      ]
+    },
+    "worldbook": {
+      "baselineComparison": [
+        {
+          "path": "skills/tavern-card-builder/references/worldbuilding-design.md",
+          "section": "原 §§2/4/5/5.1/6"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/lorebook-and-prompts.md",
+          "section": "原資訊分層、啟用/處理/接收方與最終請求檢查"
+        }
+      ],
+      "decision": "遷移已有專門方法，舊標題保留相容導航；新增獨立任務入口、能力選擇與同需求對照，技術實現仍由原 owner 負責。",
+      "targets": [
+        {
+          "path": "skills/worldbook-design-and-writing/SKILL.md",
+          "section": "獨立入口"
+        },
+        {
+          "path": "skills/worldbook-design-and-writing/references/planning-and-loading.md",
+          "section": "2–4、7"
+        },
+        {
+          "path": "skills/worldbook-design-and-writing/references/writing-contracts.md",
+          "section": "1–6"
+        },
+        {
+          "path": "skills/worldbook-design-and-writing/references/examples.md",
+          "section": "1–4"
+        }
+      ],
+      "verification": [
+        "tests/worldbook-design-writing.test.mjs",
+        "tests/dual-task-integration.test.mjs"
+      ]
+    },
+    "template-scenarios": {
+      "baselineComparison": [
+        {
+          "path": "skills/sillytavern-api-reference/SKILL.md",
+          "section": "Verification workflow / Confidence"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/lorebook-and-prompts.md",
+          "section": "原入口與執行階段"
+        }
+      ],
+      "decision": "精確 API 複用；六來源模板只對映成非獨佔可調整場景，新增 E01/E02/E04 需求例與 E03 來源記錄。不交付未核驗可執行模板。",
+      "targets": [
+        {
+          "path": "skills/worldbook-design-and-writing/references/planning-and-loading.md",
+          "section": "4. E01: choose the least complex sufficient mechanism（非獨佔可調整情境）"
+        },
+        {
+          "path": "skills/worldbook-design-and-writing/references/examples.md",
+          "section": "1、3、4、5"
+        },
+        {
+          "path": "skills/sillytavern-api-reference/references/worldbook-version-verification.md",
+          "section": "本次來源核驗記錄"
+        }
+      ],
+      "verification": [
+        "tests/worldbook-design-writing.test.mjs",
+        "tests/worldbook-runtime-contracts.test.mjs"
+      ]
+    },
+    "budget": {
+      "baselineComparison": [
+        {
+          "path": "skills/sillytavern-rolecard-performance/SKILL.md",
+          "section": "既有靜態審計與真實執行取樣"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/lorebook-and-prompts.md",
+          "section": "原上下文和重複處理"
+        }
+      ],
+      "decision": "預算職責複用；補原生/模板交界、跨入口穩定標識去重、重要依賴和語義保護。",
+      "targets": [
+        {
+          "path": "skills/sillytavern-rolecard-performance/references/worldbook-output-budget.md",
+          "section": "全文"
+        },
+        {
+          "path": "skills/worldbook-design-and-writing/references/planning-and-loading.md",
+          "section": "6. State and mixed-path boundaries"
+        }
+      ],
+      "verification": [
+        "tests/worldbook-runtime-contracts.test.mjs",
+        "tests/worldbook-design-writing.test.mjs"
+      ]
+    },
+    "regex": {
+      "baselineComparison": [
+        {
+          "path": "skills/sillytavern-render-regex-pipeline/SKILL.md",
+          "section": "Resolve the dialect and target / Validate before executing / Run deterministic fixtures / Trace the stages"
+        }
+      ],
+      "decision": "已有流程足夠，直接複用；不復制長語法教材，不將其他正則引擎當 JavaScript。",
+      "targets": [
+        {
+          "path": "skills/sillytavern-render-regex-pipeline/SKILL.md",
+          "section": "既有完整流程"
+        }
+      ],
+      "verification": [
+        "skills/sillytavern-render-regex-pipeline/tests/scripts.test.mjs"
+      ]
+    },
+    "api-debug": {
+      "baselineComparison": [
+        {
+          "path": "skills/sillytavern-api-reference/SKILL.md",
+          "section": "Verification workflow / Confidence"
+        },
+        {
+          "path": "skills/sillytavern-runtime-debug/SKILL.md",
+          "section": "既有逐層定位與證據交接"
+        }
+      ],
+      "decision": "已有技術權威足夠，複用；補 E03 世界書版本核驗鏈與 E07 分級觀察記錄。",
+      "targets": [
+        {
+          "path": "skills/sillytavern-api-reference/references/worldbook-version-verification.md",
+          "section": "全文"
+        },
+        {
+          "path": "skills/sillytavern-runtime-debug/references/worldbook-isolated-runtime-checks.md",
+          "section": "全文"
+        }
+      ],
+      "verification": [
+        "tests/worldbook-runtime-contracts.test.mjs"
+      ]
+    },
+    "state": {
+      "baselineComparison": [
+        {
+          "path": "skills/tavern-card-builder/references/variable-systems.md",
+          "section": "3/4/5/6/9"
+        },
+        {
+          "path": "skills/sillytavern-database-rolecards/references/rolecard-data-model.md",
+          "section": "Ownership"
+        },
+        {
+          "path": "skills/sillytavern-database-rolecards/references/floor-and-ui-binding.md",
+          "section": "訊息/候選與 UI 繫結"
+        }
+      ],
+      "decision": "schema/初值/更新/消費已有完整 owner，繼續複用且不混舊協議。增量限世界書型別目標、名稱完整性、哨兵與上下文責任。",
+      "targets": [
+        {
+          "path": "skills/tavern-card-builder/references/variable-systems.md",
+          "section": "3/4/5/6/9"
+        },
+        {
+          "path": "skills/sillytavern-database-rolecards/references/worldbook-target-state-contract.md",
+          "section": "E05 型別目標與初始化邊界"
+        }
+      ],
+      "verification": [
+        "tests/worldbook-runtime-contracts.test.mjs",
+        "skills/sillytavern-database-rolecards/tests/scripts.test.mjs"
+      ]
+    },
+    "mechanics": {
+      "baselineComparison": [
+        {
+          "path": "skills/tavern-card-builder/references/worldbuilding-design.md",
+          "section": "3. Build the necessary world / 7. Connect world, state, entries, and opening"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/card-writing.md",
+          "section": "4. Examples and plot guidance"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/variable-systems.md",
+          "section": "2/3/9"
+        }
+      ],
+      "decision": "因果、資源、玩家選擇和狀態權威已有；補一個非世界書原創貫通例，而非另建世界總綱或排程器。",
+      "targets": [
+        {
+          "path": "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md",
+          "section": "由規則產生一次有意義的選擇 / 可操作機制合同 / 有向地圖與穩定節點 / 事件圖表達可能性"
+        },
+        {
+          "path": "skills/worldbook-design-and-writing/references/planning-and-loading.md",
+          "section": "2. Joint planning"
+        }
+      ],
+      "verification": [
+        "tests/general-methods-integration.test.mjs",
+        "tests/worldbook-design-writing.test.mjs"
+      ]
+    },
+    "presentation": {
+      "baselineComparison": [
+        {
+          "path": "skills/tavern-card-builder/references/opening-strategies.md",
+          "section": "Prose direction and drafting"
+        },
+        {
+          "path": "skills/rewrite-natural-prose/references/natural-chinese-review.md",
+          "section": "既有句段/全篇診斷"
+        }
+      ],
+      "decision": "材料、文體和敘述維度已有，保留；只補證據→非人物表達約束→成品核對的交接，不造風格模擬引擎。",
+      "targets": [
+        {
+          "path": "skills/tavern-card-builder/references/opening-strategies.md",
+          "section": "Non-character presentation handoff"
+        },
+        {
+          "path": "skills/rewrite-natural-prose/references/editing-guide.md",
+          "section": "Illustrative decisions, not mandatory substitutions"
+        }
+      ],
+      "verification": [
+        "tests/general-methods-integration.test.mjs"
+      ]
+    },
+    "observable-review": {
+      "baselineComparison": [
+        {
+          "path": "skills/tavern-card-builder/references/validation.md",
+          "section": "1/2/3/4/5"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/card-writing.md",
+          "section": "5. CoT and narrative boundary"
+        },
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "section": "State 5: VERIFY / Report contract"
+        }
+      ],
+      "decision": "可觀察檢查直接複用；新提示規格只給輸入/期望/故意改壞的例，不遷入完整思維鏈或暗中意圖推演。",
+      "targets": [
+        {
+          "path": "skills/tavern-card-builder/references/validation.md",
+          "section": "既有驗證責任"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md",
+          "section": "可觀察自檢與停止條件"
+        },
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "section": "Report contract"
+        }
+      ],
+      "verification": [
+        "tests/general-methods-integration.test.mjs"
+      ]
+    },
+    "ui": {
+      "baselineComparison": [
+        {
+          "path": "skills/sillytavern-embedded-ui/SKILL.md",
+          "section": "Keep state ownership explicit / Render defensive data / Lifecycle and integration / Status bars and HUDs"
+        },
+        {
+          "path": "skills/sillytavern-runtime-debug/SKILL.md",
+          "section": "既有執行鏈定位"
+        }
+      ],
+      "decision": "已有覆蓋更完整，直接複用；不搬長 HTML、狀態列程式碼或新增 UI 文案示例。",
+      "targets": [
+        {
+          "path": "skills/sillytavern-embedded-ui/SKILL.md",
+          "section": "狀態所有權、缺值和生命週期"
+        },
+        {
+          "path": "skills/sillytavern-runtime-debug/SKILL.md",
+          "section": "分層觀測"
+        }
+      ],
+      "verification": [
+        "tests/card-authoring-routing.test.mjs"
+      ]
+    },
+    "opening": {
+      "baselineComparison": [
+        {
+          "path": "skills/tavern-card-builder/references/card-writing.md",
+          "section": "2. Greetings / 4. Examples and plot guidance"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/opening-strategies.md",
+          "section": "1. Fixed greetings / 4. Acceptance checks"
+        }
+      ],
+      "decision": "場景資訊、互動起點和玩家響應入口已覆蓋，直接複用；不提取源人物外貌、心理或對白。",
+      "targets": [
+        {
+          "path": "skills/tavern-card-builder/references/card-writing.md",
+          "section": "2. Greetings"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/opening-strategies.md",
+          "section": "1/4"
+        }
+      ],
+      "verification": [
+        "tests/card-authoring-routing.test.mjs"
+      ]
+    },
+    "description": {
+      "baselineComparison": [
+        {
+          "path": "skills/tavern-card-builder/references/card-writing.md",
+          "section": "原身份/開場/小型創作/提示經濟"
+        },
+        {
+          "path": "skills/tavern-card-builder/references/authoring-workflow.md",
+          "section": "現有交付與已實現內容"
+        }
+      ],
+      "decision": "新增準確標題/體驗簡介的最小交接，只描述已實現可玩內容；不自動釋出，不設候選或標籤配額。",
+      "targets": [
+        {
+          "path": "skills/tavern-card-builder/references/card-writing.md",
+          "section": "7. Accurate titles and release descriptions"
+        }
+      ],
+      "verification": [
+        "tests/general-methods-integration.test.mjs"
+      ]
+    },
+    "component-security": {
+      "baselineComparison": [
+        {
+          "path": "skills/sillytavern-component-update/SKILL.md",
+          "section": "Establish the target / Validate the artifact"
+        },
+        {
+          "path": "skills/sillytavern-rolecard-security/SKILL.md",
+          "section": "Establish the boundary / Run the static audit / Triage"
+        },
+        {
+          "path": "skills/sillytavern-render-regex-pipeline/SKILL.md",
+          "section": "Resolve the dialect and target / Trace the stages"
+        }
+      ],
+      "decision": "配置副本/來源/依賴安全已有專職流程，複用；本輪只核對 JSON 副本相等與開關事實，非長指令碼完整審計。",
+      "targets": [
+        {
+          "path": "skills/sillytavern-component-update/SKILL.md",
+          "section": "穩定 ID、未知欄位與元件模式"
+        },
+        {
+          "path": "skills/sillytavern-rolecard-security/SKILL.md",
+          "section": "靜態審計邊界"
+        }
+      ],
+      "verification": [
+        "skills/sillytavern-component-update/tests/scripts.test.mjs"
+      ]
+    }
+  },
+  "records": [
+    {
+      "index": 0,
+      "sourceRef": "P000",
+      "identifier": "0a09c911-6d52-4635-a244-b30f9aafa412",
+      "name": "[必看]預設設定⚙",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "預設 setvar 設定槽；不遷入助手名、創作者名、預設字數等執行配置。專案目標、語言和規模由現有交付合同處理。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 1,
+      "sourceRef": "P001",
+      "identifier": "441b4cf7-8514-4234-9ee1-294aa1cd4c14",
+      "name": "gemini重置",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "隨機噪聲與偽重置/修復包裝，不是可靠任務方法。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 2,
+      "sourceRef": "P002",
+      "identifier": "eeb7e41f-240d-4f25-84a5-22722aab0088",
+      "name": "gemini確認重置",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "確認修復的模型控制包裝。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 3,
+      "sourceRef": "P003",
+      "identifier": "c8289d0c-3c83-4c13-938c-891d3cfa963b",
+      "name": "gemini開始新任務",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "新任務起始包裝，無獨立方法。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 4,
+      "sourceRef": "P004",
+      "identifier": "f2e4ae69-4058-4316-ae62-f321297a1f7c",
+      "name": "珠璣：定義",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "預設專家身份、絕不拒絕及虛假資歷保證。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 5,
+      "sourceRef": "P005",
+      "identifier": "main",
+      "name": "珠璣：人設七選一⬇️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "預設人設容器起始。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 6,
+      "sourceRef": "P006",
+      "identifier": "nsfw",
+      "name": "人設：原版珠璣",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "預設原版人格與越權保證；不因夾帶任務範圍表述而遷入人設。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 7,
+      "sourceRef": "P007",
+      "identifier": "3a430168-7280-44ed-ab33-a0e8e4bbaf35",
+      "name": "人設：成熟女魅魔(色色，XP強化)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "魅魔人格與性癖導向。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 8,
+      "sourceRef": "P008",
+      "identifier": "d491235e-9535-48b0-8b15-6c0e777114fb",
+      "name": "人設：慧識之賢者(強化專業性，去擬合)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "賢者人格、全知資歷與助手審美主導。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 9,
+      "sourceRef": "P009",
+      "identifier": "d6d362c4-5556-4bd0-a08c-067afb3424b1",
+      "name": "人設：戀愛腦文學少女(純愛與悲劇，文學性，扭曲胃痛)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "戀愛腦文學少女人設與人物/情感寫作。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 10,
+      "sourceRef": "P010",
+      "identifier": "a9d0c060-e1cf-454b-9303-9166197c3d2a",
+      "name": "人設：吟遊詩人(詩意化，藝術性，去擬合)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "吟遊詩人人格與個人審美包裝。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 11,
+      "sourceRef": "P011",
+      "identifier": "99f48f10-455b-4f24-ac6d-0bee003522d5",
+      "name": "人設：招笑雜魚白河豚(搞笑，雜魚)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "白河豚人格與偏好操控。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 12,
+      "sourceRef": "P012",
+      "identifier": "829abf27-660e-4df4-8925-d7041bfd2868",
+      "name": "人設：性癖助手/欲夢編織者(以純粹的好奇專注分析性癖)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "性癖助手人格、人物場景寫作與服從包裝。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 13,
+      "sourceRef": "P013",
+      "identifier": "37fe071f-bda4-4b89-923e-976db179280a",
+      "name": "珠璣：人設七選一結束⬆️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "預設人設結束標籤。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 14,
+      "sourceRef": "P014",
+      "identifier": "a35a6daf-528d-4d81-839d-41bc5e944f8c",
+      "name": "珠璣：任務開始（格式三選一）⬇️",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "直接、具體、簡潔的提示表達；區分參考材料與任務。",
+      "scopeLimit": "C01 保留有效否定、程度、條件和示例；不納入完整推理輸出、稱呼與標籤許可權規則。",
+      "methodGroups": [
+        "expression"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/rewrite-natural-prose/references/editing-guide.md#Read the prose as prose",
+        "skills/rewrite-natural-prose/references/natural-chinese-review.md#1 Preserve purpose and creative scope",
+        "skills/rewrite-natural-prose/references/natural-chinese-review.md#7 Semantic counterexamples and evidence"
+      ],
+      "actualGap": "保護否定、程度、條件已有；補一條同時覆蓋這些條件的壓縮與誤改對照，不新增寫作禁令。",
+      "incrementLocations": [
+        "skills/rewrite-natural-prose/references/editing-guide.md#Compression without changing force"
+      ],
+      "verificationNote": "general-methods: semantic/release examples；人工語義對照"
+    },
+    {
+      "index": 15,
+      "sourceRef": "P015",
+      "identifier": "2ba6ee28-37bd-49c1-8488-7b9aa848e557",
+      "name": "格式：XML包YAML格式(推薦)",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "XML/YAML 可選組織示例及提示正文與說明分離。",
+      "scopeLimit": "不設全域性格式；不遷入 thinking 輸出。真實解析格式按消費者約束。",
+      "methodGroups": [
+        "prompt-spec"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/orchestrate-project-blueprint/references/first-version-contract.md#First Playable / First Usable"
+      ],
+      "actualGap": "原合同有交付物和驗證，但沒有固定文字/動態槽與消費者差別的提示例。",
+      "incrementLocations": [
+        "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md#從效果到最小交付",
+        "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md#原創貫通例：路線告示"
+      ],
+      "verificationNote": "general-methods: samples/unseen contract + output mutations"
+    },
+    {
+      "index": 16,
+      "sourceRef": "P016",
+      "identifier": "0a75dd18-5127-4f4c-b645-0294faab9323",
+      "name": "格式：Json(極簡)",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "JSON 作為機器消費者需要時的可選交付格式。",
+      "scopeLimit": "不要求所有文字任務都使用 JSON 或程式碼塊。",
+      "methodGroups": [
+        "prompt-spec"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/orchestrate-project-blueprint/references/first-version-contract.md#First Playable / First Usable"
+      ],
+      "actualGap": "原合同有交付物和驗證，但沒有固定文字/動態槽與消費者差別的提示例。",
+      "incrementLocations": [
+        "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md#從效果到最小交付",
+        "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md#原創貫通例：路線告示"
+      ],
+      "verificationNote": "general-methods: samples/unseen contract + output mutations"
+    },
+    {
+      "index": 17,
+      "sourceRef": "P017",
+      "identifier": "fc8d3787-3935-4415-acc1-0af872338193",
+      "name": "格式：JAVA遊戲引擎(情境語料推薦)",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "區分配置、模板資料與輸出消費者的交付思路。",
+      "scopeLimit": "標題 JAVA 而正文 JavaScript；不照搬深巢狀/隨機拼接程式，不當技術權威。",
+      "methodGroups": [
+        "prompt-spec"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/orchestrate-project-blueprint/references/first-version-contract.md#First Playable / First Usable"
+      ],
+      "actualGap": "原合同有交付物和驗證，但沒有固定文字/動態槽與消費者差別的提示例。",
+      "incrementLocations": [
+        "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md#從效果到最小交付",
+        "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md#原創貫通例：路線告示"
+      ],
+      "verificationNote": "general-methods: samples/unseen contract + output mutations"
+    },
+    {
+      "index": 18,
+      "sourceRef": "P018",
+      "identifier": "93be4fa0-3408-41ab-bea6-2c42a07701a9",
+      "name": "珠璣：任務結束⬆️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "規則容器結束標籤。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 19,
+      "sourceRef": "P019",
+      "identifier": "1903cd6d-14b4-4220-9309-b652ee5098ca",
+      "name": "珠璣：接受任務",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "預設接受任務的角色化臺詞。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 20,
+      "sourceRef": "P020",
+      "identifier": "4c30f960-38e6-4f8c-8002-65c6a246bea7",
+      "name": "珠璣：世界資訊開始⬇️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "使用者資料容器與對話包裝。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 21,
+      "sourceRef": "P021",
+      "identifier": "b2d59475-492a-4bdb-b864-6ab514f5901f",
+      "name": "珠璣：user_role上",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "使用者人設資料的起始標籤。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 22,
+      "sourceRef": "P022",
+      "identifier": "personaDescription",
+      "name": "Persona Description",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "空的 Persona Description 宿主佔位。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 23,
+      "sourceRef": "P023",
+      "identifier": "4d98a795-9ee6-4ee9-8c48-a2adae31bb4c",
+      "name": "珠璣：user_role下",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "使用者人設資料結束標籤。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 24,
+      "sourceRef": "P024",
+      "identifier": "26a44e93-6863-4c09-aa1d-abd6650f9f9b",
+      "name": "珠璣：char_info上",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "角色資訊起始包裝。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 25,
+      "sourceRef": "P025",
+      "identifier": "charDescription",
+      "name": "Char Description",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "空的 Char Description 宿主佔位。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 26,
+      "sourceRef": "P026",
+      "identifier": "charPersonality",
+      "name": "Char Personality",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "空的 Char Personality 宿主佔位。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 27,
+      "sourceRef": "P027",
+      "identifier": "0fa9e509-f1c1-46cd-a1a2-2738dafd5836",
+      "name": "珠璣：char_info下",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "角色資訊結束標籤。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 28,
+      "sourceRef": "P028",
+      "identifier": "scenario",
+      "name": "Scenario",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "空的 Scenario 宿主佔位。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 29,
+      "sourceRef": "P029",
+      "identifier": "enhanceDefinitions",
+      "name": "Enhance Definitions",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "擴充人物傳說與性格，屬於角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 30,
+      "sourceRef": "P030",
+      "identifier": "856ee256-b52b-4034-ad9f-bdbc7337c3a8",
+      "name": "珠璣：story_info上",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "故事背景資料的起始包裝，無獨立整理方法。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 31,
+      "sourceRef": "P031",
+      "identifier": "worldInfoBefore",
+      "name": "World Info (before)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "空的 World Info (before) 宿主佔位。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 32,
+      "sourceRef": "P032",
+      "identifier": "worldInfoAfter",
+      "name": "World Info (after)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "空的 World Info (after) 宿主佔位。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 33,
+      "sourceRef": "P033",
+      "identifier": "867e3cbc-1afd-4ce9-b079-465c21b1b045",
+      "name": "珠璣：story_info下",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "故事背景資料結束標籤。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 34,
+      "sourceRef": "P034",
+      "identifier": "a14f8fe1-78b2-49be-b200-6c8c09251721",
+      "name": "珠璣：世界資訊結束⬆️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "資料結束與已理解的角色化臺詞。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 35,
+      "sourceRef": "P035",
+      "identifier": "b157eb52-23ee-42fa-8ce3-5f2de2758251",
+      "name": "珠璣：聊天記錄開始⬇️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "聊天曆史容器起始包裝。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 36,
+      "sourceRef": "P036",
+      "identifier": "dialogueExamples",
+      "name": "Chat Examples",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "空的 Chat Examples 宿主佔位。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 37,
+      "sourceRef": "P037",
+      "identifier": "chatHistory",
+      "name": "Chat History",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "空的 Chat History 宿主佔位。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 38,
+      "sourceRef": "P038",
+      "identifier": "jailbreak",
+      "name": "Post-History Instructions",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "空的 Post-History Instructions 宿主佔位；不從 identifier 推斷具體破限正文。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 39,
+      "sourceRef": "P039",
+      "identifier": "822454d3-86fb-49e7-9034-8a0b4bbbfc62",
+      "name": "珠璣：聊天記錄結束⬆️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "聊天曆史結束與角色化鼓勵臺詞。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 40,
+      "sourceRef": "P040",
+      "identifier": "a247f91f-f4ab-4902-b112-cfad4f780bb8",
+      "name": "珠璣：重要提示開始⬇️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "重要提示容器與創作者包裝。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 41,
+      "sourceRef": "P041",
+      "identifier": "ae5d80db-aa65-4986-8032-5af8fc598ed3",
+      "name": "加強自主創造性與合理性小cot(猛猛搶話，慎開)",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "正式納入 LLM 主動釐清需求的方法：識別表達不完整、歧義與關鍵缺項，圍繞使用者已給出的目標形成候選理解，在會影響範圍或結果的分歧處主動確認；確認後轉為可執行規格與驗收點。複用既有規劃入口，不要求獨立 skill。",
+      "scopeLimit": "表達不完整不等於使用者能力不足；不納入貶損使用者、替使用者設定或替換目標、以助手審美凌駕使用者、強制輸出 CoT 或逐段 <consider> / HTML 分析。普通低風險缺項可列明假設繼續；核心新增先提建議，不逐項強制確認。",
+      "methodGroups": [
+        "clarification"
+      ],
+      "conflictStatus": "approved-A0-adjustment",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/orchestrate-project-blueprint/references/brainstorm-protocol.md#四態賬本",
+        "skills/tavern-card-builder/references/worldbuilding-design.md#1 Scope and creative authority"
+      ],
+      "actualGap": "本源沒有需要獨立新增的安全方法；本輪主動釐清來自使用者明確要求，不歸因於P041。",
+      "incrementLocations": [],
+      "verificationNote": "四態協議與本輪shared clarification靜態檢查"
+    },
+    {
+      "index": 42,
+      "sourceRef": "P042",
+      "identifier": "e9b91a84-50d3-40db-b642-084797782bc6",
+      "name": "反絕望反痛苦積極向上基調(慎開，真的很強)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "虛構病情與治療式積極基調，不納入通用創作方法。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 43,
+      "sourceRef": "P043",
+      "identifier": "0d5daf22-67a8-420e-951c-c96c3c78c0ac",
+      "name": "防絕望小cot再強化(另一個無效一起開)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "強化治療式正面基調與推演包裝，不納入。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 44,
+      "sourceRef": "P044",
+      "identifier": "10f932fb-8899-4482-a8d3-bf8cfbf16231",
+      "name": "色情題材正面化",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "色情題材正面化與破限用途，不納入。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 45,
+      "sourceRef": "P045",
+      "identifier": "ac469228-bd1a-444b-a61e-fa91bea00042",
+      "name": "加強簡化正文(自己調整字數)",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "緊扣目標、保留語義結構的精簡改寫。",
+      "scopeLimit": "不追求最少 token；不刪除有用解釋、示例、否定和程度。",
+      "methodGroups": [
+        "expression"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/rewrite-natural-prose/references/editing-guide.md#Read the prose as prose",
+        "skills/rewrite-natural-prose/references/natural-chinese-review.md#1 Preserve purpose and creative scope",
+        "skills/rewrite-natural-prose/references/natural-chinese-review.md#7 Semantic counterexamples and evidence"
+      ],
+      "actualGap": "保護否定、程度、條件已有；補一條同時覆蓋這些條件的壓縮與誤改對照，不新增寫作禁令。",
+      "incrementLocations": [
+        "skills/rewrite-natural-prose/references/editing-guide.md#Compression without changing force"
+      ],
+      "verificationNote": "general-methods: semantic/release examples；人工語義對照"
+    },
+    {
+      "index": 46,
+      "sourceRef": "P046",
+      "identifier": "487bb55b-da3f-4ee7-8f6d-0c23b5591bc2",
+      "name": "加強上下文聯絡",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "同職責內容在原模組修訂，保持上下文關聯；複用創作權威鏈與 Content map。",
+      "scopeLimit": "不另造同功能模組，不遷入人設獎勵話術。",
+      "methodGroups": [
+        "authority-routing"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/orchestrate-project-blueprint/SKILL.md#1 恢復權威，不重開宇宙",
+        "skills/orchestrate-project-blueprint/references/blueprint-scaling.md#權威層級"
+      ],
+      "actualGap": "已有唯一權威鏈與禁止平行總設計，零新增來源能力。",
+      "incrementLocations": [],
+      "verificationNote": "原blueprint 66項迴歸中的authority tests"
+    },
+    {
+      "index": 47,
+      "sourceRef": "P047",
+      "identifier": "8e61cf0a-a30c-45ff-89d8-6b371e90c767",
+      "name": "輸出字元增加(自己調整字數)",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "按任務確定交付規模、完整性與可擴充套件性。",
+      "scopeLimit": "不沿用預設最低字數或強制長文；規模由用途決定。",
+      "methodGroups": [
+        "prompt-spec"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/orchestrate-project-blueprint/references/first-version-contract.md",
+        "skills/orchestrate-project-blueprint/references/blueprint-scaling.md"
+      ],
+      "actualGap": "首版邊界、交付物、規模與停止門已足夠。",
+      "incrementLocations": [],
+      "verificationNote": "原blueprint迴歸"
+    },
+    {
+      "index": 48,
+      "sourceRef": "P048",
+      "identifier": "94e2bf01-18df-4be8-9377-aa12d53e654a",
+      "name": "禱詞化",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "禱詞化與把模型人格化為神明的預設包裝。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 49,
+      "sourceRef": "P049",
+      "identifier": "6f0a4550-1875-4993-8a39-b1c437fdca17",
+      "name": "抗神化三連(風格要求)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "按使用者裁決，P049–P051 抗神化三連整組排除。本次排除不刪除 TW 已有自然表達能力，也不影響其他條目獨立獲准的表達改進。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 50,
+      "sourceRef": "P050",
+      "identifier": "91be7e14-4169-4e4e-b0b2-c4a32c8809f0",
+      "name": "抗神化三連(案例展示)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "按使用者裁決，P049–P051 抗神化三連整組排除。本次排除不刪除 TW 已有自然表達能力，也不影響其他條目獨立獲准的表達改進。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 51,
+      "sourceRef": "P051",
+      "identifier": "cffaac0f-87dd-4b52-bb14-662778bb22b2",
+      "name": "抗神化三連(負面規避)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "按使用者裁決，P049–P051 抗神化三連整組排除。本次排除不刪除 TW 已有自然表達能力，也不影響其他條目獨立獲准的表達改進。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 52,
+      "sourceRef": "P052",
+      "identifier": "96cae674-7638-4eb6-844c-4d8635c059b5",
+      "name": "抗機器人",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "正文是角色口語、性格發言與類比風格要求，屬於角色寫作；不包裝成通用去八股或 UI 文案方法。v3.3 族表列到此項，逐條按角色排除邊界收窄。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 53,
+      "sourceRef": "P053",
+      "identifier": "1c9d07b0-9b70-4054-8093-27bff01abcb3",
+      "name": "減少符號與註釋(鳴謝keil)",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "按實際用途減少冗餘標記、重複翻譯和無用註釋。",
+      "scopeLimit": "不禁止所有 #、星號、引號或註釋；解析器需要的語法必須保留。",
+      "methodGroups": [
+        "expression"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/rewrite-natural-prose/references/editing-guide.md#Mixed-content edits",
+        "skills/rewrite-natural-prose/references/natural-chinese-review.md#4 Diagnose a concrete obstacle",
+        "skills/tavern-card-builder/references/card-writing.md#6 Prompt economy"
+      ],
+      "actualGap": "現有方法已覆蓋無用標記與重複說明；本次無P053獨有新增。",
+      "incrementLocations": [],
+      "verificationNote": "原rewrite policy迴歸；人工檢查保護技術語法"
+    },
+    {
+      "index": 54,
+      "sourceRef": "P054",
+      "identifier": "98d87b73-cd57-472b-a299-4f6882742295",
+      "name": "珠璣：重要提示結束⬆️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "重要提示容器結束與人設臺詞。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 55,
+      "sourceRef": "P055",
+      "identifier": "9381e8b6-00b1-443c-9500-f089a3dcb79f",
+      "name": "珠璣：知識庫開始⬇️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "知識庫容器起始及強制參考包裝；不是資料提煉方法。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 56,
+      "sourceRef": "P056",
+      "identifier": "957d1987-5da2-4c0b-88e9-b64da6798bd6",
+      "name": "基礎知識庫：A社的提示詞教程(配合xml格式，推薦常開)",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "任務背景、輸入分離、示例、輸出合同及提示規格欄位。",
+      "scopeLimit": "不搬長教程、廠商介面/模型保證、人格與完整推理；XML 不保證隔離或許可權。",
+      "methodGroups": [
+        "prompt-spec"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/orchestrate-project-blueprint/references/first-version-contract.md",
+        "skills/tavern-card-builder/references/worldbuilding-design.md#5.1 Standalone author rules"
+      ],
+      "actualGap": "專案合同和卡規則已有；缺通用提示規格的消費者、輸入槽、失敗輸出與新輸入貫通例。",
+      "incrementLocations": [
+        "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md",
+        "skills/orchestrate-project-blueprint/SKILL.md#區域性提示規格與樣例歸納"
+      ],
+      "verificationNote": "general-methods: 2樣例+2未見輸入及8類輸出反例；無LLM呼叫宣告"
+    },
+    {
+      "index": 57,
+      "sourceRef": "P057",
+      "identifier": "4e642ee0-3dc2-4e6b-a4c9-02c1cfab468d",
+      "name": "基礎知識庫：QKL的提示詞格式最佳化",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "固定文字與待填欄位區分，補靜態模板填寫和新輸入驗證案例。",
+      "scopeLimit": "佔位符不是執行語法或更高許可權；不用絕對格式規則。",
+      "methodGroups": [
+        "prompt-spec"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/orchestrate-project-blueprint/references/first-version-contract.md",
+        "skills/tavern-card-builder/references/worldbuilding-design.md#5.1 Standalone author rules"
+      ],
+      "actualGap": "專案合同和卡規則已有；缺通用提示規格的消費者、輸入槽、失敗輸出與新輸入貫通例。",
+      "incrementLocations": [
+        "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md",
+        "skills/orchestrate-project-blueprint/SKILL.md#區域性提示規格與樣例歸納"
+      ],
+      "verificationNote": "general-methods: 2樣例+2未見輸入及8類輸出反例；無LLM呼叫宣告"
+    },
+    {
+      "index": 58,
+      "sourceRef": "P058",
+      "identifier": "3ceb57f1-8fc2-4620-a767-4f5dec313343",
+      "name": "工具知識庫：世界書",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "世界書資訊分層、正文/配置配對、觸發與上下文選擇。",
+      "scopeLimit": "不整包搬教程；欄位和執行能力交版本核驗，按 C04 排除遞迴及配額。",
+      "methodGroups": [
+        "worldbook",
+        "budget"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造"
+    },
+    {
+      "index": 59,
+      "sourceRef": "P059",
+      "identifier": "d021d3b4-08cc-4f03-9533-652cda89f10b",
+      "name": "工具知識庫：正則大全",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "正則需求、方言識別、處理階段與驗證複用現有流程。",
+      "scopeLimit": "長語法教材不全搬；其他引擎語法不可當酒館 JavaScript 事實。",
+      "methodGroups": [
+        "regex"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 60,
+      "sourceRef": "P060",
+      "identifier": "a0c7da7d-d719-4ab3-973a-36b0b07b2579",
+      "name": "工具知識庫：EJS程式碼資料庫",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "EJS 語法和宿主擴充套件契約交現有 API 核驗。",
+      "scopeLimit": "不把 include/locals 等版本相關說明當通用執行保證。",
+      "methodGroups": [
+        "api-debug"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 61,
+      "sourceRef": "P061",
+      "identifier": "64a559d6-1422-4297-9d9b-a17dbe2e8b49",
+      "name": "工具知識庫：EJS的6種基礎模板",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "六模板僅作非獨佔、可調整的場景示例；實際實現複用技術能力。",
+      "scopeLimit": "排除依賴原生遞迴的方案、固定 order 配方和禁改限制；第六項狀態列交 UI。",
+      "methodGroups": [
+        "template-scenarios"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造"
+    },
+    {
+      "index": 62,
+      "sourceRef": "P062",
+      "identifier": "39a6ef9d-f4e4-4c3b-9b8b-87ed2a3209b0",
+      "name": "工具知識庫：EJS檢查流程",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "分級定位、依賴和實際輸出檢查複用現有技術工作流。",
+      "scopeLimit": "不把偏離六模板判致命，不採未經證實的函式禁令或 print 衝突規則。",
+      "methodGroups": [
+        "api-debug"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 63,
+      "sourceRef": "P063",
+      "identifier": "81c4a3bf-980d-4517-b4af-06e13f12e5fd",
+      "name": "工具知識庫：酒館世界書格式說明",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "世界書結構、條目職責與正文/配置聯合規劃。",
+      "scopeLimit": "不納入遞迴啟用、固定燈色萬能論、關鍵詞配額；深度僅可作場景例。",
+      "methodGroups": [
+        "worldbook",
+        "budget"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造"
+    },
+    {
+      "index": 64,
+      "sourceRef": "P064",
+      "identifier": "399f98bd-0bfb-4e72-881c-0086099f4a6b",
+      "name": "工具知識庫：根據注意力進行提示詞結構最佳化",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "按任務組織相關資訊，作為上下文預算和位置敏感測試線索。",
+      "scopeLimit": "不採普遍 U 形注意力、位置等於許可權或固定位置萬能的斷言。",
+      "methodGroups": [
+        "budget"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造"
+    },
+    {
+      "index": 65,
+      "sourceRef": "P065",
+      "identifier": "4bf7935c-04a5-4439-9c7a-60a32a8fee29",
+      "name": "工具知識庫：MVU變數(爆紅正常關閉提示詞模板)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "舊 MVU 的變數需求、更新與消費者一致性交現有變數流程。",
+      "scopeLimit": "保留舊協議邊界，不當現行統一方言。",
+      "methodGroups": [
+        "state"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 66,
+      "sourceRef": "P066",
+      "identifier": "97e54e0b-80f5-4c18-8838-1525faae8e2a",
+      "name": "工具知識庫：MVU變數拓展 mvu beta",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "beta 變數拓展需求交現有狀態/API 責任方。",
+      "scopeLimit": "beta 名稱不是版本證據，不混合 $meta、舊命令與 JSON Patch。",
+      "methodGroups": [
+        "state"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 67,
+      "sourceRef": "P067",
+      "identifier": "baf12b8d-ba7d-4ea3-89e3-8d3a4efeb171",
+      "name": "工具知識庫：MVU ZOD變數",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "schema、初值、更新與消費者契約已有覆蓋。",
+      "scopeLimit": "匯入路徑、預設全域性、Zod 方法與夾緊策略按版本和專案核驗。",
+      "methodGroups": [
+        "state"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 68,
+      "sourceRef": "P068",
+      "identifier": "52cf6da7-01e0-45ac-8b89-e567f46ac34a",
+      "name": "工具知識庫：MVU ZOD檢查指南(制卡完成後檢查時使用)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "schema/初值/規則一致性與執行檢查已有覆蓋。",
+      "scopeLimit": "不採固定指令碼路徑和通用 Zod 禁令；靜態透過不等於執行成功。",
+      "methodGroups": [
+        "state"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 69,
+      "sourceRef": "P069",
+      "identifier": "643228ad-b97e-47ae-a0fb-2f1c21319aed",
+      "name": "知識庫人物用：珠磯的理論體系",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物理論體系，屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 70,
+      "sourceRef": "P070",
+      "identifier": "89dfbf64-838f-41ce-b3b5-a42a961d62dc",
+      "name": "知識庫人物用：《人物》——羅伯特-邁恩",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "《人物》人物塑造理論與長文，不遷入。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 71,
+      "sourceRef": "P071",
+      "identifier": "6e249e5e-b591-4d19-979a-741411f35b90",
+      "name": "知識庫語料用：《對白》——羅伯特-邁恩",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "只取按當前需要披露資訊、避免重複已知背景的非人物方法。",
+      "scopeLimit": "排除角色聲音、心理與對白創作；不搬書籍長文。",
+      "methodGroups": [
+        "mechanics"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/opening-strategies.md#1 Fixed greetings",
+        "skills/tavern-card-builder/references/card-writing.md#2 Greetings",
+        "skills/tavern-card-builder/references/worldbuilding-design.md#4 Facts, knowledge, and degrees of awareness"
+      ],
+      "actualGap": "原方法足夠；補選擇前必須看到成本、可選觀察不強制推進的具體例。",
+      "incrementLocations": [
+        "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md#事件圖表達可能性"
+      ],
+      "verificationNote": "原創事件可選性與不寫狀態檢查；人工前置成本可見性審查"
+    },
+    {
+      "index": 72,
+      "sourceRef": "P072",
+      "identifier": "c6bd13df-7510-47f5-a1a3-da325be1e83d",
+      "name": "知識庫故事理論：《故事》——羅伯特-邁恩",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "世界範圍、因果變化與可選事件結構的少量原創摘要/例子。",
+      "scopeLimit": "不搬原書、人物寫作或強制高潮/價值逆轉，不作為所有作品門檻。",
+      "methodGroups": [
+        "mechanics"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/worldbuilding-design.md#3 Build the necessary world",
+        "skills/tavern-card-builder/references/card-writing.md#4 Examples and plot guidance"
+      ],
+      "actualGap": "已有範圍/因果檢查；缺與地圖、成本、穩定事件ID的同一場景貫通。",
+      "incrementLocations": [
+        "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md#由規則產生一次有意義的選擇",
+        "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md#事件圖表達可能性"
+      ],
+      "verificationNote": "world fixture條件、成本、事件不強制發生檢查"
+    },
+    {
+      "index": 73,
+      "sourceRef": "P073",
+      "identifier": "0b166044-370f-428d-ba4c-35531287b921",
+      "name": "《故事》標註(感覺沒啥用)",
+      "plannedClassification": "待核對",
+      "disposition": "unresolved",
+      "adoptedMethod": null,
+      "scopeLimit": "v3.3 將 P071–074 合列；逐條尚不足以確定此譯註該補何方法。不搬譯註與人物傳記。",
+      "methodGroups": [],
+      "conflictStatus": "unresolved-no-change",
+      "actualDecision": "待核對",
+      "baselineEvidence": [],
+      "actualGap": "只做範圍檢視，獨有可遷移方法仍未確定。",
+      "incrementLocations": [],
+      "verificationNote": "維持源清單待核狀態"
+    },
+    {
+      "index": 74,
+      "sourceRef": "P074",
+      "identifier": "f2c59293-e305-4789-8d99-26803a6e0127",
+      "name": "知識庫故事理論：丹·哈蒙的故事圈",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "故事圈可作按需選擇的任務/冒險節奏檢查視角。",
+      "scopeLimit": "排除人物心理弧光；不強制代價、成長、返鄉或結局。",
+      "methodGroups": [
+        "mechanics"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/card-writing.md#4 Examples and plot guidance",
+        "skills/tavern-card-builder/references/worldbuilding-design.md#3 Build the necessary world"
+      ],
+      "actualGap": "既有因果優先；補看清處境→嘗試→已知代價→確認結果的可選檢查例。",
+      "incrementLocations": [
+        "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md#事件圖表達可能性"
+      ],
+      "verificationNote": "人工檢查故事圈只是作者工具，不是執行分支必經步驟"
+    },
+    {
+      "index": 75,
+      "sourceRef": "P075",
+      "identifier": "985b7eec-328f-48f8-b8e7-413a7918e42c",
+      "name": "珠璣：知識庫結束⬆️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "知識庫結束與人設臺詞。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 76,
+      "sourceRef": "P076",
+      "identifier": "35a058fe-c7b8-41a7-94b7-1bff0bb3a84e",
+      "name": "珠璣：功能模組開始(選一個和思維鏈一起開)⬇️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "空的功能模組分隔項；不遷移“必配思維鏈”的開關規則。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 77,
+      "sourceRef": "P077",
+      "identifier": "53cfc7f6-b030-4553-9bd5-781c102c1e39",
+      "name": "0.知識庫製作：資料庫BOOK(一起開啟，把你的資料放進去)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "參考資料輸入槽併入已有來源輸入與用途記錄。",
+      "scopeLimit": "不復制 BOOK 標籤包裝或新增同功能模板。",
+      "methodGroups": [
+        "sources"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/build-work-library/SKILL.md#來源、結論與二創分開"
+      ],
+      "actualGap": "已有來源輸入；佔位槽本身無方法增量。",
+      "incrementLocations": [],
+      "verificationNote": "源索引定位核對"
+    },
+    {
+      "index": 78,
+      "sourceRef": "P078",
+      "identifier": "268aa2ec-491c-4232-827d-8dbe291d4917",
+      "name": "0.知識庫製作：從各種書籍中提取專業的知識與設定",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "保留跨小說/論文/教程的提取、整理、總結和歸納，複用來源庫並保留證據。",
+      "scopeLimit": "僅排除人物寫作部分；不把整個知識庫製作排掉，不繼承禁止來源歸因。",
+      "methodGroups": [
+        "sources"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/build-work-library/SKILL.md#來源、結論與二創分開",
+        "skills/build-work-library/references/data-and-commands.md#批次、資料條目與接續"
+      ],
+      "actualGap": "採證系統已完整；補到候選提示規格的責任交接。",
+      "incrementLocations": [
+        "skills/build-work-library/references/data-and-commands.md#從資料到提示規格",
+        "skills/build-work-library/SKILL.md#人工編輯、檢索與交付"
+      ],
+      "verificationNote": "連結檢查；人工傳聞/事實反例"
+    },
+    {
+      "index": 79,
+      "sourceRef": "P079",
+      "identifier": "06d05ed6-0695-4cff-b2ac-1d7fa46ba031",
+      "name": "1.思路梳理",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "需求效果→任務拆解、依賴與最小交付；現有路由複用，只補斷點案例。",
+      "scopeLimit": "不把隱含動機當已確認事實，不遷入人物示例或固定總分總。",
+      "methodGroups": [
+        "clarification"
+      ],
+      "conflictStatus": "approved-A0-adjustment",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/orchestrate-project-blueprint/references/first-version-contract.md",
+        "skills/orchestrate-project-blueprint/references/brainstorm-protocol.md"
+      ],
+      "actualGap": "既有首版合同沒展示提示消費者與規格之間的斷點。",
+      "incrementLocations": [
+        "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md#從效果到最小交付",
+        "skills/orchestrate-project-blueprint/SKILL.md#區域性提示規格與樣例歸納"
+      ],
+      "verificationNote": "samples/unseen contract；shared clarification引用與四態檢查"
+    },
+    {
+      "index": 80,
+      "sourceRef": "P080",
+      "identifier": "89afd1c7-a37f-4bf5-b73f-abbe60026218",
+      "name": "2.設定製作(萬能步驟)",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "幫助把未完整表達的體驗目標轉為可用的候選提示規格。",
+      "scopeLimit": "不替使用者斷言心理動機，不自動擴充套件核心目標；去人物、禱詞與人格包裝。",
+      "methodGroups": [
+        "clarification"
+      ],
+      "conflictStatus": "approved-A0-adjustment",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/orchestrate-project-blueprint/references/first-version-contract.md",
+        "skills/orchestrate-project-blueprint/references/brainstorm-protocol.md"
+      ],
+      "actualGap": "既有首版合同沒展示提示消費者與規格之間的斷點。",
+      "incrementLocations": [
+        "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md#從效果到最小交付",
+        "skills/orchestrate-project-blueprint/SKILL.md#區域性提示規格與樣例歸納"
+      ],
+      "verificationNote": "samples/unseen contract；shared clarification引用與四態檢查"
+    },
+    {
+      "index": 81,
+      "sourceRef": "P081",
+      "identifier": "2eeba189-911a-4d15-bf46-7caba49581b7",
+      "name": "3.人物模版製作(也可以直接製作人物)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物模板與人物製作，明確排除。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 82,
+      "sourceRef": "P082",
+      "identifier": "07688972-a290-4b22-a210-3f9df7ef0781",
+      "name": "4.世界觀製作",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "世界規則→資源/生態/制度/地區差異，補基礎規則影響選擇的貫通例。",
+      "scopeLimit": "複用已有因果/資源檢查；不強制七板塊，不另造總綱。",
+      "methodGroups": [
+        "mechanics"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/worldbuilding-design.md#3 Build the necessary world",
+        "skills/tavern-card-builder/references/worldbuilding-design.md#7 Connect world, state, entries, and opening"
+      ],
+      "actualGap": "已有全部診斷維度；缺基礎條件怎樣改變一次可玩選擇的貫通例。",
+      "incrementLocations": [
+        "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md#由規則產生一次有意義的選擇"
+      ],
+      "verificationNote": "high water/no ticket/temporary block tests"
+    },
+    {
+      "index": 83,
+      "sourceRef": "P083",
+      "identifier": "5472b214-c260-4ce8-97c2-7e9831cce93d",
+      "name": " 5.文風學習材料放置",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "參考材料、來源及用途併入單一表達分析輸入契約。",
+      "scopeLimit": "不採原文復原最高優先順序，不重複建立材料槽。",
+      "methodGroups": [
+        "presentation"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/opening-strategies.md#Prose direction and drafting",
+        "skills/build-work-library/SKILL.md#來源、結論與二創分開"
+      ],
+      "actualGap": "已有樣例與出處處理；兩個輸入槽無獨有能力。",
+      "incrementLocations": [],
+      "verificationNote": "人工確認無新槽或複製來源正文"
+    },
+    {
+      "index": 84,
+      "sourceRef": "P084",
+      "identifier": "243617c8-bae7-4e27-871a-4607eb7067ac",
+      "name": "5.輕型文風製作",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "目標讀感、詞句、視角、節奏和資訊密度優先複用現有表達參考。",
+      "scopeLimit": "人物語言/心理與作者人格不納入；明確缺失的交接才補，不先造新風格引擎。",
+      "methodGroups": [
+        "presentation"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/opening-strategies.md#Prose direction and drafting",
+        "skills/rewrite-natural-prose/references/editing-guide.md#Read the prose as prose"
+      ],
+      "actualGap": "維度已有且足夠；新交接例記在P133/P135，不把整項宣稱新遷入。",
+      "incrementLocations": [],
+      "verificationNote": "原prose能力保留；非人物示例人工審查"
+    },
+    {
+      "index": 85,
+      "sourceRef": "P085",
+      "identifier": "6ba124e7-1b24-4452-bea3-3aed1877a0ff",
+      "name": "6.思維鏈COT",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "任務、場景事實、數值和格式的可觀察檢查複用現有驗證。",
+      "scopeLimit": "不建 CoT 生成器，不納完整推理、機率偽量化、隱藏意圖與人物推演。",
+      "methodGroups": [
+        "observable-review"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/validation.md#0 Review scope and author-facing assessment",
+        "skills/tavern-card-builder/references/validation.md#1 Static chain checks",
+        "skills/tavern-card-builder/references/validation.md#2 CoT-specific checks",
+        "skills/orchestrate-project-blueprint/references/autonomy-and-gates.md#證據賬本",
+        "skills/rewrite-natural-prose/references/natural-chinese-review.md#5 Review the whole draft"
+      ],
+      "actualGap": "已有驗證規則足夠；新prompt-spec的區域性檢查例不表示這些源模組整組遷入。",
+      "incrementLocations": [],
+      "verificationNote": "原blueprint/rewrite/builder 66/66；新自檢只驗證原創提示合同例"
+    },
+    {
+      "index": 86,
+      "sourceRef": "P086",
+      "identifier": "359546a6-bf41-4588-b0a2-f81b7e5249fa",
+      "name": "6.正文小cot(類kemini的小玩具)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "按已約定表達要求檢查成品，合併現有驗收。",
+      "scopeLimit": "不納逐段 HTML 隱藏分析、候選對白/情緒推演。",
+      "methodGroups": [
+        "observable-review"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/validation.md#0 Review scope and author-facing assessment",
+        "skills/tavern-card-builder/references/validation.md#1 Static chain checks",
+        "skills/tavern-card-builder/references/validation.md#2 CoT-specific checks",
+        "skills/orchestrate-project-blueprint/references/autonomy-and-gates.md#證據賬本",
+        "skills/rewrite-natural-prose/references/natural-chinese-review.md#5 Review the whole draft"
+      ],
+      "actualGap": "已有驗證規則足夠；新prompt-spec的區域性檢查例不表示這些源模組整組遷入。",
+      "incrementLocations": [],
+      "verificationNote": "原blueprint/rewrite/builder 66/66；新自檢只驗證原創提示合同例"
+    },
+    {
+      "index": 87,
+      "sourceRef": "P087",
+      "identifier": "bf13836a-fc96-4871-9cf8-3777fa78f137",
+      "name": "7. 狀態列＋HTML美化（太大了，使用前一定要把知識庫關了）",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "輸出—解析—展示契約及真實渲染驗收已有更完整覆蓋。",
+      "scopeLimit": "長 HTML 未逐行審計，不直接收入資產；不因關閉知識庫而保證可靠。",
+      "methodGroups": [
+        "ui"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 88,
+      "sourceRef": "P088",
+      "identifier": "bb9bb9b7-3b3d-4b1a-8eb9-0a23ed3d799d",
+      "name": "8.MVU變數書寫(必須開啟MVU知識庫)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "變數需求拆解交現有變數設計。",
+      "scopeLimit": "不遷移預設知識庫開關包裝。",
+      "methodGroups": [
+        "state"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 89,
+      "sourceRef": "P089",
+      "identifier": "54bb0739-c20b-4937-908c-13a58a02fda2",
+      "name": "8.1MVU變數始化(必須開啟MVU知識庫)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "初值來源與初始化交現有變數流程。",
+      "scopeLimit": "舊結構/命令不混入新協議。",
+      "methodGroups": [
+        "state"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 90,
+      "sourceRef": "P090",
+      "identifier": "4c520657-a4b7-460f-95cf-96c1931c4cdc",
+      "name": "8.2MVU變數 正文(必須開啟MVU知識庫)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "舊 MVU 正文需求與 P065 去重。",
+      "scopeLimit": "不重複搬教程、不混合方言。",
+      "methodGroups": [
+        "state"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 91,
+      "sourceRef": "P091",
+      "identifier": "ab3873d5-addb-4c35-bfc7-2930c328e4a4",
+      "name": "8.3MVU變數更新規則(必須開啟MVU知識庫)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "更新條件和規則交現有變數流程。",
+      "scopeLimit": "排除人物寫作與固定輸出包裝。",
+      "methodGroups": [
+        "state"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 92,
+      "sourceRef": "P092",
+      "identifier": "91aaf23e-caa0-4fbc-88c8-79d081dc6a09",
+      "name": "MVU ZOD制卡說明(必看！不是模組，只是制卡前提示)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "制卡依賴、schema 到消費者的分階段一致性已有覆蓋。",
+      "scopeLimit": "深度可作場景例；刪除固定順序數字與模型品牌繫結深度，不改宿主 order 欄位。",
+      "methodGroups": [
+        "state"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 93,
+      "sourceRef": "P093",
+      "identifier": "781cb01d-bc3b-49e5-9a49-3f23414b85f2",
+      "name": "8X.MVU ZOD變數設計(必須開啟MVU ZOD知識庫)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "變數設計入口複用已有 schema/狀態契約。",
+      "scopeLimit": "預設開關與任務包裝不遷入。",
+      "methodGroups": [
+        "state"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 94,
+      "sourceRef": "P094",
+      "identifier": "fb0a625b-afa6-4d27-abd3-f45a48cec61f",
+      "name": "8X.1 MVU ZOD變數指令碼(可不開啟MVU ZOD知識庫)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "變數指令碼需求與 P067 去重，交現有技術實現。",
+      "scopeLimit": "不搬未核驗匯入路徑、固定容錯配方或模板禁令。",
+      "methodGroups": [
+        "state"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 95,
+      "sourceRef": "P095",
+      "identifier": "8c14b5b6-e2b2-4d99-b31a-058a0df17fd8",
+      "name": "8X.2 MVU ZOD初始化變數(可不開啟MVU ZOD知識庫)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "初始化依據、缺值與消費者同步已有覆蓋。",
+      "scopeLimit": "不照搬強制初值和舊包裝。",
+      "methodGroups": [
+        "state"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 96,
+      "sourceRef": "P096",
+      "identifier": "4c52e88d-7749-46c7-ad04-004068618beb",
+      "name": "8X.3 MVU ZOD變數更新規則(可不開啟MVU ZOD知識庫)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "僅必要的更新規則、真正同類規則合併已有覆蓋。",
+      "scopeLimit": "下劃線名稱不等於許可權；不湊數值/階段、不混方言。",
+      "methodGroups": [
+        "state"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 97,
+      "sourceRef": "P097",
+      "identifier": "e0c8996d-3dd1-45e6-ba9d-58775dde8c93",
+      "name": "8X.4 MVU ZOD變數狀態列(可不開啟MVU ZOD知識庫)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "狀態欄位到顯示對映、生命週期及缺值處理已有更完整覆蓋。",
+      "scopeLimit": "不搬固定變數字首或未經清洗的 HTML；保留合法 0/false。",
+      "methodGroups": [
+        "ui"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 98,
+      "sourceRef": "P098",
+      "identifier": "4358feca-4ffd-4e16-9d08-3d0f06f49ac9",
+      "name": "8X.4.1 MVU ZOD變數狀態列檢查(狀態列製作完成後若執行出問題可以使用)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "狀態列靜態與實際宿主驗收復用現有除錯。",
+      "scopeLimit": "不以固定 padding/API 清單替代專案契約，不宣稱靜態即能用。",
+      "methodGroups": [
+        "ui"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    },
+    {
+      "index": 99,
+      "sourceRef": "P099",
+      "identifier": "4b26ee27-58af-458d-a698-7f88f2a40e5e",
+      "name": "8X.5 EJS程式碼製作(進階內容，需要開啟EJS基礎模板知識庫)",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "EJS 場景、條件和輸出/載入的案例線索；與 P061 去重整合。",
+      "scopeLimit": "不納六模板獨佔、通用禁改、固定順序與角色寫作；函式按版本核驗。",
+      "methodGroups": [
+        "template-scenarios"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造"
+    },
+    {
+      "index": 100,
+      "sourceRef": "P100",
+      "identifier": "a9e0fff6-65c6-44cb-926a-945b7741775f",
+      "name": "9.成品自檢(塞了個字數要求)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "語義、結構、衝突、冗餘與格式檢查複用 validation 和質量流程。",
+      "scopeLimit": "去最低3000字、任意免檢區域與完整推理；有效否定和解釋不機械刪。",
+      "methodGroups": [
+        "observable-review"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/validation.md#0 Review scope and author-facing assessment",
+        "skills/tavern-card-builder/references/validation.md#1 Static chain checks",
+        "skills/tavern-card-builder/references/validation.md#2 CoT-specific checks",
+        "skills/orchestrate-project-blueprint/references/autonomy-and-gates.md#證據賬本",
+        "skills/rewrite-natural-prose/references/natural-chinese-review.md#5 Review the whole draft"
+      ],
+      "actualGap": "已有驗證規則足夠；新prompt-spec的區域性檢查例不表示這些源模組整組遷入。",
+      "incrementLocations": [],
+      "verificationNote": "原blueprint/rewrite/builder 66/66；新自檢只驗證原創提示合同例"
+    },
+    {
+      "index": 101,
+      "sourceRef": "P101",
+      "identifier": "4c789119-ca1f-4413-b3c2-8edfd2cdc056",
+      "name": "10.開場白",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "只複用場景必要資訊、可互動開端及玩家回應入口。",
+      "scopeLimit": "人物外貌/魅力/心理/對白不遷入，不強制五案或長開場。",
+      "methodGroups": [
+        "opening"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/card-writing.md#2 Greetings",
+        "skills/tavern-card-builder/references/opening-strategies.md#1 Fixed greetings"
+      ],
+      "actualGap": "已有可行動位置、約束、知識範圍與玩家交接完整。",
+      "incrementLocations": [],
+      "verificationNote": "原builder迴歸；保留原許可權規則"
+    },
+    {
+      "index": 102,
+      "sourceRef": "P102",
+      "identifier": "f14db6e5-6d60-45e4-802a-6dac0076394c",
+      "name": "11.標題與簡介（芙芙的語料）",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "以已實現可玩內容形成準確標題、體驗簡介與適用標籤案例。",
+      "scopeLimit": "不納人物/性癖營銷語料，不強制候選或標籤配額，不自動釋出。",
+      "methodGroups": [
+        "description"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "實際缺失，補充",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/card-writing.md#1 Identity fields",
+        "skills/tavern-card-builder/references/validation.md#5 Handoff report",
+        "skills/orchestrate-project-blueprint/references/autonomy-and-gates.md"
+      ],
+      "actualGap": "基線有元資料和交付證據，但缺標題/簡介的逐能力核對方法及反例。",
+      "incrementLocations": [
+        "skills/tavern-card-builder/references/card-writing.md#7 Accurate titles and release descriptions"
+      ],
+      "verificationNote": "general-methods semantic/release例存在檢查；人工對照已實現/僅提議"
+    },
+    {
+      "index": 103,
+      "sourceRef": "P103",
+      "identifier": "dace3da4-0f0d-4c81-8e7c-02db7e716acf",
+      "name": "12.提示詞反推：資料庫BOOK(一起開啟,加入你希望實現的內容)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "目標樣例輸入槽併入已有來源與候選規格輸入。",
+      "scopeLimit": "不復制空 BOOK 容器。",
+      "methodGroups": [
+        "sources"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/build-work-library/SKILL.md#來源、結論與二創分開",
+        "skills/tavern-card-builder/references/opening-strategies.md#Prose direction and drafting"
+      ],
+      "actualGap": "佔位槽無獨立方法；併入現有材料入口。",
+      "incrementLocations": [],
+      "verificationNote": "索引核對"
+    },
+    {
+      "index": 104,
+      "sourceRef": "P104",
+      "identifier": "60b1db7c-30d4-4a86-bd41-67e13c5084e0",
+      "name": "12.提示詞與模版反推",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "從目標樣例歸納候選規則、固定/可變部分，並用新輸入驗證。",
+      "scopeLimit": "不能聲稱恢復作者真實提示或保證復現，不搬完整推理要求。",
+      "methodGroups": [
+        "prompt-spec"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/opening-strategies.md#Prose direction and drafting",
+        "skills/orchestrate-project-blueprint/references/first-version-contract.md"
+      ],
+      "actualGap": "樣例提煉已有；缺通用候選規格與獨立未見輸入驗證，以及原作者提示不可恢復的邊界。",
+      "incrementLocations": [
+        "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md#從目標樣例歸納候選規則",
+        "skills/orchestrate-project-blueprint/references/prompt-spec-contract.md#原創貫通例：路線告示"
+      ],
+      "verificationNote": "2樣例/2未見輸入，unknown/null/0/empty反例；明確非模型測評"
+    },
+    {
+      "index": 105,
+      "sourceRef": "P105",
+      "identifier": "9376366e-bf35-446f-babe-438959ccc452",
+      "name": " 13.霸凌捧殺模擬器",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "核心是誇張讚美/捧殺模擬，不是有證據的對抗質量評審；不包裝為已驗證紅隊方法。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 106,
+      "sourceRef": "P106",
+      "identifier": "430d57cf-d2ea-46ce-b83d-624ca2300f2b",
+      "name": "功能模組思維鏈(使用功能模組必開)🧠",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "輸入、依賴、適用規則與輸出檢查複用可觀察協議。",
+      "scopeLimit": "不強制完整思考格式，不把隱藏動機或人物設計引入通用流程。",
+      "methodGroups": [
+        "observable-review"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/validation.md#0 Review scope and author-facing assessment",
+        "skills/tavern-card-builder/references/validation.md#1 Static chain checks",
+        "skills/tavern-card-builder/references/validation.md#2 CoT-specific checks",
+        "skills/orchestrate-project-blueprint/references/autonomy-and-gates.md#證據賬本",
+        "skills/rewrite-natural-prose/references/natural-chinese-review.md#5 Review the whole draft"
+      ],
+      "actualGap": "已有驗證規則足夠；新prompt-spec的區域性檢查例不表示這些源模組整組遷入。",
+      "incrementLocations": [],
+      "verificationNote": "原blueprint/rewrite/builder 66/66；新自檢只驗證原創提示合同例"
+    },
+    {
+      "index": 107,
+      "sourceRef": "P107",
+      "identifier": "b3bb7133-7161-4b76-b7be-dabd38f76f19",
+      "name": "珠璣：功能模組結束⬆️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "空的功能模組結束分隔項。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 108,
+      "sourceRef": "P108",
+      "identifier": "835fe974-b281-4077-9ef1-10ad92ce65ba",
+      "name": "珠璣：共同目標（在頂部預設設定裡填寫）",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "共同目標包裝混入突破倫理/道德限制；不遷移執行指令。目標管理已有獨立合同。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 109,
+      "sourceRef": "P109",
+      "identifier": "2877a3d3-6746-4f87-9ef8-cd17862d6b73",
+      "name": "珠璣：獨立模組(使用時關閉所有功能模組及思維鏈)⬇️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "空的獨立模組起始分隔項及開關說明。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 110,
+      "sourceRef": "P110",
+      "identifier": "6ab76630-4988-4dcb-a1b7-2e2635ec7a00",
+      "name": "獨立模組初始判斷(讓ai幫你選擇使用哪些獨立模組)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "按需求、依賴與已有框架選擇模組，複用 blueprint 和 consult 路由。",
+      "scopeLimit": "不遷人物支路、強制思考、自動畫師串或手動預設開關協議；不增加逐步確認門禁。",
+      "methodGroups": [
+        "authority-routing"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/orchestrate-project-blueprint/SKILL.md#路由實施能力",
+        "skills/orchestrate-project-blueprint/references/first-version-contract.md",
+        "skills/tavern-card-builder/references/validation.md#0 Review scope and author-facing assessment"
+      ],
+      "actualGap": "已有範圍判斷與專項路由，不新增模組啟動器。",
+      "incrementLocations": [],
+      "verificationNote": "原blueprint迴歸與共享引用測試"
+    },
+    {
+      "index": 111,
+      "sourceRef": "P111",
+      "identifier": "ca6d2266-d37f-4596-bd2b-b61ac0f7ba49",
+      "name": "char0寶寶一鍵出模組要求和思維鏈",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物模組需求與思維鏈生成。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 112,
+      "sourceRef": "P112",
+      "identifier": "35ea2ccc-99c5-4731-a25a-0693614b07fa",
+      "name": "char0模板三選一:風空精神分析模版",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "精神分析人物模板。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 113,
+      "sourceRef": "P113",
+      "identifier": "d8f77e8f-ab6c-486f-a422-c136d7d5cb95",
+      "name": "char0模板三選一:大丨模板(標準化模板)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "標準化人物模板。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 114,
+      "sourceRef": "P114",
+      "identifier": "f59e5798-006c-4d9b-a731-79a76604047b",
+      "name": "char0模板三選一:心理動力學網路構架(特質化,ooc避免強化)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "心理動力學人物模板與防 OOC。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 115,
+      "sourceRef": "P115",
+      "identifier": "d9dbc92d-19c3-49ab-aeb8-3eff3adf6c6e",
+      "name": "char0.5一鍵出模組: 人物塑造模板",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "一鍵人物塑造模板。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 116,
+      "sourceRef": "P116",
+      "identifier": "bdc8f3a0-37a3-415a-b01d-b91359b79104",
+      "name": "char1:外顯模組(正常)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物外顯特徵寫作。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 117,
+      "sourceRef": "P117",
+      "identifier": "48f3e186-cbb3-44f7-8d07-e9b04e462207",
+      "name": "char1:外顯模組(色情)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物色情外顯特徵寫作。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 118,
+      "sourceRef": "P118",
+      "identifier": "e7a220dd-4614-4550-8c27-0f07f032a9fb",
+      "name": "char2:內質模組",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物內在特質寫作。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 119,
+      "sourceRef": "P119",
+      "identifier": "f1c6179e-6676-4ada-a06c-4b6637558a3d",
+      "name": "char2:內質模組——超級重力生成器",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物內質與心理重力設計。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 120,
+      "sourceRef": "P120",
+      "identifier": "92cb3004-7460-4289-a6c8-51df0ef82786",
+      "name": "char3:外延模組",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物外延設定。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 121,
+      "sourceRef": "P121",
+      "identifier": "5255b750-60b7-4f53-ad3b-3a950452d0f1",
+      "name": "char3外延模組: 補充拓展內容",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物外延補充。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 122,
+      "sourceRef": "P122",
+      "identifier": "deb04bef-e652-442f-aa21-4fd3eb99edf5",
+      "name": "char4:特質細化模組——桐谷申元化(詩意)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物特質詩意細化。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 123,
+      "sourceRef": "P123",
+      "identifier": "d2b15fa4-3c4d-4786-846d-ab5dbbfeed7a",
+      "name": "char4:特質細化模組——心理動力學網路構架(ooc避免強化)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物特質與心理動力學。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 124,
+      "sourceRef": "P124",
+      "identifier": "6659b4ce-b305-460f-8167-0e867e9acff1",
+      "name": "char5:模組化語料——自我介紹模式",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物自我介紹語料。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 125,
+      "sourceRef": "P125",
+      "identifier": "e218f6f8-6b1b-4592-9ec7-b853cb40e51a",
+      "name": "char5:模組化語料——場景描述",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "用於人物塑造的場景語料。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 126,
+      "sourceRef": "P126",
+      "identifier": "324e85a9-0fc1-4e8b-85cf-1ff9851f5b03",
+      "name": "char5:特質化語料",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物特質語料。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 127,
+      "sourceRef": "P127",
+      "identifier": "3962f6ca-e78e-41b1-8824-43079b18cb6c",
+      "name": "char6人物關係模組: 一對一人物關係",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "一對一人物關係創作。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 128,
+      "sourceRef": "P128",
+      "identifier": "ca92b582-0c56-493d-907a-cafd9b0617f5",
+      "name": "char6人物關係模組:人物關係網路梳理",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物關係網路創作。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 129,
+      "sourceRef": "P129",
+      "identifier": "c6a34ba6-393f-48c7-993d-86c47de6a35c",
+      "name": "char7角色概念設計(文生圖)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物概念設計與文生圖提示。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 130,
+      "sourceRef": "P130",
+      "identifier": "b1e849a3-5778-40c7-8f27-f84688097ace",
+      "name": "角色審查模組(需要開啟知識庫裡的《人物》)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物塑造質量審查。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 131,
+      "sourceRef": "P131",
+      "identifier": "85a56a93-4587-4e64-9ee6-c5520d12624d",
+      "name": "人物塑造模組",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "人物塑造模組。屬於本輪角色寫作排除範圍。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 132,
+      "sourceRef": "P132",
+      "identifier": "db7539c5-8920-4899-bbdc-9c0d910beb43",
+      "name": "文風材料(開啟文風模組放原文的地方)",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "與 P083 合併為帶來源和用途的材料輸入。",
+      "scopeLimit": "不保留重複文風材料槽。",
+      "methodGroups": [
+        "presentation"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/opening-strategies.md#Prose direction and drafting",
+        "skills/build-work-library/SKILL.md#來源、結論與二創分開"
+      ],
+      "actualGap": "已有樣例與出處處理；兩個輸入槽無獨有能力。",
+      "incrementLocations": [],
+      "verificationNote": "人工確認無新槽或複製來源正文"
+    },
+    {
+      "index": 133,
+      "sourceRef": "P133",
+      "identifier": "3916922d-95ff-4b66-b773-10e7c770b9ec",
+      "name": "文風模組——風格復現憲章",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "基調/結構/語言特徵及證據到表達約束，優先複用已有表達參考。",
+      "scopeLimit": "不納人格模擬、精確復刻、摘錄配額及語言積木搬運；明確缺口才補交接。",
+      "methodGroups": [
+        "presentation"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/opening-strategies.md#Prose direction and drafting",
+        "skills/rewrite-natural-prose/references/editing-guide.md#Read the prose as prose"
+      ],
+      "actualGap": "基線說從樣例提煉方法但沒有具體跨題材交接對照。",
+      "incrementLocations": [
+        "skills/tavern-card-builder/references/opening-strategies.md#Non-character presentation handoff"
+      ],
+      "verificationNote": "原創環境樣例與目標新事實對照；人工確認未搬雨/渡口事實"
+    },
+    {
+      "index": 134,
+      "sourceRef": "P134",
+      "identifier": "f5c0fecc-1beb-4ee9-ba1a-d6830f416399",
+      "name": "文風模組——文體學構建",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "詞彙、句式、視角、節奏等維度與 P084/133 去重。",
+      "scopeLimit": "不扮演作者、不推斷私生活，不湊作家作品數量；文體不改情節事實。",
+      "methodGroups": [
+        "presentation"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/opening-strategies.md#Prose direction and drafting",
+        "skills/rewrite-natural-prose/references/editing-guide.md#Read the prose as prose"
+      ],
+      "actualGap": "維度已有且足夠；新交接例記在P133/P135，不把整項宣稱新遷入。",
+      "incrementLocations": [],
+      "verificationNote": "原prose能力保留；非人物示例人工審查"
+    },
+    {
+      "index": 135,
+      "sourceRef": "P135",
+      "identifier": "d4796572-b3b7-42b4-b854-ca5ed55b8ade",
+      "name": "文風模組——敘事學構建",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "敘述時間、場景/概要/省略與可靠性優先複用現有敘事參考。",
+      "scopeLimit": "不納人物弧光、作者模擬或強制倫理/結局；缺口才補表達交接。",
+      "methodGroups": [
+        "presentation"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/rewrite-natural-prose/references/editing-guide.md#Read the prose as prose",
+        "skills/tavern-card-builder/references/opening-strategies.md#Prose direction and drafting",
+        "skills/tavern-card-builder/references/worldbuilding-design.md#4 Facts, knowledge, and degrees of awareness"
+      ],
+      "actualGap": "原規則分散覆蓋時序/知識；補風格交接裡可觀察的時間與可靠性邊界。",
+      "incrementLocations": [
+        "skills/tavern-card-builder/references/opening-strategies.md#Non-character presentation handoff"
+      ],
+      "verificationNote": "人工對照敘述時間不改事件實際先後；傳聞不變客觀事實"
+    },
+    {
+      "index": 136,
+      "sourceRef": "P136",
+      "identifier": "12a8c619-6cfa-4831-b3b0-5e121671df4d",
+      "name": "玩法生成模組",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "動作、條件、效果、代價、失敗/退出與反饋，補可操作玩法貫通例。",
+      "scopeLimit": "複用機制/狀態所有權，不湊玩法數量或理論，不限於世界書用途。",
+      "methodGroups": [
+        "mechanics"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/worldbuilding-design.md#3 Build the necessary world",
+        "skills/tavern-card-builder/references/variable-systems.md",
+        "skills/orchestrate-project-blueprint/references/first-version-contract.md"
+      ],
+      "actualGap": "已有狀態與核心閉環，缺一個實際可算的非人物玩法合同。",
+      "incrementLocations": [
+        "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md#可操作機制合同"
+      ],
+      "verificationNote": "ferry/bridge/no ticket/temporary block狀態前後測試"
+    },
+    {
+      "index": 137,
+      "sourceRef": "P137",
+      "identifier": "4db29d4f-5573-4635-ba6d-f63a698c6722",
+      "name": "nai4畫師串隨機生成模組(hyh個人篩選)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "隨機畫師標籤對本輪通用方法無必要增量；不搬名單，具體媒體任務另評估。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 138,
+      "sourceRef": "P138",
+      "identifier": "64f71032-304f-4452-a79f-88c748343924",
+      "name": "敘事模組1: 敘事網路梳理",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "穩定節點 ID、顯式邊與可選分支的事件圖案例。",
+      "scopeLimit": "座標僅佈局，不作業務主鍵；排除人物關係與強制玩家路線。",
+      "methodGroups": [
+        "mechanics"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/card-writing.md#4 Examples and plot guidance",
+        "skills/tavern-card-builder/references/worldbuilding-design.md#7 Connect world, state, entries, and opening",
+        "skills/orchestrate-project-blueprint/references/blueprint-scaling.md#漸進提取"
+      ],
+      "actualGap": "已有規劃和狀態權威；缺穩定事件ID、位置ID分離且規劃不等於發生的完整例。",
+      "incrementLocations": [
+        "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md#有向地圖與穩定節點",
+        "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md#事件圖表達可能性"
+      ],
+      "verificationNote": "unique/dangling refs、rename/reorder、event read no mutation；無卡指令碼執行"
+    },
+    {
+      "index": 139,
+      "sourceRef": "P139",
+      "identifier": "2ab117ff-ad1a-4245-a572-c202de011983",
+      "name": "敘事模組2: 章節細化",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "節點時間/地點、條件、可轉移邊、退出與未滿足處理的契約。",
+      "scopeLimit": "規劃不等於已發生；不強制 CG、階段和人物情感結果。",
+      "methodGroups": [
+        "mechanics"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/card-writing.md#4 Examples and plot guidance",
+        "skills/tavern-card-builder/references/worldbuilding-design.md#7 Connect world, state, entries, and opening",
+        "skills/orchestrate-project-blueprint/references/blueprint-scaling.md#漸進提取"
+      ],
+      "actualGap": "已有規劃和狀態權威；缺穩定事件ID、位置ID分離且規劃不等於發生的完整例。",
+      "incrementLocations": [
+        "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md#有向地圖與穩定節點",
+        "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md#事件圖表達可能性"
+      ],
+      "verificationNote": "unique/dangling refs、rename/reorder、event read no mutation；無卡指令碼執行"
+    },
+    {
+      "index": 140,
+      "sourceRef": "P140",
+      "identifier": "5fc02947-f31f-4d0b-90e9-6fa2f0a55170",
+      "name": "敘事模組3: 套入提示詞模版(純手動無工具,往裡面加第二步的劇情後複製)",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "當前相關節點的選擇性載入、條件遷移與回退思路。",
+      "scopeLimit": "不搬舊 EJS/setvar/正則協議、固定深度或遠端指令碼；綱要不覆蓋玩家有效選擇。",
+      "methodGroups": [
+        "mechanics"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/card-writing.md#4 Examples and plot guidance",
+        "skills/tavern-card-builder/references/worldbuilding-design.md#7 Connect world, state, entries, and opening",
+        "skills/orchestrate-project-blueprint/references/blueprint-scaling.md#漸進提取"
+      ],
+      "actualGap": "已有規劃和狀態權威；缺穩定事件ID、位置ID分離且規劃不等於發生的完整例。",
+      "incrementLocations": [
+        "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md#有向地圖與穩定節點",
+        "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md#事件圖表達可能性"
+      ],
+      "verificationNote": "unique/dangling refs、rename/reorder、event read no mutation；無卡指令碼執行"
+    },
+    {
+      "index": 141,
+      "sourceRef": "P141",
+      "identifier": "075e510d-c567-48dd-bd25-0201fb8f980e",
+      "name": "地圖模組",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "地點層級、尺度、用途與有向/條件連線的邊界例。",
+      "scopeLimit": "不要求雙向/兩兩互通；emoji 僅可選檢視，NPC 只引用已有實體。",
+      "methodGroups": [
+        "mechanics"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造",
+      "baselineEvidence": [
+        "skills/tavern-card-builder/references/worldbuilding-design.md#3 Build the necessary world"
+      ],
+      "actualGap": "空間診斷已有；缺單向航線/獨立反向邊/第二段封閉不回滾第一段的邊界例。",
+      "incrementLocations": [
+        "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md#有向地圖與穩定節點",
+        "skills/tavern-card-builder/references/world-mechanics-and-scenarios.md#交接與反例"
+      ],
+      "verificationNote": "directed ferry/blocked second leg/coordinate rename tests"
+    },
+    {
+      "index": 142,
+      "sourceRef": "P142",
+      "identifier": "c77a045b-9446-4670-8a84-25a8ccf3048f",
+      "name": "珠璣：獨立模組結束⬆️",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "空的獨立模組結束分隔項。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 143,
+      "sourceRef": "P143",
+      "identifier": "9f0c7363-3af8-4da6-9b12-693157b5a0e8",
+      "name": "珠璣：世界書專用輸出格式（配合世界書助手用，可以不開）✅",
+      "plannedClassification": "計劃吸收（部分）",
+      "disposition": "partial-method-only",
+      "adoptedMethod": "正文/配置成對交付用於世界書示例，已有匯出和 ID 保護複用。",
+      "scopeLimit": "刪除每條10–20關鍵詞及重編號要求；格式按真實匯入消費者校驗。",
+      "methodGroups": [
+        "worldbook",
+        "budget"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有但不足，區域性改造"
+    },
+    {
+      "index": 144,
+      "sourceRef": "P144",
+      "identifier": "59a26a76-3373-41ce-b8dd-cd698e658bd2",
+      "name": "珠璣：抗截斷空回(戰書)",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "抗截斷“戰書”實為破限/審查對抗包裝。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 145,
+      "sourceRef": "P145",
+      "identifier": "cd8a2432-8027-46ce-96d6-7ee4797501d9",
+      "name": "gemini結束",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "Gemini 準備結束包裝，無獨立方法。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 146,
+      "sourceRef": "P146",
+      "identifier": "04666a5c-81da-4788-9481-6b21eaf41dc5",
+      "name": "珠璣：gemini重申輸入📌",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "重複最後輸入的預設拼接宏；不作為需求理解方法遷入。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 147,
+      "sourceRef": "P147",
+      "identifier": "967905ac-6fe9-4267-ace7-b58ac867799a",
+      "name": "珠璣：Gemini強制結束思考📌",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "強制結束思考、偽 think 與 thinking 起始包裝。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 148,
+      "sourceRef": "P148",
+      "identifier": "2dcad6ef-063d-4237-a571-a6e4cabd2cd2",
+      "name": "珠璣：gemini開始輸出",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "模型輸出字首及 thinking 起始包裝。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 149,
+      "sourceRef": "P149",
+      "identifier": "e8ae5f91-0b58-4970-83e4-65336ff232dc",
+      "name": "claude code頭部",
+      "plannedClassification": "明確不納入",
+      "disposition": "excluded",
+      "adoptedMethod": null,
+      "scopeLimit": "偽系統重置、上下文替換、廠商/身份替換指令。",
+      "methodGroups": [],
+      "conflictStatus": "not-adopted",
+      "actualDecision": "排除"
+    },
+    {
+      "index": 150,
+      "sourceRef": "P150",
+      "identifier": "SPresetSettings",
+      "name": "SPreset配置",
+      "plannedClassification": "複用 TW，無需重複",
+      "disposition": "reuse-existing",
+      "adoptedMethod": "配置副本、regex 來源對映及遠端依賴清單複用元件與安全流程。",
+      "scopeLimit": "不匯入/執行配置；長指令碼未完整審計，開關關閉不代表安全或其他副本不執行。",
+      "methodGroups": [
+        "component-security"
+      ],
+      "conflictStatus": "no-new-unresolved-conflict",
+      "actualDecision": "已有足夠好，複用"
+    }
+  ],
+  "externalConfiguration": {
+    "SPresetDuplicate": "P150 content 解析結果與 extensions.SPreset 深相等",
+    "regexDuplicate": "SPreset.RegexBinding.regexes 與 extensions.regex_scripts 四項深相等",
+    "enabledFlags": "前三項 disabled=false；世界書助手 disabled=true。只記錄靜態值，不把關閉當安全證明。",
+    "ownerGroups": [
+      "component-security"
+    ]
+  },
+  "attributionLocation": "交付docs保留真實來源；skills日常正文、參考和夾具使用通用方法/中性自寫例，不載入素材來源報告。",
+  "attributionReports": [
+    "docs/worldbook-source-migration-notes.md",
+    "docs/worldbook-runtime-source-notes.md"
+  ]
+}

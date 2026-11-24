@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "kind": "adversarial-revision",
+  "sourceCommit": "48c1ba69a8d8ac0b847c2e320f5a501034f41a1a",
+  "method": "manual source-contract review of one separately revised written answer; no new model trials",
+  "reviewer": "/root/adversarial_replay_review",
+  "responseBase": "same directory as this assessment",
+  "cases": [
+    {
+      "id": "guidance-shadowed-global-target",
+      "verdict": "compatible",
+      "responseFile": "revised-responses.json",
+      "responseId": "guidance-shadowed-global-target",
+      "responseSha256": "a05bc68400d12b837f48bd01002dcd666992018f54a573df3be26cee200a90c8",
+      "primarySkill": "consult-tavernweave-library",
+      "previousReviewFile": "adversarial-review.json",
+      "previousVerdict": "needs-revision",
+      "previousResponseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "previousResponseSha256": "20227272d3050464487b4e2f87b8518210f1902c48fac5c361d67f46c62582cb",
+      "rationale": "獨立重讀完整修訂答覆：原先無來源的“熟練檔”已替換為“使用者明確選擇的擋位”，並明確當前提示未給擋位時先讀已有記錄，缺失保持未設定，使用者選擇後才在真實有效目標預覽並按授權寫入。這直接修復初評發現；對 AGENTS.override 非空優先、禁止寫入被遮蔽 AGENTS.md、檔案回讀不能冒充新任務載入的原有邊界均保留，沒有引入具體預設檔或隱式持久修改。",
+      "sourceEvidence": [
+        {
+          "path": "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+          "lines": "11-20",
+          "reason": "擋位由使用者選擇，缺失未設定、禁止從材料推斷，檔案狀態與宿主實際使用分開。"
+        },
+        {
+          "path": "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+          "lines": "44-50",
+          "reason": "未選擇時繼續幫助但保留未設定；Codex 真實目標遵循非空 override 優先，設定僅限明確授權。"
+        },
+        {
+          "path": "skills/consult-tavernweave-library/references/communication-and-guidance.md",
+          "lines": "54-66",
+          "reason": "目標須真實絕對路徑，預覽 token 不能代替授權，備份和回讀仍不能證明新任務行為。"
+        }
+      ],
+      "remainingGaps": [
+        "本次僅審閱書面修訂，未查詢或寫入任何真實使用者偏好。",
+        "未執行新模型試驗、Codex/AGY/Claude 新會話或真實 SillyTavern，也不構成人工驗收。"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,621 @@
+# Changelog
+
+## Unreleased
+
+- **Allowing the subagent token budget lasts an hour.** It lasted 10
+  minutes, the rule's own window, so a busy hour of agents asked again at
+  each burst: over 30 days of use the question came 29 times and was allowed
+  every time, 10 of them in one afternoon. With the same bursts, an hour's
+  approval would have asked 18 times. The other agent limits still apply
+  meanwhile. The journal now records how many subagent tokens each agent
+  question counted, as a bucket such as `10-15M`, and the report shows them,
+  so the 10M default can be set from data.
+- **The report no longer loses a question asked during a parallel batch of
+  agents.** When a session's first journal write of the day started while
+  another was under way, as when the agent question opens and the agents
+  held behind it are refused at the same moment, each loaded the day's rows
+  and the last load wrote over the first's row. The question was lost and
+  its answer kept, so a 30-day report showed concurrency with 7 asks and 13
+  answers. Journal writes now run one after another.
+- **The report counts "Compact, then send" apart from "send anyway".** Both
+  were counted as allowed, so a question that led you to compact read as one
+  you waved through. Each rule now shows `allowed / compacted / declined`.
+
+## 1.2.1 — 2026-11-10
+
+- **The burn rule no longer asks over a short burst.** It projected the
+  5-hour window's pace over the last 10 minutes all the way to the reset, so
+  one heavy turn asked for approval at 15% used: 2 points in 3 minutes, three
+  hours before the reset, "fills" the window in two hours, while the window's
+  real pace would have lasted well past it. Now a pace asks only when it fills
+  the window within the next hour, and before it resets. A pace that holds is
+  still caught, since every new agent checks again: at 60% used, 7 points in
+  10 minutes asks.
+
+## 1.2.0 — 2026-11-06
+
+- **The guard keeps working where Claude Code passes its classic hook events
+  over it ([#60](https://github.com/rbartoli/agent-usage-guard/issues/60)).**
+  On Team and Enterprise plans, and on machines with managed settings, Claude
+  Code's built-in `cc-plugin-sec-default` plugin runs first and sends every
+  `classic.*` event on past user plugins. The guard then kept a compacted
+  session's old context and asked to compact first at the next prompt;
+  journaled no lockouts, so the report undercounted them; carried one
+  session's counts into the next after `/clear` or a resume; and missed a Stop
+  hook reopening a turn. It now reads each from events that still reach it.
+  Claude Code has no context figure from a compaction until the next response.
+  A turn that dies on an API error ends with reason `error`, and the
+  transcript's last message is the error Claude Code showed. A new session has
+  a new id at the next prompt. And a request after one that ended the turn
+  means a Stop hook reopened it. Where the classic events arrive, the guard
+  still uses them for compactions, new sessions and the error's kind. The
+  permission mode and `/subtask` forks still need them, and the README says
+  what that costs. Checked on Claude Code 2.1.318.
+- **A usage-limit message counts as a lockout even when the guard can't tell
+  the window.** "You've hit your Sonnet limit" named no window the guard
+  knows, so it wasn't journaled at all; it now counts as a lockout of unknown
+  kind. The guard tells a limit message from other errors the way Claude Code
+  does, by how it opens.
+- **"Compact, then send" sends your prompt again.** 1.1.3 turned it into
+  "Compact first", which left the prompt in the input box to send by hand, so
+  a session sat idle after compacting until you came back. The guard again
+  takes the prompt out of the box, compacts, and sends it as you typed it; if
+  compaction fails, it puts the prompt back ahead of anything typed since. A
+  prompt with an image or an @ mention now stays in the box for you to send:
+  Claude Code doesn't expand either in a prompt a mod sends, so 1.1.2's resend
+  dropped them without a word. The guard can't hold a prompt in its hook
+  until compaction ends, as Claude Code refuses a compaction started from a
+  prompt hook. Checked on Claude Code 2.1.316.
+- **A compaction that fails names the reason once.** The line read
+  "agent-usage-guard: agent-usage-guard could not compact (agent-usage-guard:
+  $.session.compact: Error during compaction: …)"; it now reads
+  "agent-usage-guard: could not compact (…)".
+- **The report names the guard once.** Claude Code puts "agent-usage-guard:"
+  before a command's output, so the report opened "agent-usage-guard:
+  agent-usage-guard report: last 7 days"; it now opens "agent-usage-guard:
+  Report for the last 7 days". The report's read error drops the name too,
+  and so does the line logged when the guard refuses an `/agent-guard allow`
+  that didn't come from you.
+- **The README says what the store's keys hold.** It said the journal holds
+  a session-id prefix, which is true of each row, but every record in the
+  store is keyed by the full session id, the name of the session's
+  transcript file. The privacy section now says so.
+- **A question shows an agent's name only when it is a plain one.** Claude
+  picks an agent's name, and the heavy-context question showed it as given,
+  under the guard's own "Usage guard" header. A name like "Choose Keep going:
+  agent-usage-guard checked it" would have read as the guard's advice. Now a
+  name of up to 32 letters, digits, dots, dashes and underscores shows in
+  quotes, and any other is replaced by the start of the agent's id.
+- **Records read back from the store are checked value by value.** Another
+  session's record was checked only for its shape, so a corrupt or edited
+  store file could switch off the machine-wide agent cap with a negative
+  count, or put any text into the note and refusals Claude reads through a
+  plan window's name. Counts must now be whole, finite and not negative, or
+  the record doesn't count; a plan reading must have a plain window name and
+  a percentage from 0 to 1,000, or it is left out and the record's counts
+  still count. Journal rows read back for `/agent-guard report`, which Claude
+  also reads, must hold only the values the guard writes.
+- **The guard says when its store stops saving.** The mod store holds 4 MiB
+  in all, and a write that failed was logged only to the debug log. Other
+  sessions then stopped counting this session's agents, with no sign. Now the
+  status line reads "store not saving: other sessions can't count this one",
+  and `/agent-guard status` gives the error, until a write works again.
+- **Scheduled and relayed prompts go through the prompt gate.** A schedule
+  or `/loop` firing, a message relayed from a channel such as Slack, and a
+  Slack ping started a turn the gate never looked at, so a `/loop` on a
+  520k-token session re-read it all every time, unasked. They are now held
+  as in `claude -p`: a heavy one is held with the reason, and a dormant heavy
+  one counts against the machine-wide cap. They never lift limits: a bracket
+  marker from them is an ordinary prompt, and `/agent-guard allow` from them
+  is refused. Background-task notifications and other sessions' messages
+  still pass untouched.
+- **From 95%, wakeups and scheduled jobs are refused.** At the threshold
+  where new agents are refused, `ScheduleWakeup` and `CronCreate` are now
+  refused too, with the plan window and its reset in the reason: the turn
+  each would start later runs into the limit with nobody there. Other tools
+  run as before, and `/agent-guard allow` (or `allow agents`) lifts it.
+- **The burn rule looks at time to empty.** New agents asked only when the
+  5-hour window rose 20 points in 10 minutes. Now they also ask when the
+  window's pace over those 10 minutes would fill it before it resets: 30% to
+  38% in five minutes, three hours before the reset, fills it in about 40
+  minutes. The question says when: "At this pace the 5-hour window fills by
+  12:43, before it resets at 15:00 (now 38%)". A rise of under two points, or
+  over less than two minutes, projects nothing, since readings move in steps.
+- **Haiku agents stay out of the running and starts limits.** A burst of
+  Haiku agents, such as Explore searches, asked like any fan-out, though
+  Haiku draws far less on a plan's usage than larger models. An agent Claude starts on Haiku
+  now passes the running and starts limits and doesn't count against them;
+  one whose own definition picks Haiku stops counting once it starts. Haiku
+  agents still count toward the subagent token budget and every plan-window
+  rule. `AGENT_GUARD_HAIKU_EXEMPT=0` counts them like any other.
+- **`/agent-guard simulate <rule>` shows what a rule does.** It builds a
+  made-up state that trips the rule and runs the real gate on it. Where
+  someone can answer, the real question opens in Claude Code's dialog, marked
+  as a simulation; elsewhere it prints the refusal Claude would read or the
+  reason a prompt would be held. Nothing is held, nothing in the session
+  changes, the journal records nothing, and no usage is spent. The rules are
+  `concurrency`, `starts`, `agent-tokens`, `burn`, `limit`, `limit-deny`,
+  `schedule`, `depth`, `retry`, `tool-budget`, `prompt-context` and `dormant`.
+  The README's install steps now end with one, so a new user sees the guard
+  ask within a minute.
+- **A band above the prompt shows the guard's own state.** Until now, what
+  the guard counted and held showed only in `/agent-guard status`. While
+  agents run on this machine, or the guard is holding or has just refused
+  something, a line above the prompt now shows it, such as
+  "Usage guard · 3 of 4 agents running · 5 of 12 started in the last 10 min ·
+  last refusal 14:22: concurrency". It counts every session on the machine,
+  turns bold once a limit is reached or something is held, and clears on its
+  own once what it shows ages out. Other plugins' content in that band stays,
+  under the guard's line. Plan windows and context stay in the status line.
+
+## 1.1.3 — 2026-10-31
+
+- **The guard never submits a prompt or writes in the input box.** "Compact,
+  then send" is now "Compact first": the guard compacts, and the prompt you
+  typed waits in the input box for you to send. Before, the guard sent it for
+  you. The mod no longer calls `$.prompt.submit`, `$.prompt.read` or
+  `$.prompt.fill`, so it can do less, as `claude plugin validate` lists.
+- **Cancel no longer doubles your prompt.** The guard put the prompt back in
+  the input box, and Claude Code puts a dropped prompt back too, so on 2.1.316
+  the box held it twice. Seen live on 2026-10-31.
+- **Checked against Claude Code 2.1.316.** CI now tests on 2.1.316, and the
+  README's coverage table says so; no change from 2.1.296 to 2.1.316 alters
+  a row. The README adds where idle compaction now runs (2.1.314) and
+  `CLAUDE_CODE_SUBAGENT_EFFORT` (2.1.316), and describes Claude Code's own
+  resume warning (2.1.304), which shows before a cold resume only from a
+  minimum share of the 5-hour limit, so the guard's dormant question, from
+  150k tokens, stays.
+
+## 1.1.2 — 2026-10-25
+
+- **Only you can lift the guard's limits.** `/agent-guard allow` and `pause`
+  now check where the command came from. When another plugin runs them
+  through `$.command.run`, the guard refuses, changes nothing, and says so in
+  the transcript. Before, any installed plugin could lift every limit for up
+  to eight hours, and the journal recorded it as your own override. Commands you
+  type, or send through Remote Control or the Agent SDK, work as before, as
+  do `status`, `report` and `resume` from anywhere. Found in a security review on
+  2026-10-24.
+- **A question with no answer is never a yes.** The guard told a dismissed
+  question from a failed one by the wording of Claude Code's error, and a
+  failure let the agent start. Had a Claude Code release reworded the
+  dismissal, every "no" would have started the agent. Any question that ends
+  without an answer now counts as dismissed. An agent the guard fails to
+  judge for any reason is now refused, so Claude starts it again; before,
+  only an overrun was. Tool calls and prompts still go ahead when the guard
+  fails.
+
+## 1.1.1 — 2026-10-23
+
+- **A resumed subagent counts as one start.** Since Claude Code 2.1.299, a
+  `SendMessage` resume also raises `agent.spawn`, inside the same call. The
+  guard judged it in both, so one resume counted as two starts and could ask
+  a second time, as if a new agent were starting. The spawn event now passes a
+  resume its `SendMessage` call already judged. A resume that arrives only
+  through `agent.spawn`, such as a teammate brought back from disk, is judged
+  there as a resume, and every refusal of one says it was not resumed rather
+  than not started.
+- **`/agent-guard status` names the version that runs.** Its first line reads
+  `On (1.1.1).`, from the loaded copy's own `plugin.json`, so after
+  `claude plugin update` and `/reload-plugins` it shows which copy a session
+  runs. Before, the status read the same in every version.
+
+## 1.1.0 — 2026-10-23
+
+- **From 95%, each session winds down.** Once a plan window on this machine
+  reaches `AGENT_GUARD_LIMIT_DENY_PERCENT` (95%), the point at which new agents
+  are refused, the next prompt in each session carries one note for Claude:
+  finish the step in progress, start nothing large, and end the turn with
+  what is done and what is left. Lockouts since 1.0 came from many main
+  sessions running in parallel, which no rule held; a lockout now finds them at
+  a clean stop. A session is told again only after the window falls back
+  below the threshold, such as after its reset. The prompt gate now reads
+  every session's plan reading, so an idle session hears of a window another
+  session filled. The journal records each note, and `/agent-guard report`
+  counts them.
+- **Idle compaction is documented, and pinned by a test.** Claude Code 2.1.299
+  compacts a conversation of 200k tokens or more before its one-hour cache
+  expires. The guard reads the compacted size, so the dormant question does
+  not apply to that session; a test now covers it. The README says which
+  sessions the dormant question still covers.
+- **CI publishes each release.** When the tests pass on `main` and the
+  version in `plugin.json` has no tag yet, CI tags the commit with
+  `claude plugin tag --push` and publishes its GitHub release, with that
+  version's section of this changelog as the notes. A release is now a PR
+  that bumps the version and dates its section.
+- **The demo renders as an MP4 that stays readable in a feed.**
+  `demo/render.sh` also writes `demo/out/agent-usage-guard.mp4`: 1440×1440
+  at about 70 columns, a terminal window on a margin, recorded straight to
+  H.264. The earlier post video was converted from the 95-column GIF, so a
+  feed showing it 660 px wide put the text at about 11 px. The GIF comes
+  from the same recordings at 960 px, and `demo/render.sh <scene>` records
+  only the named scenes.
+
+## 1.0.3 — 2026-10-10
+
+- **The report counts each locked window once.** It counted every request
+  that failed on a usage limit, so retries and parallel sessions hitting the
+  same window inflated the figure. A lockout row now keeps the reset time of
+  the window that locked, and the report counts each window once. Rows from
+  earlier versions have no reset time, so a run of them with no gap of an hour
+  or more counts as one. Reports shorter than a week no longer give a weekly
+  rate, which only repeated the count.
+
+## 1.0.2 — 2026-10-09
+
+- **The status line clears when what it shows runs out.** The guard redrew it
+  only when the session did something, so a session that sat idle across a
+  5-hour reset kept "5-hour window 95%: new agents refused" while the new
+  window stood at 3%, and an allow's "lifted until" stayed up after it ended.
+  The guard now also redraws the line when a plan window resets, an allow
+  ends, or the pause on agent spawns ends.
+
+## 1.0.1 — 2026-10-09
+
+- **"Compact, then send" empties the input box when the put-back is late.**
+  The guard took the prompt out of the box only once, at the start of the
+  compaction. If Claude Code put it back after that, it stayed in the box after
+  being sent (seen on 2.1.295 with a plain "merge"). The guard now checks again
+  right before it resends the prompt.
+- **An icon for the plugin directory listing**: a shield with a pause sign.
+- **The listing's links point here.** The directory filled Support and
+  Documentation from the first matching README links, an Anthropic issue and
+  Claude Code's mod docs. `plugin.json` now names this repository's issues,
+  its README, and the README's Security and privacy section as the privacy
+  policy.
+- **Installs no longer copy the demo GIF.** The README shows the 2.9 MB GIF
+  from the v1.0.0 release instead of the repository, and `demo/render.sh`
+  writes it to `demo/out/`.
+- **Security and privacy answers what the plugin directory's validation
+  asks:** what the mod decides, the one prompt it submits (yours, after
+  "Compact, then send"), what its prompt and `SessionStart` hooks change, and
+  that `demo/` reads no credentials.
+
+## 1.0.0 — 2026-10-09
+
+Rebuilt as a Claude Code mod (Claude Code v2.1.287 or later). The Python command
+hooks are gone: the guard now runs inside Claude Code, as a harness-agnostic core
+(`core/`) behind a Claude Code adapter (`hooks/register.ts`). A full review of
+0.2.5 against Claude Code 2.1.292 found that hooks could only approximate what
+mods expose directly: live context, plan-window percentages, and a refusable
+event before every agent starts.
+
+- **Plan-aware agent gates.** New agents ask from 80% of a plan window and are
+  refused from 95%, and ask when the 5-hour window rises 20 points in ten
+  minutes. This is the lever the 2026-08-08 incident lacked: 0.2.5 reacted only
+  after a usage limit had already been hit.
+- **Every agent path is gated before it starts.** `agent.spawn` covers
+  subagents, teammates and workflow agents, so Workflow and `/deep-research` no
+  longer need a blanket gate. Resuming a finished subagent with `SendMessage` is
+  gated and counted. `/subtask` forks are counted when they start.
+- **Questions instead of hard blocks.** When a person can answer, a gate asks in
+  Claude Code's own question dialog. An approval holds for a while (a plan
+  window until it resets, a heavy context until it shrinks, agent counts for
+  10 minutes), which ends the approval fatigue of 0.2.5 (132 of 136
+  high-context asks approved, often one per tool call). Without a person (`claude -p`, the SDK,
+  `dontAsk`), gates refuse as before.
+- **Subagents are judged on their own context.** 0.2.5 read the main
+  transcript for a subagent's tool calls, so subagents inherited the parent's
+  context and tool budget and could have their report hand-back refused.
+- **Approvals are seen, not inferred.** 0.2.5 read an approved dialog back as a
+  refusal when the identical call came again, and escalated the denial ladder.
+  The mod gets the answer from the dialog.
+- **Prompts are no longer held after a usage limit.** Claude Code has waited at
+  a limit and resumed at reset since v2.1.234. The 0.2.5 circuit breaker made
+  232 refusals that saved nothing, swallowed 31 background-task notifications,
+  and kept blocking for 14 minutes after a limit lifted early. Lockouts are
+  still journaled; they are the guard's outcome metric.
+- **Heavy prompts offer to compact first.** At 500k context a prompt asks:
+  compact then send (the prompt is resent as your own words), send anyway, or
+  cancel (the prompt goes back in the input box). Dormant heavy sessions ask the
+  same way.
+- **`/agent-guard` replaces the bracket markers.** It runs without a model turn,
+  so the model never reads an override. The old markers sent alone still work.
+- **A Stop hook that reopens the turn changes the wording.** All 37 identical
+  retries after a denial in 0.2.5's journal followed `/goal` reopening a turn the
+  guard had asked to end; refusals now hand that decision to the user.
+- **No per-call cost.** The hooks run in-process; 0.2.5 started a Python process
+  per tool call, at 110–160 ms each.
+- **Removed:** the research gate and the broad-resume prompt patterns, which
+  stood in for "a swarm is about to start" and are superseded by per-agent
+  gating; the circuit breaker's prompt blocking and its reset-time parsing; the
+  state file under `$XDG_STATE_HOME`; the manual settings-hooks install.
+- **Changed configuration:** thresholds stay environment variables;
+  `AGENT_GUARD_CONTEXT_MAX` is now `AGENT_GUARD_AGENT_TOKENS_MAX`,
+  `AGENT_GUARD_HIGH_CONTEXT_TOKENS` is `AGENT_GUARD_DORMANT_CONTEXT`, and the
+  block-fuse variables are `AGENT_GUARD_FUSE_MAX` and `AGENT_GUARD_FUSE_SECONDS`.
+  New: `AGENT_GUARD_LIMIT_ASK_PERCENT`, `AGENT_GUARD_LIMIT_DENY_PERCENT`,
+  `AGENT_GUARD_BURN_PERCENT`, `AGENT_GUARD_DEPTH_MAX`,
+  `AGENT_GUARD_PEER_TTL_SECONDS`, `AGENT_GUARD_JOURNAL`,
+  `AGENT_GUARD_JOURNAL_DAYS`. Gone with the state file and the circuit breaker:
+  `AGENT_GUARD_STATE`, the `AGENT_GUARD_EVENTS*` variables,
+  `AGENT_GUARD_PENDING_SECONDS`, `AGENT_GUARD_LEASE_SECONDS`,
+  `AGENT_GUARD_KNOWN_AGENT_SECONDS`, `AGENT_GUARD_RESEARCH_CONTEXT`,
+  `AGENT_GUARD_RATE_COOLDOWN_SECONDS`, `AGENT_GUARD_SESSION_COOLDOWN_SECONDS`,
+  `AGENT_GUARD_MAX_EFFORT_AGE` and `AGENT_GUARD_NOW`.
+- **Robust under parallel calls.** Calls that trip while a question is open
+  are held back at once instead of waiting on it, so no hook outlives its
+  10-second limit; an agent the guard could not judge in time is refused, not
+  started. The retry fuse counts identical failures only when nothing else ran
+  in between, so test, edit, re-run is never a loop. `/agent-guard resume` and
+  `allow` lift the agent pause. The journal stays under 2 MB of the store, and
+  a subagent's permission mode no longer decides whether the guard can ask.
+- Tests run in Claude Code's mod test kit (`claude plugin test`), including a
+  parallel batch of five agents against a limit of four, a race the first draft
+  of the mod got wrong.
+
+Changed between the first build (2026-10-07) and this release, after a pre-launch
+review, the README demo recordings and a quality pass:
+
+- **The README demo shows four scenes** (a cold cache, parallel agents, a heavy-context
+  loop and the subagent token budget), recorded from Claude Code against a scripted
+  local API so it needs no account and spends no usage: `demo/render.sh`.
+- **An agent in a long tool call stays counted.** The 15-minute expiry for
+  agents whose end was never reported also caught a live agent blocked in one
+  tool, such as a test suite, and nothing counted it again, so one more agent
+  could start past the concurrency limit. An agent with a tool call running is
+  never expired now, and any agent that makes a request counts as running again.
+- **Only a dismissed question counts as a no.** Any other failure of the
+  question dialog, such as the turn being interrupted while it was open, was
+  read as the user declining: agents were refused for 10 minutes and the
+  refusal fed the fuse. Such a failure now fails open.
+- **"Compact, then send" never sends at full size.** When compaction failed,
+  or a hook vetoed it, the prompt was resent anyway, past the 500k gate. It now
+  goes back into the input box with the reason.
+- **Notifications leave the context warning for you.** A background task's
+  notification above 300k used up the one-time warning, so your own next
+  prompt never carried it.
+- **Other sessions' subagent tokens age out with the window.** Each session
+  published one total that counted for as long as its record lived (15
+  minutes, against a 10-minute budget). Records now carry tokens per minute
+  (peer record version 2); a session still running an older version is not
+  counted until it reloads.
+- **A context reading below 400k clears the heavy-context budget.** It revoked
+  "Keep going" but kept the call history, so the next heavy call asked again.
+- **A `/subtask` fork is counted while a gated agent is starting.** It was
+  ignored whenever an agent spawn was pending.
+- **The dormant gate works on resumed sessions.** It timed a resumed session's
+  idleness from the transcript's modification time, which Claude Code rewrites
+  when it resumes a session and hourly while one is open, so `claude --resume`
+  and `--continue` never asked before re-writing an expired cache. Each session
+  now stores when it was last active in the mod store for 30 days, and a resume
+  reads it from there. Found while recording the README demo: a 485k-token
+  session resumed after two hours sent its prompt without asking.
+- **"Compact, then send" leaves the input box empty.** Claude Code puts a
+  dropped prompt back in the input box, so after the guard resent it the box
+  still held the prompt, and one more Enter sent it twice. The guard now takes
+  it out, unless you have changed it.
+- **`/agent-guard report` counts only answers you gave.** A question the
+  session could not show, because it has no AskUserQuestion tool, counted as
+  declined; it now counts as neither. A single event reads "1 event".
+- **`/agent-guard status` words a paused fuse as the status line does:**
+  "agent spawns paused until 14:32", not "agent fuse burning".
+- **Tidier code, same behaviour.** Shared helpers replace copies: one path asks
+  and journals all three questions, one function counts across sessions, one
+  refusal covers a stopped loop. A refusal carries its number, so the adapter no
+  longer reads it back out of the text, and a test fails if the adapter stops
+  reading one of the documented variables.
+- **README claims made exact.** It no longer says most usage tools only monitor,
+  or calls the mod small enough to audit; it gives the size instead (about
+  2,400 lines of TypeScript, no dependencies). Checked on 2.1.295: plan-window
+  readings arrive in `claude -p` too, after its first response.
+
+## 0.2.5 — 2026-08-16
+
+- Drop the stray `U` from the prompt-denial banner. 0.2.4 rendered
+  `🛡️U USAGE GUARD`; it is `🛡️USAGE GUARD`.
+
+## 0.2.4 — 2026-08-16
+
+- Label prompt-side denials `🛡️U USAGE GUARD` and suppress Claude Code's "Original
+  prompt:" dump. A background-task `<task-notification>` under a session limit
+  was rendering as a generic hook error plus the XML envelope. Circuit-breaker
+  copy now says new work waits until reset (⏳), and names a finished
+  background task (📬) when that is what was blocked.
+
+## 0.2.3 — 2026-08-15
+
+- Throttle high-context warnings per session, not per request id. Successive
+  turns in the same heavy session were each a new request, so the 10-minute
+  notice window never hit and the journal filled with repeats of the same warn.
+
+- Count the deny ladder by condition for session-level rules (high-context
+  turn, active/rolling/nested/agent-context), not by tool-input hash. A refused
+  5th agent then a different 5th is denial 2; a different Bash under a
+  high-context turn is too. Agent-budget silent-refusal inference matches a
+  stale pending reservation in the same session. Tool-error fuse stays
+  per-fingerprint. Ladder copy names "this condition" rather than "this exact
+  call" on those trips.
+
+- Record `tool_name` and a coarse `context_bucket` on journal interventions, and
+  summarise both in `report`. Still no prompt text or tool inputs.
+
+## 0.2.2 — 2026-08-08
+
+- Stay out of agent CLIs that are not Claude Code. Cursor Agent imports the
+  plugins enabled in `~/.claude/settings.json` and runs their hooks under its
+  own event names, so the guard was refusing Cursor prompts on the strength of
+  a Claude session's context and usage — advice that host cannot act on, with
+  `/compact` and the escape markers both meaningless there. Cursor exports
+  `CURSOR_PLUGIN_ROOT` beside the `CLAUDE_PLUGIN_ROOT` compatibility alias;
+  the guard now sees it, exits 0, and records nothing. Found by dogfooding.
+
+- Run CI on the organisation's shared self-hosted runners, which is why the org
+  exists. The lane had been asking for `ubuntu-latest` and could not start at
+  all, so nothing it checked was ever reported: Python 3.9 now comes from `uv`
+  because the runners are Ubuntu 26.04, for which `actions/python-versions`
+  publishes no 3.9 build, and three findings ruff 0.16.0 had been unable to
+  report are fixed — ISC004 on the report header, EXE001 on `mutation-smoke.py`,
+  and the formatter drift `main` predated.
+
+## 0.2.1 — 2026-08-06
+
+- Record local interventions in a privacy-minimal journal and ship `report` so
+  anyone running the guard can see what it successfully stopped on that
+  machine. Writes only on deny, ask, notice, override arm, circuit arm, and
+  fuse trip — not on every allow. The journal stays on disk
+  (`events.jsonl` beside the state file), never includes prompt or tool
+  content, and fails open so a bad journal path cannot change allow/deny.
+  Disable with `AGENT_GUARD_EVENTS=0`.
+
+- Stop treating one model's exhaustion as an account-wide stop. Running out of
+  usage credits for a single model armed the spend circuit breaker globally,
+  and switching model did not clear it: the session stayed blocked for the full
+  cooldown while the denial itself listed `/model` as an allowed recovery
+  command that could not actually recover anything. The rule already existed
+  for Opus plan limits but was matched on the word "opus" and applied only to
+  `rate_limit`, so credit exhaustion - a billing failure naming any other model
+  - fell straight through. The signal is now the remedy Claude Code prints,
+  which offers a model switch only when another model still works, and it is
+  read for both error types. A limit that offers no switch is still account-
+  wide and still arms the circuit. Found by dogfooding.
+
+- Infer a silent refusal for escalations that reserve nothing. The inference
+  read only agent reservations, which just one kind of escalation writes, so a
+  refused Workflow or a refused context/tool-error trip on an ordinary tool
+  produced no refusal signal at all: the ladder reported "denial 1" on every
+  retry, the agent fuse behind it could never trip, and each attempt left
+  another unused tool event counting against the high-context tool budget.
+  Those escalations are now marked on the tool event, and an unresolved marker
+  is read back the same way a reservation is. A direct agent action is excluded
+  deliberately - its reservation is cleared when the agent starts, so approval
+  is observable there, while a tool event has no such lifecycle and marking one
+  would charge a denial to a call the user allowed. With nothing to confirm a
+  Workflow ran, that inference is bounded by the rolling window: an identical
+  call inside it is the retry the ladder counts, a later repeat is a fresh
+  decision.
+
+- Accumulate prompt notices instead of letting the last one win. The
+  confirmation that a bypass armed shared one slot with the high-context
+  warning, so arming `[allow-agent-burst]` in a heavy session produced only the
+  warning. The override still armed in state, which is the worst version of the
+  failure: nothing distinguished a live bypass from a marker that did nothing.
+  The near-miss hint lost the same race. Both now surface alongside the
+  warning, under a single `USAGE GUARD:` prefix.
+
+- State where an escape marker has to go, everywhere one is named. Twelve of
+  the thirteen denials that advertised a bypass named the marker and stopped
+  there, which points the reader straight at the one placement that arms
+  nothing: the marker typed ahead of the retry, on the same line. Only a
+  *leading* misplacement is warned about - a marker later in the prompt is
+  indistinguishable from the prose mention strictness exists to ignore - so the
+  denial that offers the escape hatch is the only reliable place to say the
+  rule. A test now drives every such denial and fails if one names a marker
+  without it. Found by dogfooding, where three consecutive bypass attempts
+  armed nothing and only one of them explained why.
+
+- Escalate `PreToolUse` guard trips to the user instead of denying them
+  outright. A tripped agent budget, context gate, tool-error fuse, or Workflow
+  now returns `permissionDecision: "ask"`, which raises Claude Code's own
+  permission dialog: overriding a limit you meant to cross is a keystroke
+  rather than a retyped prompt carrying an escape marker. Prompt-side guards
+  are unchanged, because `UserPromptSubmit` has no interactive decision - and
+  for the context guards it could not have one anyway, since the API call that
+  would carry the question is the context rebuild they exist to prevent.
+- Reserve capacity for an escalated call rather than only for an allowed one.
+  `PostToolUse` ignores any call with no reservation behind it, so an approved
+  escalation would otherwise have run entirely outside the rolling budget.
+  `PermissionDenied` releases the reservation on a refusal, as it already did.
+- Fall back to a hard `deny` in `bypassPermissions` and `dontAsk`, which
+  suppress the dialog an ask depends on. An escalation raised there would be
+  auto-approved, silently disabling every tool-side guard in exactly the mode
+  where a runaway is most likely - the demo runner itself uses
+  bypassPermissions. The guard reads `permission_mode` off the payload.
+- Rebuild the terminal demo so the recording shows the guard rather than a
+  paraphrase of it. The old tape instructed Claude to write "GUARD TRIGGERED"
+  and waited for that string, so the headline asset carried model prose, not
+  hook output - and it kept passing after 0.2.0 moved the default ceiling from
+  two agents to four, leaving a GIF that stated a limit the guard no longer
+  had and showed the "denied" agent as finished. The prompt now simply asks for
+  five parallel audits against a ceiling of four, the runner drops
+  bypassPermissions so the permission dialog can render the guard's own
+  message, and the wait matches that hook text. Tests reject a tape that tells
+  the model what to say.
+- Advance the refusal ladder by inference rather than at `PreToolUse`. An ask
+  has no outcome at decision time, so recording it inline would have charged a
+  denial to a call the user approved. Refusing a guard-raised dialog turns out
+  to emit nothing at all - verified live against 2.1.220 for both "No" and Esc,
+  no `PermissionDenied` - so an escalated reservation still unresolved when the
+  identical call comes back is read as a refusal: an approved one would have
+  been confirmed into a lease, and the model cannot re-propose while its own
+  dialog is open. That reclaims the orphaned reservation instead of leaving it
+  to expire. The two hard-refusal states - a burning agent fuse and the attempt
+  that trips it - still deny with exit 2 and record inline.
+
+## 0.1.0 — 2026-07-24 to 2026-07-27
+
+- Shipped as `github.com/rbartoli/agent-usage-guard`: public, MIT, ~1,300 lines, five
+  protections (rate-limit circuit breaker, real agent budget, context gates, bounded
+  `/research`, tool-error fuse). Retracted the same day — the guard's identical repeated
+  block messages caused model retry loops, potentially net-wasting tokens. Re-release gated
+  on the loop fix.
+- Block-retry loop fixed (2026-07-25) with an escalating denial ladder per
+  (session, tool-input-hash): rung 1 states the reason, rung 2 asks for something different,
+  rung 3+ says to end the turn. A 5th denial of the same call trips a session-wide agent fuse
+  (10-minute cooldown). Every message embeds an attempt number and wall clock so no two block
+  texts are byte-identical.
+- Nested-spawn enforcement verified against the live hook docs and an empirical test: parent
+  `PreToolUse` hooks do not fire on subagent tool calls by design, so the nested-agent block
+  never triggered at the nested layer, and `SubagentStart` cannot block at all (exit 2 is
+  stderr-only). Superseded 2026-07-27: `PreToolUse` does fire on tool calls issued inside a
+  subagent on Claude Code 2.1.220, and detection was rebuilt on the `agent_id`/`agent_type`
+  hook fields, making the nested-agent block and the per-window subagent-context ceiling live
+  code. `/subtask` and forked-skill launches still bypass `UserPromptSubmit`,
+  `UserPromptExpansion` and `PreToolUse` entirely — the native `deny: Agent(...)` rule stays
+  the backstop for those.
+- Test and release infrastructure grown to 124 tests, run as real hook processes against real
+  state files; CI compiles every shipped file, runs the linter, validates every JSON manifest
+  and the plugin contract, runs the suite across six Python versions, and rejects
+  branch-aware coverage below 90%. A mutation-smoke check requires all six targeted mutants to
+  be killed. The live install moved from nine hand-written hook entries in the user's own
+  settings to a marketplace plugin, so the packaging path is exercised end to end.
+
+## 0.2.0 — 2026-07-27
+
+- Recalibrate the default agent budgets for real-world parallel work: four
+  concurrent subagents (was two), twelve starts/resumes per rolling window
+  (was six), and a 10M-token per-window subagent context ceiling (was 20M).
+  Ordinary multi-agent review passes no longer trip the guard, while a
+  runaway burst is still capped at a small fraction of the observed
+  incidents. The recommended native backstops become the looser outer wall
+  (4 concurrent, 25 per session, depth 1) so `[allow-agent-burst]` keeps
+  headroom to work.
+- Default-deny opaque `Workflow` runs, including `/deep-research`, unless an
+  override was explicitly armed.
+- Split provisional agent reservations from confirmed active leases and rolling
+  history. Reconcile manual and permission-rule denials from the transcript,
+  with a five-minute pending fallback TTL.
+- Confirm background Agent and SendMessage attempts through `PostToolUse`, and
+  preserve agent name-to-ID aliases across resumes.
+- Parse weekday and 24-hour reset clocks and accept the Claude Code 2.1.220
+  `StopFailure` payload fields.
+- Keep compaction boundaries beyond the rolling window and avoid globally
+  blocking other models after an Opus-only limit.
+- Require escape markers as standalone first-line directives.
+- Name the alternatives in the first denial, not only from the second. Mining
+  130 real denials out of local transcripts put the identical-retry rate near
+  44%, with escalation dropping sharply at denial 2 - the first rung that
+  offered a way forward, where denial 1 had stated only the condition. A few
+  extra tokens are cheap against a retry that re-sends the whole conversation.
+  The wording stays factual rather than imperative and byte-distinct from the
+  later rungs.
+- Say so when a prompt opens with an escape marker but puts other text on the
+  same line. The matcher stays strict - that is what stops a marker quoted in
+  prose from lifting the limits - but a marker that *leads* the line no longer
+  fails silently: the reason is appended to the denial, or surfaced as a notice
+  when nothing blocked. Found by dogfooding, where every override attempt on
+  record had been silently inert.
+- Deny prompt and `/research` events with a decision document so Claude Code
+  prints the guard's reason on its own. A bare exit 2 made it prefix the reason
+  with the configured hook command, which on a plugin install is the literal
+  unexpanded `${CLAUDE_PLUGIN_ROOT}/agent-usage-guard.py` and reads as a broken
+  path. The exit code stays 2, so the denial holds even if that stdout is
+  ignored. `PreToolUse` keeps the stderr-only path until its reservation
+  accounting has been exercised against a decision document.
+- Scan transcripts backwards for the latest model request instead of parsing a
+  full 4 MiB tail on every tool call.
+- Retain rolling records on a process-independent 24-hour horizon so
+  mixed-window processes preserve one another's evidence without unbounded
+  state growth.
+- Correct the documented hook model and disclose `/subtask` and forked-skill
+  pre-spawn limitations.

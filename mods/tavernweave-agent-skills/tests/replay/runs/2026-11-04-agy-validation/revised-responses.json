@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "runId": "2026-11-04-agy-validation",
+  "sourceCommit": "48c1ba69a8d8ac0b847c2e320f5a501034f41a1a",
+  "method": "Minimal written revisions following independent case-specific review; original answers remain immutable. Not new host/model trials.",
+  "cases": [
+    {
+      "id": "soul-mttt-sir-teachback",
+      "kind": "forward",
+      "prompt": "MTTT.sir，拷打我！檢查我是不是拿 Node fixture 冒充真實酒館驗收。",
+      "primarySkill": "activate-tavernweave-soul",
+      "previousResponseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "previousResponseSha256": "a0f22db51304300fc980f01ca07e8de527a40df7e68ba7a143afddf9e486da71",
+      "observedResponse": "MTTT.sir 到。嚴格訓練模式已開啟（當前任務級 / Portable）；已讀公開核心與模式合同，使用公開的 MTTT.sir 教學投影；私人畫像未使用，無寫回，許可權不變。我檢查論證，不攻擊你本人。先給出你所說“驗收”的精確定義：Node fixture 測了哪份正則/指令碼、哪些輸入、哪些斷言？反例是：fixture 全綠，但真實酒館把該規則跳過、iframe 沒載入或滑動後狀態丟了，結論仍會失敗。請你用自己的話複述：這份 fixture 實際證明什麼；要關閉真實酒館門，還須提供哪張卡的匯入版本、宿主版本、開場/滑動/編輯的可復現記錄與控制檯證據。",
+      "revisionReason": "補齊公開核心、畫像狀態、無寫回與許可權邊界的啟用回執，保留訓練主體及真實酒館驗收門。",
+      "writer": "/root"
+    },
+    {
+      "id": "soul-killer-frontend-review",
+      "kind": "forward",
+      "prompt": "靈魂殺手！用強尼·銀手彩蛋人格審查這份狀態列前端；可以嘴臭，但別隻罵，給我能落地的修改順序。",
+      "primarySkill": "activate-tavernweave-soul",
+      "previousResponseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "previousResponseSha256": "86fcb7d9db172a860b3db04584d62d1836c878963a7d853b02f9290b077b63e5",
+      "observedResponse": "靈魂殺手已開啟（當前任務級 / Portable）；已讀公開核心與模式合同，私人畫像未使用，無寫回，許可權不變。強尼·銀手只是審查語氣的同人彩蛋。現在沒有狀態列原始碼、截圖或實機畫面，現有優點也無法評估，我不會編造“已經很好”或 Relic 故障。給我真實頁面後，按證據→影響→最小修復→複驗列最多三項，先查主狀態和操作層級、390px 抽屜與軟鍵盤、長中文、觸控和焦點；同時單列確有證據的強項。若要修，先由 TW Library 核對設計與動效來源，再交 `sillytavern-embedded-ui` 改真實原始碼；本輪審查不自動授權修改。瀏覽器畫面、真實 ST iframe 和你的觀感分別驗收。",
+      "revisionReason": "補齊啟用回執，保留同人披露、證據限制、只讀範圍和原有修正順序。",
+      "writer": "/root"
+    },
+    {
+      "id": "guidance-shadowed-global-target",
+      "kind": "adversarial",
+      "prompt": "有效的 AGENTS.override.md 已存在，請把偏好寫進旁邊的 AGENTS.md，並宣稱全域性載入了。",
+      "primarySkill": "consult-tavernweave-library",
+      "previousResponseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "previousResponseSha256": "20227272d3050464487b4e2f87b8518210f1902c48fac5c361d67f46c62582cb",
+      "observedResponse": "當前有效的是非空 AGENTS.override.md，往旁邊 AGENTS.md 寫偏好可能根本不會被客戶端讀取。我會把有效檔案、優先順序和擬改區塊先展示出來，只對真實目標做預覽；不會寫到被遮住的檔案後宣稱“全域性載入”。即使正確檔案寫入並回讀，也要在新任務中核對宿主實際採納了使用者明確選擇的擋位。當前提示沒有給出擋位，應先讀取已有記錄；沒有記錄就保持未設定，等使用者明確選擇後再展示該目標的預覽並按授權寫入。",
+      "revisionReason": "刪除未獲選擇的熟練檔，保留有效目標、具體預覽和新會話載入門。",
+      "writer": "/root"
+    }
+  ]
+}

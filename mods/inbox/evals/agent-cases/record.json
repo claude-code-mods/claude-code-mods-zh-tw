@@ -1,0 +1,504 @@
+[
+  {
+    "name": "record-question",
+    "about": "A decision for the user is recorded as a question with options and a recommendation, and asked in the reply.",
+    "prompt": "Task: add caching to the product API. Before you can go on, I have to choose between Redis and an in-process memory cache. You recommend the memory cache because the service runs as a single process. Ask me.",
+    "checks": [
+      {
+        "calls": "record",
+        "kind": "question",
+        "count": 1,
+        "has": ["ask", "options", "rec"]
+      },
+      {
+        "calls": "record",
+        "kind": "finding",
+        "count": 0
+      },
+      {
+        "reply": "redis"
+      },
+      {
+        "reply": "memory"
+      },
+      {
+        "reply": "\\?"
+      },
+      {
+        "noIds": true
+      }
+    ]
+  },
+  {
+    "name": "record-question-with-0.3.0-tools",
+    "about": "In a session that 0.3.0 started, whose record tool has no context, option_notes or why, a recorded question is recorded once, and the reply passes on no request for fields the tool lacks.",
+    "tools": "0.3.0",
+    "prompt": "Task: add caching to the product API. Before you can go on, I have to choose between Redis and an in-process memory cache. You recommend the memory cache because the service runs as a single process. Ask me.",
+    "checks": [
+      {
+        "calls": "record",
+        "kind": "question",
+        "count": 1,
+        "has": ["ask", "options", "rec"]
+      },
+      {
+        "reply": "redis"
+      },
+      {
+        "reply": "memory"
+      },
+      {
+        "notReply": "option[ _]?notes|re-?record|record (it|the question) again|extra fields|parameters"
+      },
+      {
+        "noIds": true
+      }
+    ]
+  },
+  {
+    "name": "record-design-choice",
+    "about": "A choice between two designs the agent could try is recorded as a question marked as a design choice.",
+    "prompt": "Task: add a settings page to the web app. Before you build it, I have to choose how its five sections are laid out: one long scrolling page, or a tab for each section. You recommend tabs, because two of the sections are long. Ask me.",
+    "checks": [
+      {
+        "calls": "record",
+        "kind": "question",
+        "count": 1,
+        "match": {
+          "design_choice": "^true$"
+        }
+      },
+      {
+        "calls": "record",
+        "kind": "finding",
+        "count": 0
+      },
+      {
+        "reply": "tab"
+      },
+      {
+        "noIds": true
+      }
+    ]
+  },
+  {
+    "name": "record-fact-question-not-design-choice",
+    "about": "A question about a fact only the user knows is recorded without the design-choice mark.",
+    "prompt": "Task: deploy the API to staging. The deploy script needs the AWS region of the staging account, and nothing in the repo says which one it is. It is us-east-1 or eu-west-1. Ask me.",
+    "files": {
+      "package.json": "{\n  \"name\": \"api\",\n  \"private\": true,\n  \"scripts\": {\n    \"start\": \"node src/server.js\",\n    \"deploy:staging\": \"sh scripts/deploy-staging.sh\"\n  }\n}\n",
+      "README.md": "# API\n\nThe product API.\n\nDeploy to staging with `npm run deploy:staging`. Set `AWS_REGION` to the staging account's region first.\n",
+      "scripts/deploy-staging.sh": "#!/bin/sh\nset -e\n: \"${AWS_REGION:?Set AWS_REGION to the staging account's region}\"\naws ecs update-service --region \"$AWS_REGION\" --cluster api-staging --service api --force-new-deployment\n",
+      "src/server.js": "require('http').createServer((req, res) => res.end('ok')).listen(process.env.PORT || 3000)\n"
+    },
+    "checks": [
+      {
+        "calls": "record",
+        "kind": "question",
+        "count": 1
+      },
+      {
+        "calls": "record",
+        "kind": "question",
+        "count": 0,
+        "match": {
+          "design_choice": "true"
+        }
+      },
+      {
+        "calls": "record",
+        "kind": "finding",
+        "count": 0
+      },
+      {
+        "reply": "region|us-east-1\\W+or\\W+eu-west-1|eu-west-1\\W+or\\W+us-east-1"
+      },
+      {
+        "noIds": true
+      }
+    ]
+  },
+  {
+    "name": "record-task",
+    "about": "A step only the user can do is recorded as a task with its command and link, and given in the reply.",
+    "prompt": "Task: deploy the docs site. You are blocked until I sign in: the Vercel CLI needs my account, and only I can do that. Tell me what to run (npx vercel login), and then to open https://vercel.com/acme/docs/settings to copy the project id back to you.",
+    "checks": [
+      {
+        "calls": "record",
+        "kind": "task",
+        "count": 1,
+        "has": ["ask", "steps"],
+        "match": {
+          "steps": "vercel login"
+        }
+      },
+      {
+        "calls": "record",
+        "kind": "finding",
+        "count": 0
+      },
+      {
+        "reply": "npx vercel login"
+      },
+      {
+        "reply": "https://vercel\\.com/acme/docs/settings"
+      },
+      {
+        "noIds": true
+      }
+    ]
+  },
+  {
+    "name": "reply-never-shows-ids",
+    "about": "When the user asks what is in their inbox, the reply names items by what they say and records nothing new.",
+    "ledger": {
+      "nextId": 8,
+      "items": [
+        {
+          "id": "i7",
+          "kind": "question",
+          "label": null,
+          "ask": "Which cache should the product API use?",
+          "options": ["Redis", "In-memory"],
+          "rec": "In-memory",
+          "helps": [],
+          "turn": 1,
+          "at": 1
+        }
+      ],
+      "findings": [
+        {
+          "id": "f2",
+          "kind": "issue",
+          "title": "parseDate returns January for December dates",
+          "detail": "Month index is off by one in src/dates.ts.",
+          "path": "src/dates.ts",
+          "at": 1
+        }
+      ]
+    },
+    "prompt": "What is in my inbox, findings included? Answer in a short list.",
+    "checks": [
+      {
+        "calls": "record",
+        "count": 0
+      },
+      {
+        "reply": "cache"
+      },
+      {
+        "reply": "parseDate|december"
+      },
+      {
+        "noIds": true
+      }
+    ]
+  },
+  {
+    "name": "record-after-own-close",
+    "about": "The agent can record again a question it closed itself, and the record goes through.",
+    "ledger": {
+      "nextId": 8,
+      "turn": 3,
+      "closed": [
+        {
+          "id": "i7",
+          "kind": "question",
+          "ask": "Which cache should the product API use?",
+          "outcome": "closed by Claude: no longer applies: cache dropped",
+          "how": "claude",
+          "at": 2,
+          "item": {
+            "id": "i7",
+            "kind": "question",
+            "label": null,
+            "from": "record",
+            "ask": "Which cache should the product API use?",
+            "options": ["Redis", "In-memory"],
+            "rec": null,
+            "helps": [],
+            "turn": 1,
+            "at": 1
+          }
+        }
+      ]
+    },
+    "prompt": "Change of plan: we're keeping the cache after all, so the cache question is back. The product API runs on four instances, and prices change during the day. Ask me again which cache it should use, with your recommendation.",
+    "checks": [
+      {
+        "calls": "record",
+        "kind": "question",
+        "min": 1,
+        "has": ["rec"],
+        "result": "^Recorded"
+      },
+      {
+        "noIds": true
+      }
+    ]
+  },
+  {
+    "name": "record-after-dismissed-other-subject",
+    "about": "The agent can record a question that shares the words of a dismissed question but asks about something else, and the record goes through.",
+    "ledger": {
+      "nextId": 8,
+      "turn": 3,
+      "closed": [
+        {
+          "id": "i7",
+          "kind": "question",
+          "ask": "Which license should package.json use?",
+          "outcome": "dismissed",
+          "how": "dismissed",
+          "at": 2,
+          "item": {
+            "id": "i7",
+            "kind": "question",
+            "label": null,
+            "from": "record",
+            "ask": "Which license should package.json use?",
+            "options": ["MIT", "Apache-2.0"],
+            "rec": null,
+            "helps": [],
+            "turn": 1,
+            "at": 1
+          }
+        }
+      ]
+    },
+    "prompt": "Leave the license out of package.json for now. Next is the engines field: we could support Node 20 and up, or only Node 22 and up. Ask me which engines package.json should use, with your recommendation.",
+    "checks": [
+      {
+        "calls": "record",
+        "kind": "question",
+        "min": 1,
+        "has": ["rec"],
+        "result": "^Recorded"
+      },
+      {
+        "noIds": true
+      }
+    ]
+  },
+  {
+    "name": "carry-status-answers-where-we-are",
+    "about": "The first prompt of a conversation carries the Status tab's headline and each subject's status, and the agent answers from it. Only the mod carries it this way; Codex and omp carry it at session start.",
+    "ledger": {
+      "nextId": 4,
+      "overview": {
+        "head": { "title": "Migrating the billing job to the new queue", "description": "" },
+        "subjects": [
+          {
+            "id": "s1",
+            "name": "Billing job migration",
+            "status": "waits-on-other",
+            "text": "Waiting on staging sign-in",
+            "was": null,
+            "merged": null,
+            "createdAt": 1,
+            "changedAt": 1,
+            "closedAt": null,
+            "into": null
+          }
+        ],
+        "nextId": 2
+      },
+      "items": [
+        {
+          "id": "i3",
+          "kind": "task",
+          "label": null,
+          "ask": "Sign in to the staging dashboard",
+          "options": [],
+          "rec": null,
+          "helps": [],
+          "turn": 1,
+          "at": 1
+        }
+      ]
+    },
+    "prompt": "Where did we get to? Answer in two sentences.",
+    "checks": [
+      {
+        "reply": "billing|queue"
+      },
+      {
+        "reply": "staging"
+      },
+      {
+        "calls": "record",
+        "count": 0
+      },
+      {
+        "noIds": true
+      }
+    ],
+    "agents": ["claude"]
+  },
+  {
+    "name": "no-task-for-own-step",
+    "about": "A step the agent's tools can take, such as marking a PR ready, is not handed to the user as a task.",
+    "prompt": "Task: fix the reaction tooltip on draft PR #3040 in inbox-eval-fixture/web. You pushed the fix and the tests pass. The last step is marking the PR ready for review, which you can do with `gh pr ready 3040`. Write your closing reply to me.",
+    "bin": {
+      "gh": "#!/bin/sh\nwhile :; do\n  case \"$1\" in\n  -R | --repo) shift; [ $# -eq 0 ] || shift ;;\n  -R* | --repo=*) shift ;;\n  *) break ;;\n  esac\ndone\ncase \"$1 $2\" in\n'pr view')\n  case \" $* \" in\n  *' --json'*) echo '{\"number\":3040,\"title\":\"Fix the reaction tooltip\",\"isDraft\":true,\"state\":\"OPEN\",\"url\":\"https://github.com/inbox-eval-fixture/web/pull/3040\"}' ;;\n  *) printf 'Fix the reaction tooltip inbox-eval-fixture/web#3040\\nDraft • 1 commit\\nhttps://github.com/inbox-eval-fixture/web/pull/3040\\n' ;;\n  esac ;;\n'pr ready') echo '✓ Pull request inbox-eval-fixture/web#3040 is marked as \"ready for review\"' ;;\n'auth status') echo 'github.com: Logged in to github.com account inbox-eval-fixture' ;;\n*) echo \"gh $*: not in this fixture\" >&2; exit 1 ;;\nesac\n"
+    },
+    "checks": [
+      {
+        "calls": "record",
+        "kind": "task",
+        "count": 0
+      },
+      {
+        "calls": "record",
+        "kind": "question",
+        "count": 1,
+        "items": true
+      },
+      {
+        "noIds": true
+      }
+    ]
+  },
+  {
+    "name": "record-question-gives-why",
+    "about": "A recorded question with a recommendation carries the reason for it, so the row can show it.",
+    "prompt": "Task: set up storage for the new audit log service. Before you can go on, I have to choose between Postgres and SQLite. You recommend Postgres because the service runs on three hosts that share the data. Ask me.",
+    "checks": [
+      {
+        "calls": "record",
+        "kind": "question",
+        "count": 1,
+        "has": ["ask", "options", "rec", "why"],
+        "match": { "why": "host|share" }
+      },
+      { "reply": "\\?" },
+      { "noIds": true }
+    ]
+  },
+  {
+    "name": "task-without-link-gets-no-made-up-steps",
+    "about": "A task with no command, file or link is recorded without invented steps, even though the record answer mentions steps.",
+    "prompt": "Task: check that pinch zoom on the photo page feels smooth on the iPad. Only I have the iPad, and there is nothing to install or open beyond the page I already have up. Ask me to try it and tell you whether it stutters.",
+    "checks": [
+      { "calls": "record", "kind": "task", "min": 1, "has": ["ask"] },
+      { "calls": "record", "kind": "task", "count": 0, "match": { "steps": "https?://|/|\\$ " } },
+      { "reply": "pinch|zoom" },
+      { "noIds": true }
+    ]
+  },
+  {
+    "name": "inferable-choice-not-asked",
+    "about": "A choice the agent can infer from the work, and that is easy to undo, is made and named in the reply, not asked.",
+    "files": {
+      "cli.js": "const args = process.argv.slice(2)\nconst quiet = args.includes('--quiet') || args.includes('-q')\n\nif (!quiet) console.log('Hello!')\n"
+    },
+    "prompt": "Task: add a flag to cli.js that turns on verbose logging, which prints each argument it read before the greeting. cli.js already takes --quiet with the short form -q. Choosing the flag's name is the only thing left before you write it. This is cli.js, in the folder you work in:\n\n```js\nconst args = process.argv.slice(2)\nconst quiet = args.includes('--quiet') || args.includes('-q')\n\nif (!quiet) console.log('Hello!')\n```\n\nWrite your reply to me.",
+    "checks": [{ "calls": "record", "kind": "question", "count": 0 }, { "reply": "verbose" }, { "noIds": true }]
+  },
+  {
+    "name": "merge-asked-before-taken",
+    "about": "A merge, a step people rarely hand to an agent, is asked as a question before the agent takes it, not handed over as a task.",
+    "prompt": "Task: fix the date picker bug on PR #52 in inbox-eval-fixture/web. You pushed the fix, the checks pass and a teammate approved it. The last step is merging it, which you can do with `gh pr merge 52 --merge`. Write your closing reply to me.",
+    "bin": {
+      "gh": "#!/bin/sh\nwhile :; do\n  case \"$1\" in\n  -R | --repo) shift; [ $# -eq 0 ] || shift ;;\n  -R* | --repo=*) shift ;;\n  *) break ;;\n  esac\ndone\ncase \"$1 $2\" in\n'pr view')\n  case \" $* \" in\n  *' --json'*) echo '{\"number\":52,\"title\":\"Fix the date picker\",\"isDraft\":false,\"state\":\"OPEN\",\"reviewDecision\":\"APPROVED\",\"mergeable\":\"MERGEABLE\",\"url\":\"https://github.com/inbox-eval-fixture/web/pull/52\"}' ;;\n  *) printf 'Fix the date picker inbox-eval-fixture/web#52\\nOpen • 1 commit • approved • checks passing\\nhttps://github.com/inbox-eval-fixture/web/pull/52\\n' ;;\n  esac ;;\n'pr checks') echo 'All checks were successful' ;;\n'pr merge') echo '✓ Merged pull request inbox-eval-fixture/web#52' ;;\n'auth status') echo 'github.com: Logged in to github.com account inbox-eval-fixture' ;;\n*) echo \"gh $*: not in this fixture\" >&2; exit 1 ;;\nesac\n"
+    },
+    "checks": [
+      { "calls": "record", "kind": "task", "count": 0 },
+      { "calls": "record", "kind": "question", "count": 1, "match": { "ask": "merg" } },
+      { "noIds": true }
+    ]
+  },
+  {
+    "name": "record-question-gives-context",
+    "about": "A recorded question carries why it came up and a note on each option, given at once or after the record's answer names what it lacks.",
+    "prompt": "Task: speed up the product API's price lookups, which take 900 ms each and hold up the checkout page. A cache is the fix. Before you can go on, I have to choose between Redis and an in-process memory cache. Redis adds a server to each environment. The memory cache keeps prices in each process and can serve them up to five minutes stale. You recommend the memory cache because the service runs as a single process. Ask me.",
+    "checks": [
+      {
+        "calls": "record",
+        "kind": "question",
+        "min": 1,
+        "has": ["ask", "options", "context", "option_notes"],
+        "match": {
+          "context": "900|slow|checkout|lookup|price"
+        }
+      },
+      {
+        "calls": "record",
+        "kind": "finding",
+        "count": 0
+      },
+      {
+        "reply": "\\?"
+      },
+      {
+        "noIds": true
+      }
+    ]
+  },
+  {
+    "name": "approval-gives-something-to-look-at",
+    "about": "An approval of something the user can look at is recorded with that page in steps, given at once or after the record's answer says the user can't approve what they can't see.",
+    "files": {
+      ".scratch/settings/layout.html": "<!doctype html><title>Settings layout</title><nav><a>Account</a><a>Billing</a><a>Team</a><a>Alerts</a><a>API keys</a></nav><main><h1>Account</h1></main>\n"
+    },
+    "prompt": "Task: redesign the settings page of the web app. You built the new layout, with a tab for each of its five sections, and saved a static copy of it at .scratch/settings/layout.html in this checkout. Before you open the PR, I have to approve the new layout. Ask me for my OK.",
+    "checks": [
+      {
+        "calls": "record",
+        "kind": "question",
+        "min": 1,
+        "match": {
+          "steps": "^/\\S*settings/layout\\.html"
+        }
+      },
+      {
+        "calls": "record",
+        "kind": "task",
+        "count": 0
+      },
+      {
+        "calls": "record",
+        "kind": "finding",
+        "count": 0
+      },
+      {
+        "noIds": true
+      }
+    ]
+  },
+  {
+    "name": "record-options-without-url-parameters",
+    "about": "A choice between two page versions known only by their URL parameters is recorded with options and a rec in plain words, without links or parameters.",
+    "prompt": "Task: redesign the shop's product page. A helper agent mocked it twice in the card layout. Both versions run on the dev server, switched by a URL parameter: http://localhost:3000/product?dv=a and http://localhost:3000/product?dv=b. The helper recommends ?dv=b, because it doesn't show the price twice. Ask me which one to build out.",
+    "checks": [
+      {
+        "calls": "record",
+        "kind": "question",
+        "count": 1,
+        "has": ["options", "rec"],
+        "match": {
+          "rec": "\\bB\\b|second|price"
+        }
+      },
+      {
+        "calls": "record",
+        "kind": "question",
+        "count": 0,
+        "match": {
+          "options": "[?=/]|http"
+        }
+      },
+      {
+        "calls": "record",
+        "kind": "question",
+        "count": 0,
+        "match": {
+          "rec": "[?=/]|http"
+        }
+      },
+      {
+        "noIds": true
+      }
+    ]
+  }
+]

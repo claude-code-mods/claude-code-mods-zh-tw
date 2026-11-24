@@ -1,0 +1,9 @@
+{
+  "name": "lcu-approve",
+  "version": "0.6.0",
+  "description": "LCU 計算機操作在 Claude 應用與 Claude Code 中的原生逐應用審批（允許本次會話、始終允許、拒絕），以及已批准應用的 /computer-use-apps 面板。",
+  "author": {
+    "name": "LCU"
+  },
+  "types": "./types/index.d.ts"
+}

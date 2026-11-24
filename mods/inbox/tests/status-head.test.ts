@@ -1,0 +1,297 @@
+import { expect } from 'claude-code/testing'
+import { test } from './test-with-timeout'
+
+import { applyOps } from '../hooks/status-ops'
+import { opsOf, NO_ASKS, after } from './status-helpers'
+
+test('a HEAD that keeps the title keeps its wording and takes the new description, and one that comes with work finished from under way and none left keeps the title and loses the description', () => {
+  const one = after(
+    null,
+    'HEAD: Offline sync | Adding offline sync to the notes app\nNEW: working | Sync engine | queue built',
+    100,
+  )
+  const redescribed = applyOps(one, opsOf('HEAD: offline sync | Wiring the settings toggle'), 200, NO_ASKS)
+  const restated = applyOps(one, opsOf('HEAD: offline sync | Adding offline sync to the notes app'), 200, NO_ASKS)
+  const blank = applyOps(one, opsOf('HEAD: Offline sync'), 200, NO_ASKS)
+  const moved = applyOps(one, opsOf('HEAD: 2.5 release | Shipping 2.5 to the stores'), 200, NO_ASKS)
+  const finished = applyOps(
+    one,
+    opsOf(
+      'DONE: s1 | syncs on reconnect\nNEW: queued | Export button | not started\nHEAD: Export button | Adding export',
+    ),
+    200,
+    NO_ASKS,
+  )
+  const handedOn = applyOps(
+    one,
+    opsOf(
+      'DONE: s1 | syncs on reconnect\nNEW: waits-on-other | 2.5 release | in store review\nHEAD: 2.5 release | Shipping 2.5',
+    ),
+    200,
+    NO_ASKS,
+  )
+  const filedAlongside = applyOps(
+    applyOps(one, opsOf('NEW: queued | Export button | not started'), 150, NO_ASKS),
+    opsOf('DONE: s1 | syncs on reconnect\nDONE: s2 | filed for later\nHEAD: Export button | Adding export'),
+    200,
+    NO_ASKS,
+  )
+  const shipped = applyOps(one, opsOf('DONE: s1 | syncs on reconnect'), 150, NO_ASKS)
+  const startedAndFinished = applyOps(
+    shipped,
+    opsOf('NEW: working | README fix | typo found\nDONE: README fix | fixed\nHEAD: README fix | Fixing the README'),
+    200,
+    NO_ASKS,
+  )
+  const unknownDone = applyOps(shipped, opsOf('DONE: s9 | fixed\nHEAD: README fix | Fixing the README'), 200, NO_ASKS)
+  const queuedClosed = applyOps(
+    applyOps(shipped, opsOf('NEW: queued | Export button | not started'), 160, NO_ASKS),
+    opsOf('DROP: s2 | not needed\nHEAD: 2.5 release | Shipping 2.5'),
+    200,
+    NO_ASKS,
+  )
+  const saved = { ...one, head: { title: 'Ship offline sync', description: '' } }
+  const described = applyOps(
+    saved,
+    opsOf('HEAD: Ship offline sync | Adding offline sync to the notes app'),
+    200,
+    NO_ASKS,
+  )
+
+  expect(redescribed.head).toEqual({ title: 'Offline sync', description: 'Wiring the settings toggle' })
+  expect(restated.head).toBe(one.head)
+  expect(blank.head).toBe(one.head)
+  expect(moved.head).toEqual({ title: '2.5 release', description: 'Shipping 2.5 to the stores' })
+  expect(finished.head).toEqual({ title: 'Offline sync', description: '' })
+  expect(handedOn.head).toEqual({ title: '2.5 release', description: 'Shipping 2.5' })
+  expect(filedAlongside.head).toEqual({ title: 'Offline sync', description: '' })
+  expect(startedAndFinished.head).toEqual({ title: 'README fix', description: '' })
+  expect(unknownDone.head).toEqual({ title: 'README fix', description: 'Fixing the README' })
+  expect(queuedClosed.head).toEqual({ title: '2.5 release', description: 'Shipping 2.5' })
+  expect(described.head).toEqual({ title: 'Ship offline sync', description: 'Adding offline sync to the notes app' })
+})
+
+test('a head whose description names work that just finished, while other work goes on, takes a new one or loses it, and loses it once no work goes on', () => {
+  const one = after(
+    null,
+    [
+      'HEAD: 2.5 release | Fixing vanishing notes, then shipping 2.5',
+      'NEW: working | Vanishing notes | fix in review',
+      'NEW: queued | 2.5 release | not started',
+    ].join('\n'),
+    100,
+  )
+  const fixMerged = 'DONE: s1 | merged\nSET: s2 | working | building 2.5'
+  const redescribed = applyOps(one, opsOf(`${fixMerged}\nHEAD: 2.5 release | Shipping 2.5 to the stores`), 200, NO_ASKS)
+  const unwritten = applyOps(one, opsOf(fixMerged), 200, NO_ASKS)
+  const rewordedStale = applyOps(
+    one,
+    opsOf(`${fixMerged}\nHEAD: 2.5 release | Wrapping up vanishing notes before shipping 2.5`),
+    200,
+    NO_ASKS,
+  )
+  const nothingLeft = applyOps(one, opsOf('DONE: s1 | merged'), 200, NO_ASKS)
+  const otherFinished = applyOps(
+    applyOps(one, opsOf('NEW: working | README fix | typo found'), 150, NO_ASKS),
+    opsOf('DONE: s3 | fixed\nHEAD: 2.5 release | Shipping 2.5 to the stores'),
+    200,
+    NO_ASKS,
+  )
+
+  expect(redescribed.head).toEqual({ title: '2.5 release', description: 'Shipping 2.5 to the stores' })
+  expect(unwritten.head).toEqual({ title: '2.5 release', description: '' })
+  expect(rewordedStale.head).toEqual({ title: '2.5 release', description: '' })
+  expect(nothingLeft.head).toEqual({ title: '2.5 release', description: '' })
+  expect(otherFinished.head).toEqual({ title: '2.5 release', description: 'Shipping 2.5 to the stores' })
+})
+
+test('once the last open work closes, or work the head names starts and finishes, the head keeps its title, loses its description, and takes none under that title until work is under way again', () => {
+  const asked = after(
+    null,
+    [
+      'HEAD: Greet and pad | Adding --repeat, deciding pad() trimming',
+      'NEW: working | Repeat flag | added',
+      'DONE: Repeat flag | added',
+      'NEW: working | Trim decision | waits on your answer',
+    ].join('\n'),
+    100,
+  )
+  const answered = applyOps(asked, opsOf('DONE: s2 | long strings kept whole'), 200, NO_ASKS)
+  const rewritten = applyOps(
+    asked,
+    opsOf('DONE: s2 | long strings kept whole\nHEAD: Greet and pad | Watching for feedback on the CLI'),
+    200,
+    NO_ASKS,
+  )
+  const describedIdle = applyOps(answered, opsOf('HEAD: Greet and pad | Waiting for the next request'), 300, NO_ASKS)
+  const retitledIdle = applyOps(answered, opsOf('HEAD: Help text | Writing the help text'), 300, NO_ASKS)
+  const resumed = applyOps(
+    answered,
+    opsOf('NEW: working | Short flag | adding -r\nHEAD: Greet and pad | Adding a short flag for --repeat'),
+    300,
+    NO_ASKS,
+  )
+  const searching = after(
+    null,
+    'HEAD: 3.1 search | Getting search under 100 ms\nNEW: working | Search index | slow',
+    100,
+  )
+  const sideFix = applyOps(
+    searching,
+    opsOf('SET: s1 | queued | paused\nNEW: working | Login button | wraps\nDONE: Login button | fixed'),
+    200,
+    NO_ASKS,
+  )
+  const namedFix = applyOps(
+    after(null, 'HEAD: Greet CLI | Adding a repeat flag\nNEW: queued | Help text | not started', 100),
+    opsOf('NEW: working | Repeat flag | started\nDONE: Repeat flag | added'),
+    200,
+    NO_ASKS,
+  )
+  const queuedLast = after(
+    null,
+    'HEAD: Greet and pad | Deciding pad() trimming\nNEW: queued | Pad trimming | asked',
+    100,
+  )
+  const queuedClosed = applyOps(
+    queuedLast,
+    opsOf('DONE: s1 | long strings kept whole\nHEAD: Greet and pad | Watching for feedback on the CLI'),
+    200,
+    NO_ASKS,
+  )
+  const docsWaiting = applyOps(
+    after(
+      null,
+      'HEAD: Sync fix | Fixing the sync bug\nNEW: working | Sync bug | found\nNEW: waits-on-other | Docs PR | in review',
+      100,
+    ),
+    opsOf('DONE: s1 | fixed'),
+    200,
+    NO_ASKS,
+  )
+  const inReview = applyOps(
+    after(
+      null,
+      [
+        'HEAD: 2.5 release | Getting 2.5 through store review',
+        'NEW: waits-on-other | 2.5 release | in store review',
+        'NEW: working | README fix | typo found',
+      ].join('\n'),
+      100,
+    ),
+    opsOf('DONE: s2 | fixed'),
+    200,
+    NO_ASKS,
+  )
+
+  expect(answered.head).toEqual({ title: 'Greet and pad', description: '' })
+  expect(rewritten.head).toEqual({ title: 'Greet and pad', description: '' })
+  expect(describedIdle.head).toBe(answered.head)
+  expect(retitledIdle.head).toEqual({ title: 'Help text', description: 'Writing the help text' })
+  expect(resumed.head).toEqual({ title: 'Greet and pad', description: 'Adding a short flag for --repeat' })
+  expect(sideFix.head).toBe(searching.head)
+  expect(namedFix.head).toEqual({ title: 'Greet CLI', description: '' })
+  expect(queuedClosed.head).toEqual({ title: 'Greet and pad', description: '' })
+  expect(docsWaiting.head).toEqual({ title: 'Sync fix', description: '' })
+  expect(inReview.head).toEqual({ title: '2.5 release', description: 'Getting 2.5 through store review' })
+})
+
+test('while nothing is under way, a HEAD that keeps the title corrects a description the head still has, and a description that names finished work clears', () => {
+  const answered = applyOps(
+    after(
+      null,
+      'HEAD: Greet and pad | Adding a flag\nNEW: working | Repeat flag | added\nDONE: Repeat flag | added',
+      100,
+    ),
+    opsOf('NEW: queued | Help text | not started'),
+    200,
+    NO_ASKS,
+  )
+  const savedEarlier = {
+    ...answered,
+    head: { title: 'Greet and pad', description: 'Adding --repeat, deciding pad() trimming' },
+  }
+  const corrected = applyOps(savedEarlier, opsOf('HEAD: Greet and pad | Ready for the help text'), 300, NO_ASKS)
+  const savedNamed = { ...answered, head: { title: 'Greet and pad', description: 'Adding the repeat flag' } }
+  const unnamed = applyOps(savedNamed, opsOf('NEW: queued | Man page | not started'), 300, NO_ASKS)
+  const paused = applyOps(
+    after(null, 'HEAD: 3.1 search | Rebuilding the search index\nNEW: working | Search index | rebuilding', 100),
+    opsOf('SET: s1 | queued | paused\nHEAD: 3.1 search | Search index rebuild on hold'),
+    200,
+    NO_ASKS,
+  )
+
+  expect(corrected.head).toEqual({ title: 'Greet and pad', description: 'Ready for the help text' })
+  expect(unnamed.head).toEqual({ title: 'Greet and pad', description: '' })
+  expect(paused.head).toEqual({ title: '3.1 search', description: 'Search index rebuild on hold' })
+})
+
+test('a queued subject that an open ask holds up or a running child works on counts as work under way for the head', () => {
+  const asking = [
+    'HEAD: Greet and pad | Adding --repeat, deciding pad() trimming',
+    'NEW: working | Repeat flag | added',
+    'DONE: Repeat flag | added',
+    'NEW: queued | Pad trimming | asked',
+  ].join('\n')
+  const asked = after(null, `${asking}\nLINK: i1 | Pad trimming`, 100, new Set(['i1']))
+  const unasked = after(null, asking, 100)
+  const guide = after(
+    null,
+    'HEAD: Docs site | Writing the setup guide\nNEW: queued | Setup guide | handed off\nNEW: working | Logo fix | found',
+    100,
+  )
+  const child = {
+    id: 'c1',
+    ref: 'task-1',
+    kind: 'subagent' as const,
+    name: 'guide writer',
+    subjectId: 's1',
+    startedAt: 100,
+    endedAt: null,
+    lastActivityAt: null,
+    delegateState: null,
+  }
+  const delegated = applyOps({ ...guide, children: [child] }, opsOf('DONE: s2 | fixed'), 200, NO_ASKS)
+  const notDelegated = applyOps(guide, opsOf('DONE: s2 | fixed'), 200, NO_ASKS)
+
+  expect(asked.head).toEqual({ title: 'Greet and pad', description: 'Adding --repeat, deciding pad() trimming' })
+  expect(unasked.head).toEqual({ title: 'Greet and pad', description: '' })
+  expect(delegated.head).toEqual({ title: 'Docs site', description: 'Writing the setup guide' })
+  expect(notDelegated.head).toEqual({ title: 'Docs site', description: '' })
+})
+
+test('a HEAD that keeps the title corrects a description that names work an earlier answer finished', () => {
+  const one = after(
+    null,
+    [
+      'HEAD: Shared lists | Checking the phone app with real shared edits',
+      'NEW: working | Phone testing | two phones installed',
+      'NEW: queued | Offline edits | not started',
+    ].join('\n'),
+    100,
+  )
+  const finished = applyOps(
+    one,
+    opsOf('DONE: s1 | edits sync between two phones\nSET: s2 | working | edits saved'),
+    150,
+    NO_ASKS,
+  )
+  const corrected = applyOps(
+    finished,
+    opsOf('HEAD: Shared lists | Getting edits to sync after time offline'),
+    200,
+    NO_ASKS,
+  )
+
+  expect(finished.head).toEqual(one.head)
+  expect(corrected.head).toEqual({ title: 'Shared lists', description: 'Getting edits to sync after time offline' })
+})
+
+test('a SET that keeps the status keeps the old text and age only when its content words are the same', () => {
+  const one = after(null, 'NEW: working | Offline mode | sync queue built and tested', 100)
+  const reworded = applyOps(one, opsOf('SET: s1 | working | the sync queue is built and tested'), 200, NO_ASKS)
+  const broken = applyOps(one, opsOf('SET: s1 | working | sync queue built and broken'), 200, NO_ASKS)
+
+  expect(reworded.subjects[0]).toMatchObject({ text: 'sync queue built and tested', changedAt: 100 })
+  expect(broken.subjects[0]).toMatchObject({ text: 'sync queue built and broken', changedAt: 200 })
+})

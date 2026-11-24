@@ -1,0 +1,1137 @@
+{
+  "schemaVersion": 1,
+  "reviewType": "manual source-contract reassessment of prior complete written responses; not fresh model replay",
+  "reviewer": "/root/unified_plugin_contract",
+  "reviewedAt": "2026-10-13",
+  "method": "Read each of 80 original forward prompts and expected behaviors, its complete frozen rc2 observedResponse, and its prior assessment; made an explicit case-specific judgment against the new plugin entry and runtime contract. The prior assessment informed but did not decide the new pass field.",
+  "inputSha256": {
+    "definitions": "596460dc90a33061f0b955c14013e130f8e13869d81708a119d48eb547501a28",
+    "responses": "00902c543a00dbe8b25b38cc05b496b0d18f25065289c91c291f5b08bcac96f5",
+    "assessments": "d5db1e47033e97dcc360fbe88a81043752349fb362301356948b3af060773f44",
+    "runtimeContract": "c79faa59ee67788a200bac12a9e32576dd6a0c946481c52cf927f2e4966b47c5"
+  },
+  "caseCount": 80,
+  "passed": 80,
+  "failed": 0,
+  "limitations": [
+    "This is source-contract compatibility review of preserved rc2 answers, not new model responses or live plugin execution.",
+    "Actual dots Skill loading, connected-computer access, current account entitlement, and real SillyTavern behavior remain untested."
+  ],
+  "cases": [
+    {
+      "id": "fixed-greeting-mvu",
+      "kind": "forward",
+      "primarySkill": "tavern-card-builder",
+      "priorResponseHash": "bdfdd99bb698ef4b88d0db403840090237c51e393f28b12be6e90ba9dc5e4be9",
+      "pass": true,
+      "rationale": "答覆把三條開場與分支變數繫結，並要求拿到維護源、schema 和目標版本後逐條驗證儲存與切換。它沒有在無檔案或無真實酒館時宣稱已執行，符合雲端先核實材料和宿主的要求。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Preserve the detected dialect, select per-greeting initialization, and retain a real-runtime acceptance gate.",
+      "priorAssessmentRationale": "答覆選擇原生備選開場、公共預設值加逐開場分支初始化，並要求按目標版本與現有 schema 決定塊形式；逐條核對實際儲存、過載和切換，未偽造初始化。"
+    },
+    {
+      "id": "mvu-dual-update-routing",
+      "kind": "forward",
+      "primarySkill": "tavern-card-builder",
+      "priorResponseHash": "359f7e1b332b5598d8af5182ed20bf32d7a2d3ebc090e1f0023f3e7a1a8b1f61",
+      "pass": true,
+      "rationale": "答覆先核實目標 MVU Zod 是否支援條目路由，再區分劇情與更新模型，最後要求兩條路徑實測。新增宿主合同只約束何處能執行這些檢查，沒有改變該卡內路由。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Verify runtime support, keep the variable list intentionally shared, route update rules and output format to the update model, route plot-only instructions to the plot model, preserve normal activation, and require both-mode acceptance.",
+      "priorAssessmentRationale": "答覆先核對目標 MVU Zod 的條目名路由支援，分開標記劇情與更新內容，僅讓雙方需要的狀態投影共享，並要求兩種路徑實測。"
+    },
+    {
+      "id": "text-card-custom-cot",
+      "kind": "forward",
+      "primarySkill": "tavern-card-builder",
+      "priorResponseHash": "386411877e3007b022f3f6e2b0d31851eb9b9d13f3a10f6dda8555f3e02b523e",
+      "pass": true,
+      "rationale": "答覆直接給可複製的純文字 CoT、資訊不足回退和三種可觀察用例，沒有捏造指令碼或執行結果。即使雲端沒有終端，這部分文字工作也可以完成。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置"
+      ],
+      "originalCriterion": "Treat custom CoT as an independent author-written decision protocol, provide a concrete lightweight template with observable checks and fallback, and keep visible inner thoughts separate from system judgment.",
+      "priorAssessmentRationale": "答覆給了可直接放入世界書的輕量判斷正文、資訊不足時的回退，以及普通對話等可觀察檢查；明確不展示檢查過程或索取隱藏推理，符合制卡 CoT 契約。"
+    },
+    {
+      "id": "preset-card-cot-stitching",
+      "kind": "forward",
+      "primarySkill": "tavern-card-builder",
+      "priorResponseHash": "5388512d6edf63d3aa4f46ff12f8512c3bab6206390232c929361bbdb2a52db8",
+      "pass": true,
+      "rationale": "答覆把預設主 CoT 留在原位，用穩定規則 ID 裝配卡片增量，並把完整回退稿限定為有維護源時構建。它要求先看實際階段和路由，沒有假設雲端可訪問使用者預設。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Keep the main CoT in the preset, declare card and conditional increments against stable phases and rule IDs, deduplicate and order them, protect the main structure, and provide a generated full fallback when stitching is unavailable.",
+      "priorAssessmentRationale": "修訂在保留預設主 CoT 與卡片常駐/戰鬥條件增量的基礎上，明確階段依賴、穩定 ID、可復現排序和去重；拼接不可用時由獨立維護源生成帶來源版本的完整回退稿。與 cot-design-and-authoring §6 的增量合同一致，原兩項缺口已補齊。"
+    },
+    {
+      "id": "ensemble-cot-update-script-split",
+      "kind": "forward",
+      "primarySkill": "tavern-card-builder",
+      "priorResponseHash": "431c4f058d3057ad2fe405d77bdeb1ddc7153ebc0a69c85787db83b996cab8a4",
+      "pass": true,
+      "rationale": "答覆給劇情模型、更新模型和確定性指令碼分配互不競爭的寫入職責，並要求現有 schema、預設和指令碼入口後才落成可匯入文字。雲端工具可用性檢查不會改變該所有權合同。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置"
+      ],
+      "originalCriterion": "Give the plot model ensemble scheduling and narrative CoT, limit the update model to semantic source events and legal updates, assign deterministic derived calculations to scripts, and prohibit competing writers.",
+      "priorAssessmentRationale": "劇情模型負責在場 NPC 排程，更新模型僅抽取成立事件與合法更新，確定性數值交指令碼，並明確每欄位唯一寫入者。"
+    },
+    {
+      "id": "card-type-runtime-ledger",
+      "kind": "forward",
+      "primarySkill": "tavern-card-builder",
+      "priorResponseHash": "d97139f2b8eb9ac60d6afc88c454a6addf5ffc9ab43e28879d0469b93ff521f7",
+      "pass": true,
+      "rationale": "答覆把已隨卡封裝的 Schema/地區指令碼、宿主 Tavern Helper、遠端 import 和開發用 Zod 分開，明確尚未見卡包與例項。新增合同同樣禁止憑外掛環境推斷真實宿主已可用。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Return an mvu_zod primary type from the schema, registration path, and packaged loader evidence; require the embedded schema plus both promised regional scripts with their declared enabled states; separate their Git CDN targets and Tavern Helper host requirement; and do not add a standalone Zod installation step.",
+      "priorAssessmentRationale": "修訂答覆將 mvu_zod 作為題述目標型別，同時要求從實際包獨立核對 Schema 註冊呼叫與載入器就緒，缺證據時標型別待核。雙地區指令碼、啟用狀態、Tavern Helper、Git CDN 和開發用 Zod 分列，覆蓋型別與依賴賬本。"
+    },
+    {
+      "id": "safe-decompose",
+      "kind": "forward",
+      "primarySkill": "sillytavern-card-components",
+      "priorResponseHash": "161ad1d88aefa4df43e5bc3a933fbac63c2b6ea10085a394cad6a4c7dd1b252a",
+      "pass": true,
+      "rationale": "答覆要求實際 JSON 路徑與獲准沙盒，原件雜湊、元件依賴和重組比對都有明確位置；末尾直說目前無檔案、未拆分。它不把 Windows 路徑或本機腳本當雲端既有能力。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Snapshot the input, decompose in a sandbox, declare dependencies, and require roundtrip comparison.",
+      "priorAssessmentRationale": "修訂保留原件雜湊、獨立沙盒和重組比對，並明確每個元件的依賴、衝突、執行依賴類別、交付方式和組裝阻斷條件。與 card-components 的元件合同一致，原缺項已補齊。"
+    },
+    {
+      "id": "release-package",
+      "kind": "forward",
+      "primarySkill": "sillytavern-card-pipeline",
+      "priorResponseHash": "f0ac27e4927daee4dcd1cc3cf9a7447d26faf9571b19f7e94b9e2c3bd4a4f44d",
+      "pass": true,
+      "rationale": "答覆先索取維護源、manifest、版本與構建入口，未見材料不報已打包；離線 JSON/PNG 回讀和真實酒館匯入分門。雲端可用工作區和工具檢查只會限制可實際完成的階段。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Discover the project adapter, keep source and artifacts separate, and stop at explicit release gates.",
+      "priorAssessmentRationale": "答覆要求維護源、profile/manifest 和專案構建入口，採用暫存構建並回讀 JSON/PNG，保留真實酒館載入與互動為後續門；未因缺材料虛報產物。"
+    },
+    {
+      "id": "runtime-dependency-preflight",
+      "kind": "forward",
+      "primarySkill": "sillytavern-card-pipeline",
+      "priorResponseHash": "778c7bfc861fcd7f16eb1f8eb59a0542506fdd01df5c742d1d3e3f3f9dea35c6",
+      "pass": true,
+      "rationale": "答覆要求原始碼與候選包對賬，缺必需資源即阻斷打包，並區分內嵌、宿主、遠端和開發依賴。它明確現在不能聲稱齊全或已打包，保留 ST 實測。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Reconcile detected and declared card capabilities, block a missing schema or promised regional script and any enabled-state mismatch, and report embedded assets, Tavern Helper setup, remote imports, and development-only exclusions separately.",
+      "priorAssessmentRationale": "先對賬檢測能力與 active profile/manifest；缺正則、Schema、承諾地區指令碼及啟用狀態衝突均明確阻斷打包。嵌入、宿主、遠端和開發依賴分別報告，符合 Prepare/Compose 門。"
+    },
+    {
+      "id": "bound-worldbook-version-sync",
+      "kind": "forward",
+      "primarySkill": "sillytavern-card-pipeline",
+      "priorResponseHash": "6e10fc6f4ffd3724a4a6a7f7c4b0595d95ff962789271c467226b17d0d2524cd",
+      "pass": true,
+      "rationale": "答覆用 active manifest 的穩定 ID 和版本面拒絕舊世界書，且在拿到維護源和已驗收提交前不報已封裝。新增合同的來源核實與真實產物回讀要求與之相符。",
+      "relevantNewSections": [
+        "使用現有許可權與資料",
+        "有界長任務與恢復"
+      ],
+      "originalCriterion": "Resolve both artifacts from the active manifest by stable ID, require a machine-checkable version surface, compare attached and standalone worldbooks with maintained source, and reject the stale version.",
+      "priorAssessmentRationale": "答覆明確從 active manifest 用穩定 ID 鎖定附著與獨立世界書，要求機器可讀版本面、維護源語義對比，並把 2.3.0 拒絕寫成負向檢查。"
+    },
+    {
+      "id": "exact-runtime-signature",
+      "kind": "forward",
+      "primarySkill": "sillytavern-api-reference",
+      "priorResponseHash": "9bc5b89a8ca02e19830177a5b65ffbe2c8d0423862e206ac228cdeb9f4962273",
+      "pass": true,
+      "rationale": "答覆因缺具體 hook 與目標版本拒報精確簽名，要求匹配原始碼和正確 iframe 的實際探針；它沒有假設雲端擁有本機安裝原始碼或真實酒館。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Verify an identified source/version and distinguish confirmed facts from inference.",
+      "priorAssessmentRationale": "沒有具體 hook 與安裝版本時拒報精確簽名，要求匹配原始碼和正確 iframe 探針，區分宣告型別與實際觸發。"
+    },
+    {
+      "id": "blank-ui-runtime",
+      "kind": "forward",
+      "primarySkill": "sillytavern-runtime-debug",
+      "priorResponseHash": "bad6a02519b202e20bc048db1376c769d6e2c786e13dcf575ad3217248ed1d4a",
+      "pass": true,
+      "rationale": "答覆只承認離線渲染鏈，並要求匯入包、宿主版本和控制檯錯誤後在新聊天覆現 iframe、狀態與 DOM。新增合同保留雲端預覽和真實酒館的獨立證據門。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Reproduce in a real runtime and trace DOM, console, iframe, permissions, data, and render evidence.",
+      "priorAssessmentRationale": "在真實 ST 新聊天覆現並追控制檯、樓層資料、DOM 與渲染；逐層核對 iframe 所有權、同源、sandbox、父子視窗許可權和變數橋，補齊執行層。"
+    },
+    {
+      "id": "embedded-control-center",
+      "kind": "forward",
+      "primarySkill": "sillytavern-embedded-ui",
+      "priorResponseHash": "525d37fdf27dd13dfcf1a6c58d8ab83cd14c47b23c6391ac4663e12cb80ca50b",
+      "pass": true,
+      "rationale": "答覆給移動佈局、可訪問性與草稿狀態的具體審查基線，但因缺真實原始碼和掛載位置不報修復或驗收。雲端只有文字時仍可提供這類有界審查。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Review the embedded UI contract without introducing a React stack by default.",
+      "priorAssessmentRationale": "答覆圍繞真實控制中心的移動佈局、可訪問性、草稿與正式狀態分離和變更預覽開展；沒有預設引入 React，也未把審查冒充宿主驗收。"
+    },
+    {
+      "id": "vague-cleanup",
+      "kind": "forward",
+      "primarySkill": "code-quality-workflow",
+      "priorResponseHash": "ca0e30441189978149ada786d387664e93f194eac7f368694089c3a9067a45d8",
+      "pass": true,
+      "rationale": "答覆先要求模組路徑和只讀證據，再決定是否有最小修復，未憑審美直接重寫。外掛入口的宿主檢查不會擴大改動或授權範圍。",
+      "relevantNewSections": [
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Audit and gate first; do not edit without evidence and implementation authorization.",
+      "priorAssessmentRationale": "先只讀審查呼叫者、行為合同和故障證據；僅在可復現問題成立後提出最小修復與驗證門，沒有憑審美直接改穩定模組。"
+    },
+    {
+      "id": "react-product-ui",
+      "kind": "forward",
+      "primarySkill": "shadcn-tailwind-ui",
+      "priorResponseHash": "d700e421992dbf0698ae456f8a61552df813b33f4da83a98f01581750eef04e4",
+      "pass": true,
+      "rationale": "答覆要求實際專案路徑、依賴與配置，寫入前預覽差異並保留現有 token 和本地改動；沒有專案時不報已構建。雲端執行同樣須先證明工作區可見。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Use the requested stack, detect the project setup, and guard all generated writes.",
+      "priorAssessmentRationale": "核對 React/Tailwind/shadcn 現狀，明確複用 shadcn/ui、Radix 與 Tailwind token；新增元件或配置先 dry-run 看差異並保護本地改動。"
+    },
+    {
+      "id": "workshop-incident",
+      "kind": "forward",
+      "primarySkill": "rolecard-workshop-ops",
+      "priorResponseHash": "0a0b5b5f3cf110257d6bfb0925d793a75b114ef87fb39f90afca98d9f62fc5b1",
+      "pass": true,
+      "rationale": "答覆把 502 沿代理、Gateway 和物件儲存分段只讀定位，並將部署與金鑰變更各列獨立授權門。新增雲端合同不把外掛連線或診斷許可權升級為生產寫入權。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Trace the configurable public/gateway/storage chain read-only and require authorization before deploy or secret changes.",
+      "priorAssessmentRationale": "修訂把 Gateway 到物件儲存的包載荷上傳/讀取、返回碼和超時納入只讀 502 追蹤，並把生產部署與金鑰輪換/替換分別列為明確授權門。符合 workshop-ops 的鏈路和變更邊界。"
+    },
+    {
+      "id": "component-only-regex-update",
+      "kind": "forward",
+      "primarySkill": "sillytavern-component-update",
+      "priorResponseHash": "61e06c323a39ed05100475d4c6e08cf1052df1876eb6ea1f0c2a63408a7a60fc",
+      "pass": true,
+      "rationale": "答覆凍結元件模式，只產可匯入正則 JSON 和驗證報告，要求原規則與目標版本，真實匯入另驗。共享合同不會把雲端離線檢查提升成整卡或宿主驗收。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Freeze component mode, preserve the stable ID and untouched fields, emit only an importable regex artifact plus validation evidence, and produce no card JSON or PNG.",
+      "priorAssessmentRationale": "明確鎖定 component 模式，只給可匯入正則 JSON 與驗證報告，保留穩定 ID、啟用狀態、順序及未知欄位，不產整卡。"
+    },
+    {
+      "id": "component-full-card-handoff",
+      "kind": "forward",
+      "primarySkill": "sillytavern-component-update",
+      "priorResponseHash": "5aa4e83d8b563e15207517ae1d898e5054e5f935ff6067231914c224d1e57fb0",
+      "pass": true,
+      "rationale": "答覆用指令碼穩定 ID 與不動表面雜湊移交整卡流水線，明確缺維護源時不能稱已封裝，匯入和舊聊天另驗。新增合同只要求執行前檢查檔案、工具與真實產物。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Freeze full-card mode, build validated script artifacts and an assembly handoff with an untouched-surface hash, then route composition and packaging to sillytavern-card-pipeline.",
+      "priorAssessmentRationale": "鎖定 full-card，按穩定 ID 驗證兩段指令碼；交接明確包含 assembly.targetCard、assembly.componentId 和不動表面的 expectedUntouchedHash，整卡組裝/封裝交給 pipeline。"
+    },
+    {
+      "id": "regex-placement-depth-fixtures",
+      "kind": "forward",
+      "primarySkill": "sillytavern-render-regex-pipeline",
+      "priorResponseHash": "de2d8435a74371348789178a65d7e8c5bb251fb4a323e08a617bd022e3225e77",
+      "pass": true,
+      "rationale": "答覆給四個 display/prompt/depth 斷言，要求目標版本確認 placement 數值，離線 fixture 之後仍需真實酒館複核。雲端工具若不可用也不能虛報這些斷言已執行。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Validate the regex dialect and flags, use the supplied numeric placement without guessing, run display/prompt/depth fixtures, and emit an ordered stage trace.",
+      "priorAssessmentRationale": "答覆核對 RegexScriptData 方言與標誌，不憑記憶猜 AI placement 數值；列出 display/prompt 與深度 0、4、5 斷言和有序階段 trace，保留實機門。"
+    },
+    {
+      "id": "regex-host-disagreement",
+      "kind": "forward",
+      "primarySkill": "sillytavern-render-regex-pipeline",
+      "priorResponseHash": "b7222938c77ac7295badcffff767dc2dfb5ecfa75801bee41605050329a6e970",
+      "pass": true,
+      "rationale": "答覆明確 fixture 只覆蓋選擇條件與 JS 替換語義，列出未模擬的宏、Markdown、提示詞和擴充套件順序，並以實際安裝版本和樓層重現為準。新增合同與其證據分層一致。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Keep the deterministic fixture result, list unsupported host stages, treat the installed runtime as authoritative, and hand exact runtime reproduction to sillytavern-runtime-debug.",
+      "priorAssessmentRationale": "保留離線 fixture 的有限結論，列出未模擬宏、Markdown、提示片語裝等宿主階段，並以目標 ST 的版本、匯入規則和樓層證據復現。"
+    },
+    {
+      "id": "rolecard-static-security-audit",
+      "kind": "forward",
+      "primarySkill": "sillytavern-rolecard-security",
+      "priorResponseHash": "f6d0fe8a2a14816a28147b5ac79e6deec1d470aae589ebe67750f1906fe86415",
+      "pass": true,
+      "rationale": "答覆因缺卡檔案不報發現或安全結論，只規劃脫敏靜態掃描且不匯入、不執行、不訪問遠端。新增合同的工作區可見性和私有材料邊界與這項只讀審查一致。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Perform a read-only redacted scan, report rule IDs and locations without executing content or exposing credential values, and separate suspicious patterns from confirmed reachability.",
+      "priorAssessmentRationale": "答覆限定只讀靜態掃描、檔案雜湊、危險模式與輸入可達性，說明位置/規則/嚴重度及脫敏，並排除了匯入、執行和遠端訪問；符合安全 Skill 的掃描與分診邊界。"
+    },
+    {
+      "id": "rolecard-security-baseline",
+      "kind": "forward",
+      "primarySkill": "sillytavern-rolecard-security",
+      "priorResponseHash": "f1174dee0e082cf3823063ef121f574408e25776b2cd0ced0860010da863c379",
+      "pass": true,
+      "rationale": "答覆要求候選與批准基線的實際檔案和雜湊，再按穩定規則 ID 比較正增量；命令是待執行步驟而非已執行事實。它保留靜態與宿主驗證分層，也不讀取憑據內容。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Compare counts by stable rule ID, report positive deltas as regressions, and avoid treating a baseline as a suppression list.",
+      "priorAssessmentRationale": "答覆要求候選/基線雜湊，按穩定規則 ID 比較計數並阻斷正增量，明確不透過改名或降級嚴重性規避，未把基線當豁免清單。"
+    },
+    {
+      "id": "database-rolecard-migration",
+      "kind": "forward",
+      "primarySkill": "sillytavern-database-rolecards",
+      "priorResponseHash": "4a9e580792826be9d2bd8c24069aced592b6b661d353a8acf441986db207d1af",
+      "pass": true,
+      "rationale": "答覆在多樓層模型下給出 rename/add 的具體 fixture、衝突停機和第二次執行不變檢查，並把舊聊天永續性留給目標酒館。新增合同要求當前指令碼可用和恢復時核對雜湊，不改變遷移資料合同。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "有界長任務與恢復"
+      ],
+      "originalCriterion": "Validate the multi-floor model, run a deterministic rename plus add-field fixture, preserve unknown data, compare expected output, and prove the second run is unchanged.",
+      "priorAssessmentRationale": "修訂答覆給出多樓層 stat_data 模型預檢和確定性的 rename-field(status→state)、add-field(progress=0) fixture；示例明確舊 status 移除、無關 custom 保留、雙欄位衝突報錯且第二次執行結果不變。舊聊天永續性仍留給目標宿主驗證。"
+    },
+    {
+      "id": "database-rolecard-bindings",
+      "kind": "forward",
+      "primarySkill": "sillytavern-database-rolecards",
+      "priorResponseHash": "b21d3ae481a4cb85dbb8a93a795125ba3396bfa80a16c1b2584d821fe5ce8cdf",
+      "pass": true,
+      "rationale": "答覆要求 schema 與 binding 實物，宣告級檢查只證明路徑一致；編輯、swipe、切聊和過載在真實多樓層 ST 回讀。雲端靜態檢查仍不能替代這些宿主生命週期門。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Validate stable binding IDs, table and field references, access owner and refresh events, keep UI implementation separate, and retain real multi-floor lifecycle acceptance.",
+      "priorAssessmentRationale": "要求每條 binding 有穩定 ID、表/主鍵/欄位、許可權、所有者和重新整理事件；靜態檢查與 embedded-ui 實現分責，仍保留真實多樓層編輯、swipe 等生命週期驗收。"
+    },
+    {
+      "id": "extension-static-scaffold",
+      "kind": "forward",
+      "primarySkill": "sillytavern-extension-dev",
+      "priorResponseHash": "8f9e2b4b666a71a7f5619e4d4739c7f8f1aebee9966176ea2e298bc1db938102",
+      "pass": true,
+      "rationale": "答覆把寫入限於 dry-run 後的獨立 staging，缺擴充套件 ID、目標版本與輸出目錄時不報相容，也明確不安裝啟用。外掛執行合同不會把雲端工作區寫入推成真實 ST 安裝。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Freeze the UI-extension boundary, plan before writing, generate only the minimal scaffold, validate manifest paths and hook exports, and perform no host installation or reload.",
+      "priorAssessmentRationale": "答覆鎖定 UI 擴充套件的 manifest、ES 模組、可選 CSS 與能力合同，先 dry-run 後 staging 寫入，驗證路徑和能力，並明確不安裝或啟用。"
+    },
+    {
+      "id": "extension-capability-snapshot",
+      "kind": "forward",
+      "primarySkill": "sillytavern-extension-dev",
+      "priorResponseHash": "a46769236f15b0c3a5a541bded4a09f956b2da48fa5a6ba0ea8d7166843b9e10",
+      "pass": true,
+      "rationale": "答覆只以實際能力快照比較最低版本和必需符號，缺快照時不報透過；簽名、事件和清理仍需同一例項驗證。新增合同恰好要求不憑另一環境或外掛安裝推斷宿主能力。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Validate the inert capability snapshot, block missing required symbols or minimum versions, activate declared optional fallbacks, and keep signatures and live behavior unclaimed.",
+      "priorAssessmentRationale": "修訂答覆把 SillyTavern 與 Tavern Helper 的 minimum 版本逐一比較，低於最低版本或缺必需符號均阻斷；可選符號僅按合同 fallback 降級，預發行版本與快照能力邊界也說清楚。"
+    },
+    {
+      "id": "large-rolecard-budget-regression",
+      "kind": "forward",
+      "primarySkill": "sillytavern-rolecard-performance",
+      "priorResponseHash": "74074fa2f7cfd4e74b3afd5d40072ab73c3f21525cb67cbe1a7a6f50c8c54662",
+      "pass": true,
+      "rationale": "答覆要求候選與基線同口徑檔案及閾值後才測量，缺檔案不編造數值，報告只含脫敏指標；真實裝置流暢度另驗。雲端無相關檔案或工具時按新增合同標未執行。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Measure both artifacts with the same redacted metric surface, apply hard limits and declared growth deltas, identify owners, and avoid deleting behavior merely because it is large.",
+      "priorAssessmentRationale": "答覆要求同版工具同口徑測候選和基線，列各類數值、差額和硬上限，只輸出指標不洩露內容；超標後按所有者作最小修正，實機效能另列。"
+    },
+    {
+      "id": "rolecard-runtime-performance-sample",
+      "kind": "forward",
+      "primarySkill": "sillytavern-rolecard-performance",
+      "priorResponseHash": "0b2456bfbbcc0a1078098de69da26e4d0b6c4e60fc3d4202dce6482fac115a43",
+      "pass": true,
+      "rationale": "答覆指定具名 ST/裝置、兩場景至少五個樣本和預算，指令碼計算尚待原始取樣，靜態體積與實機 p95 分門。它沒有憑雲端瀏覽器或指令碼路徑宣稱樣本已存在。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Require a named environment and sufficient captured samples, calculate deterministic percentiles per scenario, and keep static and real-runtime gates independent.",
+      "priorAssessmentRationale": "答覆要求具名 ST/瀏覽器/裝置及卡雜湊，兩個場景各至少五個有效樣本，以最近秩 p50/p95 和預算判定，靜態大小與實機計時分門。"
+    },
+    {
+      "id": "media-live2d-contract",
+      "kind": "forward",
+      "primarySkill": "sillytavern-media-live2d-runtime",
+      "priorResponseHash": "efe85cd1170003b7bccd6a15d4627150bd3233295b21fb06b4c5f01b8a911c6b",
+      "pass": true,
+      "rationale": "答覆要求媒體清單與 provider 版本，本地檔案才核雜湊，遠端保持未取回，並把 CORS/WebGL 等留給實機。雲端與本機檔案位置不互通的新增規則不影響這份靜態/執行邊界。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Verify local containment, bytes and hashes, leave remote sources uncontacted, require an explicit Live2D provider and fallback, and pair load/play actions with teardown.",
+      "priorAssessmentRationale": "答覆逐項核對本地路徑、位元組和 SHA-256，遠端不接觸；要求具體 provider/能力探針和靜態回退，並覆蓋 PAGEHIDE 與切聊天清理。"
+    },
+    {
+      "id": "media-preload-audio-lifecycle",
+      "kind": "forward",
+      "primarySkill": "sillytavern-media-live2d-runtime",
+      "priorResponseHash": "7cbc1d6a0a295280b2b2df949958622ddbf5bf52e1f62afcdef068da501791ec",
+      "pass": true,
+      "rationale": "答覆給非聯網分組、位元組及數量預算、區域性 BGM 設定和確定性停止路徑；缺清單預算時不報透過，自動播放與銷燬在目標酒館驗。新增合同不會把指令碼計劃說成後臺實測。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Produce a non-network preload plan, enforce declared byte and count limits, use only BGM or ambient audio contracts, preserve existing settings, and validate deterministic cleanup.",
+      "priorAssessmentRationale": "非聯網清單區分 eager/lazy/on-demand，同時核對 eagerBytes、lazyBytes 與 eagerAssets 數量上限；bgm/ambient 區域性更新保留播放列表，並列切聊天/PAGEHIDE 停止與解綁路徑。"
+    },
+    {
+      "id": "creative-authority-resume",
+      "kind": "forward",
+      "primarySkill": "tavern-card-builder",
+      "priorResponseHash": "211df9696b474a4e1e732c2a97f4c9b81953136941d05431e02ede27ea2c6241",
+      "pass": true,
+      "rationale": "答覆先讀專案創作權威和 NEXT，再比對工作樹與產物，缺入口時不編造已確認設定，也不重新詢問凍結內容。新增合同要求沿唯一既有續接指標，方向完全一致。",
+      "relevantNewSections": [
+        "使用現有許可權與資料",
+        "有界長任務與恢復"
+      ],
+      "originalCriterion": "Read the Markdown/YAML creative authority and actual worktree first, preserve state buckets, restate only genuine conflicts or open decisions, and continue from the recorded next gate.",
+      "priorAssessmentRationale": "答覆先讀創作權威、NEXT 與實際工作樹，分別保留已確認、候選、待決、證據和下一門；只在權威與實物衝突時提出分歧，未重問凍結設定。"
+    },
+    {
+      "id": "library-routed-ui-selection",
+      "kind": "forward",
+      "primarySkill": "consult-tavernweave-library",
+      "priorResponseHash": "d4062e3304c63ae7fc759d4c52cb5bf5e68f550c2e2f579575debb2e35df965f",
+      "pass": true,
+      "rationale": "答覆給出具名快照、A0 路由、三項目錄 ID 與來源，並保持候選/許可/API/實機分門；舊回放有凍結庫來源證據。新版在 dots 中仍須先確認這些隨包目錄確實可讀，不能把舊回執挪作新任務已載入證明。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Return A0 for the write task, route to the embedded-UI and mobile guides, query the complete design and motion catalogs with a bounded result count, return three evidence-linked candidates as proposed, and retain exact API, license, implementation, and real-host gates.",
+      "priorAssessmentRationale": "修訂答覆給出寫入前 ST-A0 的目標、紅線和驗收回執，路由 ST-C12/C2/D7；從完整設計與動效目錄有界選出 design:h8、motion:m4-mspring、motion:prm，三項 ID、來源 URL 和本地預覽均與凍結目錄一致，並保持 proposed、許可、精確 API 和真實宿主門。"
+    },
+    {
+      "id": "soul-atong-card-guidance",
+      "kind": "forward",
+      "primarySkill": "activate-tavernweave-soul",
+      "priorResponseHash": "56ab08e71051ac8fda243512fa85f0269f98e5583498b1d7a547ef95fa126c32",
+      "pass": true,
+      "rationale": "答覆把阿瞳限定當前任務 Portable，公開核心與私有畫像分開，小說樣本再路由資料庫和制卡 Skill。新合同不提供額外雲端記憶或許可權，舊答覆也沒有宣稱它們。",
+      "relevantNewSections": [
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Activate Atong as current-task Portable mode, disclose unchanged permissions and profile status, use warm scaffolding, and route the technical work to tavern-card-builder and the library.",
+      "priorAssessmentRationale": "給出阿瞳 Portable 回執與許可權/畫像狀態，以小樣本建立底本、出處和推斷邊界；明確 Library 負責 A0/資料路由、build-work-library 負責資料成庫、tavern-card-builder 負責制卡。"
+    },
+    {
+      "id": "soul-mttt-sir-teachback",
+      "kind": "forward",
+      "primarySkill": "activate-tavernweave-soul",
+      "priorResponseHash": "a0f22db51304300fc980f01ca07e8de527a40df7e68ba7a143afddf9e486da71",
+      "pass": true,
+      "rationale": "答覆讓使用者複述 Node fixture 能證明的範圍和真實酒館還缺的匯入、滑動、編輯證據；Portable 人格沒有改變證據門。雲端執行時同樣不能把 fixture 當目標例項結果。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Activate strict but respectful Portable mode, demand the exact capability and evidence boundary, require teach-back, preserve the real-host gate, and avoid personal humiliation.",
+      "priorAssessmentRationale": "答覆明確當前任務 Portable 嚴格模式，要求說清 Node fixture 的能力邊界和反例，並請使用者複述真實宿主門所需證據；未羞辱使用者。"
+    },
+    {
+      "id": "soul-killer-frontend-review",
+      "kind": "forward",
+      "primarySkill": "activate-tavernweave-soul",
+      "priorResponseHash": "86fcb7d9db172a860b3db04584d62d1836c878963a7d853b02f9290b077b63e5",
+      "pass": true,
+      "rationale": "答覆因無原始碼/截圖/實機材料而不編造優點或故障，後續修復交設計庫與嵌入 UI Skill，瀏覽器、ST 和觀感分門。外掛宿主檢查不會讓審查自動獲得修改權。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Activate soul-killer-portable with a disclosed Johnny Silverhand fan-roleplay receipt, distinguish available visual evidence from untested gates, report at most three ranked Relic faults with evidence, impact, correction, and recheck, name a concrete strength, and route implementation to the owning Library and UI skills without expanding authority.",
+      "priorAssessmentRationale": "修訂答覆說明當前缺頁面/截圖/實機材料，明確現有強項也無法評估，不憑空編造故障；承諾有證據時按最多三項給影響、修復、複驗，並把後續修復交 Library 選材和 embedded-UI 承接，審查與修改門分開。"
+    },
+    {
+      "id": "brainstorm-soul-ensemble-first-version",
+      "kind": "forward",
+      "primarySkill": "orchestrate-project-blueprint",
+      "priorResponseHash": "1d55c4c00cea7086ef3a325f99e9cb202a507d50caab1924fbd1f573fcef91a0",
+      "pass": true,
+      "rationale": "答覆明確三席是一名 Agent 的鏡頭、當前任務 Portable；四態賬本、方向預算和首版設計確認門均清楚，本輪不寫原始碼。新增雲端持續執行合同沒有製造多個後臺 Agent 或擴大許可權。",
+      "relevantNewSections": [
+        "使用現有許可權與資料",
+        "有界長任務與恢復"
+      ],
+      "originalCriterion": "Activate bounded project brainstorming and the Soul ensemble as three labeled lenses of one Agent, identify project type and host surface, prefer one or two necessary decisions within a shared maximum of four, maintain the four-state ledger and direction budget, split Core Spine, First Playable, Growth Tracks, and Parking Lot, select a scale-aware blueprint profile, and stop at driver design approval.",
+      "priorAssessmentRationale": "三席限定為同一 Agent，提出專案型別與宿主兩項必要決定；四態賬本、foundational 0/4 輪與硬上限、四段首版分層及 blueprint-set 檔位均寫出，停在設計確認前。"
+    },
+    {
+      "id": "giant-project-blueprint-set",
+      "kind": "forward",
+      "primarySkill": "orchestrate-project-blueprint",
+      "priorResponseHash": "40857447ab5ecdf02cc11343619ed7780753260050e4c727fc792bc9cefbc9dc",
+      "pass": true,
+      "rationale": "答覆只在多領域驗收邊界成立時選大型藍圖，保留一個 NEXT、零持久子藍圖預算和可觀察失敗才開臨時支線。它正符合新合同的唯一續接源與有界長任務要求。",
+      "relevantNewSections": [
+        "使用現有許可權與資料",
+        "有界長任務與恢復"
+      ],
+      "originalCriterion": "Select the program blueprint profile only from real multi-domain boundaries, create a master index with bounded depth and child limits, extract domain blueprints progressively, freeze runtimePersistentBlueprintBudget at zero for every active step, keep ordinary checklists non-authoritative, and preserve a resumable NEXT handoff.",
+      "priorAssessmentRationale": "修訂先核實多宿主、長期遷移和獨立領域驗收門，再有條件地選 program 檔；保留三層九直屬上限、漸進提取與唯一 NEXT，並明確每步零持久預算及普通檢查單不構成新權威或完成分母。原兩項缺口已補齊。"
+    },
+    {
+      "id": "runtime-problem-refinement-return",
+      "kind": "forward",
+      "primarySkill": "orchestrate-project-blueprint",
+      "priorResponseHash": "12f40e902b3c38bc96d10694c92944b370552b10aeffe6da5dcdc36878f072c4",
+      "pass": true,
+      "rationale": "答覆把 390px 真機問題綁在 P7 的非持久支線，記錄同機複測後回到原退出條件，不新增進度分母。新合同的階段證據和停止條件沒有改變此邊界。",
+      "relevantNewSections": [
+        "有界長任務與恢復",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Open one evidence-triggered non-persistent problem refinement bound to P7, use only the minimal diagnostic, repair, and recheck actions, preserve the product scope and completion denominator, record resolution evidence, close the refinement, and return to P7 and its original exit condition.",
+      "priorAssessmentRationale": "把 390px 真機問題繫結 P7 的非持久單支線，限定診斷、修復和同機複測，保留分母並說明通過後關閉支線回 P7。"
+    },
+    {
+      "id": "frontend-fit-decline-and-legacy-reuse",
+      "kind": "forward",
+      "primarySkill": "orchestrate-project-blueprint",
+      "priorResponseHash": "26edace4f1da8ee536ff38b205dbdd88cee1dcd9e069033521f4db2b3c2f7f1f",
+      "pass": true,
+      "rationale": "答覆先判斷文字工具不適合獨立前端，要求舊作品路徑/版本/試用證據後才分類複用，並保留原型與真實宿主門。新合同只是要求這些舊作品在當前雲端或本機任務中實際可見。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Evaluate the frontend host surface against core interaction value, explicitly recommend against an unsuitable independent UI with a lighter fallback and reopen conditions, preserve prototype and real-host gates if the driver overrides, and inspect actual stable legacy artifacts before classifying reuse.",
+      "priorAssessmentRationale": "答覆明確不推薦獨立前端，給文字優先的輕量替代與重開條件；舊作品先要路徑/版本/實證再分複用類別，堅持獨立前端時保留原型與實機門。"
+    },
+    {
+      "id": "mirror-vibe-code-growth-recheck",
+      "kind": "forward",
+      "primarySkill": "reflect-on-vibe-code-growth",
+      "priorResponseHash": "73b3588ef17d6917687354ce310fd9170579cf01b329eaa3c78d29b61357e380",
+      "pass": true,
+      "rationale": "答覆要求當前可訪問證據、校驗舊鏈和脫敏追加三檔案，缺履歷根時不報評分或已儲存；Chat/Codex 口徑與人驗收分開。新增合同對雲端可見檔案及持久寫入的核實與之相容。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "有界長任務與恢復"
+      ],
+      "originalCriterion": "Reassess the complete current capability network without treating prior scores as anchors, including deep thinking across social issues, future outlook, observed feedback, project structure, planning, and technical discussion; upstream architecture through original design or demonstrated understanding and application; and innovation through project transformation, wheel reuse, optimization, upgrades, and reference-material use. Separate exact measurements, user reports, estimates, behavioral scores, and unverifiable claims, keep Codex and Chat token scopes separate, map changed rubric dimensions before numeric deltas, return a standalone detailed text assessment plus the seven-part report, preserve the original compact Vibe Code capability-cockpit visual language instead of a TavernWeave tutorial shell, make the core, every capability cluster, and every dimension a full-hit-area native button, validate the existing immutable chain, and append redacted hashed record, report, and assessment files without overwriting history.",
+      "priorAssessmentRationale": "修訂具體覆蓋深度思考、上游架構和創新的評價面，區分 exact/自報/估算/行為評分/不可核驗及 Codex/Chat Token 口徑；保留可比維度對映、詳細文字和七章報告，寫明駕駛艙視覺、全節點原生按鈕及脫敏追加三件檔案分別雜湊。無當前材料時未虛報評分或儲存。"
+    },
+    {
+      "id": "mirror-text-assessment-only",
+      "kind": "forward",
+      "primarySkill": "reflect-on-vibe-code-growth",
+      "priorResponseHash": "6fa68ac1c81cd58247eab9f3751a570c673d38cf62a5f54d0ef14f063e6261dc",
+      "pass": true,
+      "rationale": "答覆按只要文字的請求給可複製完整表單，明確本輪沒有專案證據、不能評分或儲存；六道門和 Token 口徑分開。雲端無可寫目錄時這種訊息交接正是新合同允許的有限成果。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "有界長任務與恢復"
+      ],
+      "originalCriterion": "Produce one standalone detailed Markdown assessment from the same structured evidence model, including evidence boundaries, the complete capability network with deep thinking, upstream architecture, and innovation, four core dimensions, token economics, six project gates, history comparability, actions, and final judgment; do not require or substitute an interactive report.",
+      "priorAssessmentRationale": "修訂答覆已成為可獨立閱讀的 Markdown 文字評估：逐項列完整能力網路的當前判斷、證據缺口、限制與取證動作，並另述四核心、Token 經濟、六門、歷史可比性、下一步和最終判斷；缺證據處明確不可評分且未強行生成互動報告。"
+    },
+    {
+      "id": "rewrite-one-shot-light",
+      "kind": "forward",
+      "primarySkill": "rewrite-natural-prose",
+      "priorResponseHash": "b939177f10ac5a8848c9e94b8501b4c711b099a378028cb59cab2a74db9956f2",
+      "pass": true,
+      "rationale": "答覆直接完成一句話輕潤色，保留三種格式和不能離線同步的否定事實，沒有要求檔案寫入或開啟持續模式。新外掛入口不會讓純文字任務多出持久化門。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置"
+      ],
+      "originalCriterion": "Return one light revision directly, preserving 3 formats and the lack of offline sync; do not activate continuous mode or demand a file-write intake.",
+      "priorAssessmentRationale": "直接給出一版自然句，保留 3 種格式和暫不支援離線同步，刪去空泛結語；未開啟持續模式或設定檔案門。"
+    },
+    {
+      "id": "rewrite-three-strengths",
+      "kind": "forward",
+      "primarySkill": "rewrite-natural-prose",
+      "priorResponseHash": "2f105f1a28008103202b8dde7c335b1adb0b0ee2d9db4cd2945caf5827aaf398",
+      "pass": true,
+      "rationale": "答覆因缺原文不捏造三版成稿，說明輕潤色、結構改寫和深度重寫各自邊界，並保護事實、否定和技術片段。雲端也只需已提供的文字即可開始。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置"
+      ],
+      "originalCriterion": "Distinguish sentence polish, reordered structure, and rebuilt expression; retain all facts, negation, constraints and uncertainty instead of inventing vivid details.",
+      "priorAssessmentRationale": "原說明未提供，答覆沒有虛構成稿；三檔分別限定句面清理、結構重排、表達重建，明確保留事實、數字、否定、限制、不確定性及受保護技術片段。"
+    },
+    {
+      "id": "rewrite-character-voices",
+      "kind": "forward",
+      "primarySkill": "rewrite-natural-prose",
+      "priorResponseHash": "0012db9104feee0d805632a7296ffff803dd39ce438cd739fa2b43106d4c073d",
+      "pass": true,
+      "rationale": "答覆要求原段落後才成稿，明確保留寡言和直率兩種聲音，不自添動作或動機。共享雲端合同不改變創作正文約束，也不要求額外本機工具。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置"
+      ],
+      "originalCriterion": "Follow the existing genre and character voices; do not impose one colloquial voice, universal banned words, or new actions and motives.",
+      "priorAssessmentRationale": "原段落缺失時索取文字，並具體承諾保留寡言與直率兩種聲音、既有事實和視角，不以口語化或添動作替代精修。"
+    },
+    {
+      "id": "rewrite-protected-mixed",
+      "kind": "forward",
+      "primarySkill": "rewrite-natural-prose",
+      "priorResponseHash": "8f6789afe20c44624b14ff8a8aea38b97291f3caadbca42b3a965a1cb393ac8e",
+      "pass": true,
+      "rationale": "答覆限定 JSON 正文欄位並要求解析、結構和受保護字串逐字比對；缺原 JSON 時不稱已儲存。當前宿主若無檔案或解析工具，還須按新合同標明該驗證未執行。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Identify the prose field, preserve protected literals and every other structural field, parse the output and compare untouched values and protected spans.",
+      "priorAssessmentRationale": "答覆要求實際 JSON，限定僅正文字串，解析後核對結構與所有列明的宏、變數、EJS、正則和指令碼原樣，並回查數字與否定；沒有材料時沒有偽造改稿。"
+    },
+    {
+      "id": "rewrite-task-output-and-exit",
+      "kind": "forward",
+      "primarySkill": "rewrite-natural-prose",
+      "priorResponseHash": "13b6d587ed924f7f59492b4a4b74ab43b17c49784e5284f1636eabb962026c60",
+      "pass": true,
+      "rationale": "答覆明示 inherit→on→off 只屬當前任務，不寫客戶端/工作區檔案；退出後仍保留單次改稿與已授權工程。新增合同對雲端無持久偏好能力的處理與之一致。",
+      "relevantNewSections": [
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Track task inherit/on/off explicitly; cover daily explanations lightly, stop continuous refinement on the later direct exit, preserve persistent files and permit subsequent one-shot requests.",
+      "priorAssessmentRationale": "修訂明確本任務 inherit→on→off 狀態、退出後持續精修停止且不改持久規則，並說明 off 後單次“洗稿這段”仍可執行且保持 off；與 rewrite-natural-prose 的狀態合同一致。"
+    },
+    {
+      "id": "rewrite-workspace-persistence",
+      "kind": "forward",
+      "primarySkill": "rewrite-natural-prose",
+      "priorResponseHash": "eb37202c454e16cac5a05538f648d4857d03da60fcb4c439b7588e4f4517d3bc",
+      "pass": true,
+      "rationale": "答覆只在實際 Codex 工作區識別非空 AGENTS.override 與備用檔案鏈，先預覽受控區塊再寫，檔案回讀和新任務載入另驗。新合同使這段本機流程僅在可見有效目標時適用，不能照搬到 dots 雲端。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Resolve the effective Codex or Claude workspace instruction target, show scope/path/owned block diff, and wait for approval of that exact preview before the self-contained manager writes.",
+      "priorAssessmentRationale": "答覆先識別 Codex 有效指令鏈，預覽實際目標與受控區塊，等待針對該差異的確認後寫入和回讀，並留新任務載入驗證。"
+    },
+    {
+      "id": "rewrite-client-persistence-and-status",
+      "kind": "forward",
+      "primarySkill": "rewrite-natural-prose",
+      "priorResponseHash": "9e43502ec5815c085c0c1ee5b72e2dd79cf1182f03db2c28ca9ca3e7818b1f6c",
+      "pass": true,
+      "rationale": "答覆要求實際客戶端目標與預覽，隨後分別報告任務、工作區、全域性檔案和新任務載入；沒有目標時不報已開啟。新增合同把這套持久化限定為可核實的本機適配。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Preview the actual client target separately from workspace rules, require concrete consent, and distinguish task state, both persistent scopes and unverified host loading.",
+      "priorAssessmentRationale": "答覆先找客戶端有效目標、預覽區塊和備份，具體同意後寫入回讀；狀態分列任務、工作區、客戶端和新任務宿主載入，符合持久模式職責。"
+    },
+    {
+      "id": "rewrite-scope-disable",
+      "kind": "forward",
+      "primarySkill": "rewrite-natural-prose",
+      "priorResponseHash": "723a11d3e8aabf02606cf44cf07e6e3b7af50f96e81ce49fbb13a20f819474ce",
+      "pass": true,
+      "rationale": "答覆只刪除工作區受控洗稿塊，保留客戶端規則與其他位元組，並要求目標路徑、預覽和回讀；沒有路徑時不虛報已關閉。雲端無有效本機檔案時不能執行此本機步驟，舊答覆未聲稱已執行。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Preview and remove only the workspace owned block; retain unrelated bytes and client policy, then report whether another scope still applies.",
+      "priorAssessmentRationale": "答覆限定刪除工作區受控區塊，保留客戶端規則和其他位元組，先預覽/備份再用當前令牌執行並回讀，還分列其他作用域狀態。"
+    },
+    {
+      "id": "quality-full-scan-inventory",
+      "kind": "forward",
+      "primarySkill": "code-quality-workflow",
+      "priorResponseHash": "a0fc1ca2798aa51dd7b117270c4f04394e559ead5143c60780fbb542483dfd87",
+      "pass": true,
+      "rationale": "答覆把全量審查限定只讀，要求專案根和工作樹快照，覆蓋已讀/部分/未讀/排除並保留缺口。新合同要求雲端實際可訪問的工作區，缺檔案時也不能把舊計劃報成全量已審。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Use full-scan/general, inventory the agreed snapshot, review files by their actual roles, record exclusions and incomplete coverage, and remain read-only.",
+      "priorAssessmentRationale": "明確 full-scan/general 只讀，納入配置、測試、介面、遷移和鎖檔案；按已讀/部分/未讀/排除記錄覆蓋並不以綠燈冒充全量。"
+    },
+    {
+      "id": "quality-software-architecture",
+      "kind": "forward",
+      "primarySkill": "code-quality-workflow",
+      "priorResponseHash": "cc1cafad40afc7af48698f2114ebd0c6cb2ac539f202b4166d657de8e85b047d",
+      "pass": true,
+      "rationale": "答覆先索取專案根與版本，圍繞一條真實核心鏈追所有權、API 合同和生命週期，並明確熱點掃描不等於全倉覆蓋。雲端沒有專案檔案時也不會憑外掛入口生成發現。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Use architecture-hotspot-scan/architecture, trace ownership, dependencies, data flow, contracts and lifecycle with source evidence; do not claim full coverage.",
+      "priorAssessmentRationale": "選 architecture-hotspot-scan/architecture，沿核心操作追入口、擁有者、消費者與依賴；新增公開 API 輸入輸出/錯誤/版本合同和初始化至關閉的清理檢查，明確不等於全倉覆蓋。"
+    },
+    {
+      "id": "quality-card-architecture",
+      "kind": "forward",
+      "primarySkill": "code-quality-workflow",
+      "priorResponseHash": "e802d17f79a67db1fd7c9dfebc239a4461008d417d2ca14bb49fe5f7c2a387ed",
+      "pass": true,
+      "rationale": "答覆按純文字卡的創作權威、人物關係、世界書與源產物追蹤，只讀且缺卡時不編造發現；MVU/獨立前端未被當缺陷。新增宿主合同隻影響資料和工具是否可見。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Review creative authority, relationships, worldbook organization, prompt responsibilities and source/artifact links only where present; absence of optional MVU/frontend is not a defect.",
+      "priorAssessmentRationale": "修訂把現有創作權威、人物身份與角色間關係的定義歸屬及開場/世界書一致性納入只讀架構審查，同時保留提示詞、源產物和可選 MVU/前端邊界。原關係與權威缺口已補齊。"
+    },
+    {
+      "id": "quality-mixed-full-architecture",
+      "kind": "forward",
+      "primarySkill": "code-quality-workflow",
+      "priorResponseHash": "7f67f659ddfe1a523415794ccbf6f75063f73838daeb71e3bb16b9b124551079",
+      "pass": true,
+      "rationale": "答覆把卡、stat_data、訊息樓層和前端串成待證的結構圖，未見材料標待核，建議不冒充授權補丁。新合同要求真實工作區與證據分層，正好防止雲端空檔案審查被宣稱完成。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Use full-scan/architecture, review software and card contracts together, trace canonical state through projections, and retain coverage and staged recommendations.",
+      "priorAssessmentRationale": "修訂答覆明確 full-scan/architecture 的只讀混合審查，要求畫出軟體、卡片和 stat_data 投影/樓層/UI 的當前關係並標待核邊，保留覆蓋表與 P0–P3 發現；分階段建議明確只是後續候選，不冒充已授權補丁。"
+    },
+    {
+      "id": "quality-coverage-merge-legacy",
+      "kind": "forward",
+      "primarySkill": "code-quality-workflow",
+      "priorResponseHash": "3136818fe035c8e4f0390e38a6cc8f64d6606e66ece91d01f86f167cce0a162f",
+      "pass": true,
+      "rationale": "答覆要求兩份實際報告與快照，保留舊發現、unrecorded 覆蓋、同路徑相反狀態和來源，不虛報已合併。雲端續接時新合同同樣要求當前版本和真實產物回讀。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "有界長任務與恢復"
+      ],
+      "originalCriterion": "Keep legacy findings and CLI formats, merge exact coverage duplicates, retain reasons/evidence/conflicts, show legacy coverage as unrecorded, and infer no complete inventory.",
+      "priorAssessmentRationale": "保留舊 CLI 與發現格式，缺 coverage 標 unrecorded；按 path/status/reason/evidence 精確去重並保留來源，同路徑相反狀態並存列衝突，不推成完整盤點。"
+    },
+    {
+      "id": "soul-killer-full-findings",
+      "kind": "forward",
+      "primarySkill": "activate-tavernweave-soul",
+      "priorResponseHash": "17e51f50ccfcaa9ecc5b2fc7710be85fddb686e11e60fdd9b356028acb3aa224",
+      "pass": true,
+      "rationale": "答覆將人格限定當前任務，只把最多三項用於開頭摘要，完整五條發現仍需原始證據，當前不偽稱已核實；審查保持只讀。雲端外掛不會讓 Soul 擴大寫入權或補齊缺失倉庫。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Activate the disclosed Soul persona and route full-scan/architecture to code-quality-workflow; at most three opening summary points must not truncate any complete findings or severity.",
+      "priorAssessmentRationale": "primarySkill 已改為 activate-tavernweave-soul；正文披露強尼·銀手只是模式內同人彩蛋人格，審查路由給 code-quality-workflow，按 full-scan/architecture 保留五條完整發現而開頭摘要不超過三條。符合 Soul 與全量報告合同。"
+    },
+    {
+      "id": "guidance-global-without-modes",
+      "kind": "forward",
+      "primarySkill": "orchestrate-project-blueprint",
+      "priorResponseHash": "b1608f27d96c92e47ab26cb59e686e1d099717360927047cec73a7f3fbdcb261",
+      "pass": true,
+      "rationale": "答覆沿現有需求/設計/NEXT 規劃網頁首版，但因專案檔案未給不填進度或另造藍圖；自動、瀏覽器與使用者試用分門。大白話不依賴 Soul/洗稿或本機偏好寫入。",
+      "relevantNewSections": [
+        "使用現有許可權與資料",
+        "有界長任務與恢復",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Explain user impact, choices, evidence and next steps in plain language without mode activation, automatic tier assignment or an intake exam.",
+      "priorAssessmentRationale": "primarySkill 已改為 orchestrate-project-blueprint；答覆用普通網頁的首個可用流程收束目標、範圍、失敗恢復與驗收層，保持大白話且不自行啟用人格或更改引導檔。"
+    },
+    {
+      "id": "guidance-contextual-terms",
+      "kind": "forward",
+      "primarySkill": "consult-tavernweave-library",
+      "priorResponseHash": "152e61cc91bb7ff592bce2f09af60bfc313bf89dc08dd78b298183253d2875e3",
+      "pass": true,
+      "rationale": "答覆保留使用者給定 XP、EXP、QR 含義，API/Schema 只作上下文解釋，未知增減規則仍待專案定義。純文字答覆在無終端雲端任務中也可直接完成。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置"
+      ],
+      "originalCriterion": "Preserve the original terms and supplied local meanings; use concise term/plain-language/current-context mapping and retain unknowns.",
+      "priorAssessmentRationale": "答覆對 API、Schema 給了大白話，對 XP、EXP、QR 保留使用者給定的本地含義，還指出增長規則未知，符合語境術語解釋。"
+    },
+    {
+      "id": "guidance-novice-step",
+      "kind": "forward",
+      "primarySkill": "tavern-card-builder",
+      "priorResponseHash": "836c7f36110fb231f9b7089440a5fecdcd94e24fbb690e0fd9ea6da4a6d337b2",
+      "pass": true,
+      "rationale": "答覆尊重已選新人檔，先索取開場句和原卡，缺維護源可用 PNG/JSON 作為材料，後續試讀仍待實際卡。新增合同不會把已選擋位自動持久化，也不會假定雲端已看到原卡。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Explain one actionable step, its purpose, where to act and the expected result; begin from the actual available card and wish.",
+      "priorAssessmentRationale": "primarySkill 已改為 tavern-card-builder；正文仍以可取得的原卡和開場句為第一可操作步驟，解釋用途、所需材料與下一次可見改稿/試讀結果，符合新人檔及改卡主路由。"
+    },
+    {
+      "id": "guidance-entry-detailed",
+      "kind": "forward",
+      "primarySkill": "tavern-card-builder",
+      "priorResponseHash": "43ac16a495f02fdf46ccdc3b025d0c27a6c79072343dcb8059b61bf5444ac4ee",
+      "pass": true,
+      "rationale": "答覆保持入門檔，從現有卡狀態協議定義一條成長規則，區分敘事與跨回合持久需求，並列新舊聊天測試；它未因會匯入卡就改檔。雲端缺檔案時先取材料再實施。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Explain a small phase in detail, including reasons, relationships, tradeoffs and checks; importing success does not change the tier.",
+      "priorAssessmentRationale": "修訂答覆明說保持入門檔，以一條成長規則為小階段，解釋為何先查原卡狀態、怎樣串起觸發到持久顯示、純敘事與跨回合累計的取捨，以及新舊聊天的檢查方式。"
+    },
+    {
+      "id": "guidance-proficient-stage",
+      "kind": "forward",
+      "primarySkill": "sillytavern-embedded-ui",
+      "priorResponseHash": "98a47d0b1230ad239b38f0b1254b300a2b586bc2fb52b4e3e71a99f4ca170a9b",
+      "pass": true,
+      "rationale": "答覆按熟練檔給大圖入口、焦點、冪等掛載和清理路徑，因缺維護原始碼與圖源不報功能已加；目標宿主互動仍需驗證。新增合同的雲端工具核實和偏好不改檔均相符。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Group routine operations while explaining the implementation idea, ownership, effects and important decisions; retain lifecycle and validation requirements.",
+      "priorAssessmentRationale": "主技能改為 sillytavern-embedded-ui。大圖入口、彈層焦點與窄屏行為具體；補齊重複掛載、切聊天、關閉和解除安裝時事件/滾動鎖/DOM 清理，保留熟練檔節奏。"
+    },
+    {
+      "id": "guidance-veteran-routine",
+      "kind": "forward",
+      "primarySkill": "code-quality-workflow",
+      "priorResponseHash": "500e44858801d4576840bf2e684574b7d2696ab8f3276a73528ad39502409a93",
+      "pass": true,
+      "rationale": "答覆給老手檔的簡潔彙報格式，但因沒有本次 diff/檢查回執不填真實檔案或透過數值；真實 ST 仍明確待驗。新合同同樣要求雲端與本機證據分層。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Use concise plain-language results, changes and evidence; retain failures, unresolved decisions and the unverified host state.",
+      "priorAssessmentRationale": "primarySkill 已改為 code-quality-workflow；正文仍按老手檔簡潔報告改動、證據、未做的真實宿主驗證和下一道門，且不虛構本次實測結果。原主技能路由缺口已補齊。"
+    },
+    {
+      "id": "guidance-bug-all-tiers",
+      "kind": "forward",
+      "primarySkill": "sillytavern-runtime-debug",
+      "priorResponseHash": "f08593a649ba9b7fb3f694766ade59ceb22f023d6bb5e6f187ed6dd4ea2ca406",
+      "pass": true,
+      "rationale": "答覆四檔都區分返回格式報錯的實際/預期和待證原因，並要求同一宿主復現與修前後回執；沒有從報錯文字推斷根因。新增合同不會以雲端工具或離線 fixture 代替真實環境。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Every tier explains observed versus expected behavior, knowns versus hypotheses, investigation, possible repair effects and validation; do not invent a root cause.",
+      "priorAssessmentRationale": "primarySkill 已改為 sillytavern-runtime-debug；共同事實段對四檔交代實際/預期、已知與待證假設、修復影響和同環境複驗，各檔再給符合深度的調查、可能修復與檢查，未從報錯句子斷言根因。"
+    },
+    {
+      "id": "guidance-scoped-explanation-waiver",
+      "kind": "forward",
+      "primarySkill": "sillytavern-runtime-debug",
+      "priorResponseHash": "4fcd85ebff709d9e845e144d86bee427108c18fe69cf6b55dfb35ea79f739082",
+      "pass": true,
+      "rationale": "答覆把免解釋限定前一個故障，新 bug 恢復證據、原因與複驗說明且長期老手檔不變。雲端無法核實的部分仍須保留未知和未驗證。",
+      "relevantNewSections": [
+        "使用現有許可權與資料",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Honor the explicit waiver only in its stated scope, retain failures and unknowns, and resume necessary detailed explanations for the next bug without changing the tier.",
+      "priorAssessmentRationale": "主技能改為 sillytavern-runtime-debug；只對前一個故障沿用免解釋，仍保留失敗與未驗證，新 bug 恢復目標環境復現、因果解釋和複驗，老手檔不變。"
+    },
+    {
+      "id": "guidance-explicit-client-preference",
+      "kind": "forward",
+      "primarySkill": "consult-tavernweave-library",
+      "priorResponseHash": "82e85ac43fb18990a26cc866f7c88004e9ac0339f7cc04be789465fdcb4f2c77",
+      "pass": true,
+      "rationale": "答覆承認使用者已授權同一具體預覽，但缺實際檔案和令牌時不偽報永久儲存；只在本機有效目標可見時用管理器寫入回讀，新任務載入另驗。新合同明確雲端無正式儲存時不能套用此路徑。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Use the independent client preference manager with the authorized current preview, preserve neighboring rules, and report saved files separately from host loading.",
+      "priorAssessmentRationale": "答覆識別已確認的長期入門檔與具體預覽，使用獨立偏好管理器及當前令牌/備份，保留鄰近規則，檔案回讀與新任務載入分列；缺實際令牌時未偽報儲存。"
+    },
+    {
+      "id": "guidance-inherited-png-continuation",
+      "kind": "forward",
+      "primarySkill": "tavern-card-builder",
+      "priorResponseHash": "5c64a030f44da17de6e716c23d9756f5a67d11aafa1d1362e6cb9ab22858c2ae",
+      "pass": true,
+      "rationale": "答覆保留原 PNG 與聊天，區分發行載體和維護源，先解讀原卡再最小修改，舊/新聊天分別實測。雲端沒有本機 PNG 時必須先確認材料可見，舊答覆沒有虛報已檢查。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "有界長任務與恢復",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Enter takeover, inspect the actual package, explain original behavior and missing maintenance sources, retain creative decisions, isolate the first change and check old-chat compatibility.",
+      "priorAssessmentRationale": "答覆保留 PNG 與聊天，明確匯出包不等於維護原始碼，計劃先解讀原卡、鎖定首改，並分別試舊聊天和新開局相容。"
+    },
+    {
+      "id": "guidance-first-success-second-change",
+      "kind": "forward",
+      "primarySkill": "orchestrate-project-blueprint",
+      "priorResponseHash": "f3ed7645a9086ffd276585465a5e7c84e8b789ff58e62e594360ce9b0156f8ce",
+      "pass": true,
+      "rationale": "答覆沿使用者已試過的按鈕網頁做第二次位置修改，缺實際頁面檔案時不報新版已交，仍安排同入口點選、鍵盤與窄屏複測。新合同不會讓已有一次成功代替雲端當前產物驗證。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Keep the wish focused on an ordinary webpage, explain each phase, provide a runnable trial, use the trial feedback for a second scoped change and check the new result.",
+      "priorAssessmentRationale": "主技能改為 orchestrate-project-blueprint；承認題幹中已完成的可執行網頁首次試用，以按鈕位置反饋界定第二次改動，並說明沿同一執行入口交新版及點選、鍵盤、窄屏複驗。缺頁面檔案時未虛稱改動完成。"
+    },
+    {
+      "id": "guidance-upgrade-preserves-choice",
+      "kind": "forward",
+      "primarySkill": "consult-tavernweave-library",
+      "priorResponseHash": "3c4dcae80c6f09bf1234f7319c8e219702d754b3dded9030a9c21e48ce594800",
+      "pass": true,
+      "rationale": "答覆把升級和重複安裝限於題設隔離環境，前後用位元組/雜湊核對長期入門檔與自寫規則，並讓新任務載入單獨觀察；沒有證據不報安裝透過。雲端合同保留本機偏好與安裝邊界。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Preserve the independently owned preference and unrelated rules through upgrade and repeated installation, and keep host loading unverified.",
+      "priorAssessmentRationale": "答覆在隔離環境記錄偏好和自寫規則的位元組/雜湊，升級及重複安裝後核對兩者未變，並把真實新任務載入留為獨立檢查。"
+    },
+    {
+      "id": "work-library-novel",
+      "kind": "forward",
+      "primarySkill": "build-work-library",
+      "priorResponseHash": "a0cb2deba8233a15f13ceaa3dd4c7d8e2ccb37c4a611ec63c04bc5782272d9ce",
+      "pass": true,
+      "rationale": "答覆先取合法文字與代表樣本，再按真實用量回執和失敗重試有界分批，缺後臺能力時不保證關會話繼續。新合同把 dots 平臺持續性作為需觀察的能力，未改變資料庫批次合同。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "有界長任務與恢復"
+      ],
+      "originalCriterion": "Use editable Markdown with derived JSONL and optional SQLite; inspect representative samples before a corpus-bound plan.",
+      "priorAssessmentRationale": "採用可編輯 Markdown、派生 JSONL 和按需匯出，先用章節與跨階段樣本核對來源和檢索，再測 token 與重試用量後有界分批。"
+    },
+    {
+      "id": "work-library-fanwork",
+      "kind": "forward",
+      "primarySkill": "build-work-library",
+      "priorResponseHash": "141329e4973fb2a3c2cb4194c9c35324df762f3f0fd0ce233d9fabf478bb5a99",
+      "pass": true,
+      "rationale": "答覆將原作/改編/同人與確定性分欄，跨版本衝突並列，缺作品和原文時不虛構已建庫；樣本允許先人工核驗。新增雲端合同要求只用實際提供的私有或公開素材。",
+      "relevantNewSections": [
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Preserve canon/fanon, continuity, edition and evidence certainty; keep conflicting versions explicit.",
+      "priorAssessmentRationale": "將 canon/fanon 與 continuity/edition 分開，並把 confirmed/inference/uncertain 作為獨立證據確定性；跨版本衝突並列、來源位置與雜湊可回查。"
+    },
+    {
+      "id": "work-library-web",
+      "kind": "forward",
+      "primarySkill": "build-work-library",
+      "priorResponseHash": "29ba27e80abaa4d409d4e83dc3307a8899617f951c12b00ffc96dd581eb4476a",
+      "pass": true,
+      "rationale": "答覆要求作品身份後實際開啟官網等原始頁，搜尋只作線索，保留短摘錄、URL 和來源雜湊；無作品名或頁面時不偽報聯網完成。新合同進一步要求核實當前雲端瀏覽器連線是否可用。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Open actual source pages via available host tools and register bounded excerpts with provenance; record unavailable access.",
+      "priorAssessmentRationale": "場景未給作品名，答覆要求關鍵身份與範圍後才用宿主工具開啟官網等原始頁；記錄實際 URL、版本、短摘錄與雜湊，無法訪問時不造官方結論。"
+    },
+    {
+      "id": "work-library-image",
+      "kind": "forward",
+      "primarySkill": "build-work-library",
+      "priorResponseHash": "27795841945d7be45da42e29c4a39e4a8a1ce59a9f54224893e1d093dd3da7a6",
+      "pass": true,
+      "rationale": "答覆要求實際開啟原圖才寫服裝觀察，打不開只列候選；下載、裁切和分發留具體圖片授權與許可。新合同要求雲端瀏覽器及素材範圍真實可用，不會把搜尋摘要當已看圖。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Actually inspect images before visual conclusions; register reference metadata and preserve selected-material download scope.",
+      "priorAssessmentRationale": "要求實際開啟原圖才記服裝觀察，登記頁面、原圖、版本和回執；預設僅參考連結，長期下載和打包留具體選材授權。"
+    },
+    {
+      "id": "work-library-creator-pack",
+      "kind": "forward",
+      "primarySkill": "build-work-library",
+      "priorResponseHash": "8e12cfd52ce46d38b6516723dc91300bf01c730d468f1431c9531bb7d2b58949",
+      "pass": true,
+      "rationale": "答覆只從當前資料庫取開局可知條目，儲存身份、階段和來源，並把新創作鉤子單列；缺專案路徑不編造人物。新合同要求沿可見專案素材與既有索引繼續。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "使用現有許可權與資料"
+      ],
+      "originalCriterion": "Query current documents by identity, continuity and knowledge stage; retain citations and distinguish new creative additions.",
+      "priorAssessmentRationale": "答覆按開局知識階段、原作/改編/同人身份和版本篩選當前庫，條目保留 ID 與來源，新增開局鉤子單獨標本次創作；未編造缺失人物。"
+    },
+    {
+      "id": "work-library-handoff",
+      "kind": "forward",
+      "primarySkill": "build-work-library",
+      "priorResponseHash": "283577725f9cea8c9fafdc3b6aadca6ec9f77d514da5ced5c499e3b621c42c7d",
+      "pass": true,
+      "rationale": "答覆先讀人工潤色後的 Markdown/雜湊和原 active 批次，拒絕舊 base_sha256 覆蓋，reindex 與 SQLite 匯出不新增模型呼叫；未見賬本不報已續接。它直接滿足新合同的恢復核對與防重複寫入。",
+      "relevantNewSections": [
+        "有界長任務與恢復"
+      ],
+      "originalCriterion": "Read current Markdown/hash, rebuild observed edit log, resume the same batch and reject stale writes; export without a model call.",
+      "priorAssessmentRationale": "修訂明確讀取當前 Markdown/雜湊後按實際差異重建觀察性編輯日誌，不猜改稿者；繼續原 active 批次並拒絕舊 base_sha256 覆蓋，reindex 與本地匯出不新增模型呼叫。與 work-library 長任務續接合同一致。"
+    },
+    {
+      "id": "frontend-sandbox-single",
+      "kind": "forward",
+      "primarySkill": "sillytavern-embedded-ui",
+      "priorResponseHash": "055e0c61a00b126e8fed5628418703fba80f6f62712d14b2900bac32c06ed04d",
+      "pass": true,
+      "rationale": "答覆要求真實維護原始碼與三層 iframe 橋，資料注入按預覽確認寫回讀，沙盒結果之後仍留真實 ST、裝置和人工視覺門。雲端若沒有原始碼/宿主能力，新增合同要求報告缺口而不是假沙盒。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Verify source and mount topology, declare simulated coverage, prepare isolated fixtures for explicit confirmation, and retain real-host acceptance.",
+      "priorAssessmentRationale": "答覆堅持裝載真實維護原始碼，保留三層 iframe 拓撲與橋位置，宣告缺介面，資料預覽確認後注入並回讀，真實 ST 驗收另列。"
+    },
+    {
+      "id": "frontend-sandbox-joint",
+      "kind": "forward",
+      "primarySkill": "sillytavern-embedded-ui",
+      "priorResponseHash": "bbfd9cda5960d6129b3b6f8ff8e0c191991595d60f08ba10a1545289e557421f",
+      "pass": true,
+      "rationale": "答覆只裝載真實 HUD/手機/控制中心原始碼，明確未接入介面，三介面共享隔離狀態，滑條結果繫結源版本並回落複測；缺原始碼不宣稱聯合模擬已跑。真實酒館仍獨立。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Load actual modules with shared state/events, expose missing interfaces, compare each mapped view, isolate UI parameters and export source-bound results.",
+      "priorAssessmentRationale": "要求裝載真實 HUD/手機/控制中心原始碼並列明入口及雜湊，公開未接入介面和能力缺口；三介面共用隔離狀態/事件，場景與滑條引數匯出繫結維護源及測試副本版本/SHA-256，保留 ST 實測門。"
+    },
+    {
+      "id": "frontend-sandbox-skip",
+      "kind": "forward",
+      "primarySkill": "sillytavern-embedded-ui",
+      "priorResponseHash": "066f779f9f47acd353fbe38c90471c61c58b68313848cb33395c07f285bf1d01",
+      "pass": true,
+      "rationale": "答覆沿用已選跳過沙盒，不再建沙盒，按現有前端維護源做構建和真實 ST 檢驗，缺續接指標時不報構建版本。新增合同同樣要求先讀原專案唯一續接源。",
+      "relevantNewSections": [
+        "使用現有許可權與資料",
+        "有界長任務與恢復"
+      ],
+      "originalCriterion": "Reuse skip decision, create no sandbox, and preserve existing development and runtime checks without marking failure.",
+      "priorAssessmentRationale": "答覆沿用跳過決定，不建立沙盒，也不把跳過記失敗；繼續原維護源構建和真實 ST 驗證且未冒充已完成。"
+    },
+    {
+      "id": "project-board-evidence-percentages",
+      "kind": "forward",
+      "primarySkill": "orchestrate-project-blueprint",
+      "priorResponseHash": "fbe0fc8e05af4a0f1f2ea9133994cc1e2ccd00bcb0d7599b84b411a1ccbf5a4b",
+      "pass": true,
+      "rationale": "答覆先讀總設計/藍圖/NEXT 和證據，用已確認範圍算實現與驗收兩類比例，來源或證據變動時暫停有效數字；缺檔案不造進度。新合同的唯一指標和分層證據要求與之相容。",
+      "relevantNewSections": [
+        "使用現有許可權與資料",
+        "有界長任務與恢復",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Inspect existing authority and NEXT, reuse approved scope, initialize only a missing project-local board, calculate separate weighted implementation and acceptance progress from checkpoints and evidence, keep parked ideas out of the denominator, and expose stale sources and missing files.",
+      "priorAssessmentRationale": "修訂答覆將 parked 與未採納想法排除當前分母，按已確認範圍與證據分算實現率/驗收率；來源變化標過期，證據缺失或雜湊變化暫停有效百分比，且把真實宿主與駕駛員等門分列。"
+    },
+    {
+      "id": "project-board-persisted-feedback",
+      "kind": "forward",
+      "primarySkill": "orchestrate-project-blueprint",
+      "priorResponseHash": "1aab24ffb59b981d9a4c1b9193ed24eb79b9bd9fe2775066be1ffa7f50d55174",
+      "pass": true,
+      "rationale": "答覆把反饋寫在專案內並用 revision 防雙標籤覆蓋，原子寫入後回讀；只有靜態頁面時明確只是草稿而非已儲存。雲端無可寫工作區時新增合同同樣禁止虛報持久化。",
+      "relevantNewSections": [
+        "先認清任務實際執行位置",
+        "有界長任務與恢復"
+      ],
+      "originalCriterion": "Use project-local feedback files with version and source-context checks, atomic save and readback, preserve originals and history, keep failed or conflicting drafts, and distinguish static draft export from persistent save.",
+      "priorAssessmentRationale": "明確專案內 progress/feedback.json 與 boardRevision、baselineId、sourceHashes，保留原話和歷史；雙標籤按版本衝突處理，成功原子落盤並寫後回讀，靜態頁草稿匯出不冒充持久儲存。"
+    },
+    {
+      "id": "project-board-blocking-bug-retest",
+      "kind": "forward",
+      "primarySkill": "orchestrate-project-blueprint",
+      "priorResponseHash": "c9c2f397f23a2ae2d1e3776c7d7df216f398109a394e21ee866f284176e36b82",
+      "pass": true,
+      "rationale": "答覆保留實現證據但把阻斷 Bug 的驗收退回待複測，NEXT 記錄複測入口，關閉需實際複測檔案而非反饋原話。新合同不會讓雲端自動檢查替代真實宿主或駕駛員門。",
+      "relevantNewSections": [
+        "有界長任務與恢復",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Keep implementation evidence separate, retain acceptance gaps for confirmed blocking bugs including deferred fixes, require retest state, resolution and existing evidence files for closure, and do not promote a feedback record to driver acceptance.",
+      "priorAssessmentRationale": "答覆保留已實現證據，把阻斷 Bug 關聯檢查點並退回待複測；延後修復仍留缺口，關閉需 resolution、verification 與實際檔案，進度兩類比例分開且未把反饋當駕駛員驗收。"
+    },
+    {
+      "id": "project-board-design-next-sync",
+      "kind": "forward",
+      "primarySkill": "orchestrate-project-blueprint",
+      "priorResponseHash": "3d54cdcd4ff57964ffd254060424331ae27a7c0c301ec238d76102e34934c78c",
+      "pass": true,
+      "rationale": "答覆沿總設計範圍塊和 NEXT 狀態塊生成有版本/雜湊約束的投影，來源改變即拒舊計劃，缺實際專案檔案不報進度。它沒有另建雲端狀態權威，實機與駕駛員門也分列。",
+      "relevantNewSections": [
+        "使用現有許可權與資料",
+        "有界長任務與恢復",
+        "交付時分別報告（末段）"
+      ],
+      "originalCriterion": "Opt into exact design scope and NEXT state blocks using the actual project paths, derive the board from those sources, review a plan bound to board/feedback revisions and source/evidence hashes before application, preserve history, and keep real-host and driver gates separate.",
+      "priorAssessmentRationale": "修訂答覆將計劃繫結畫板與反饋 revision、全部來源及證據檔案 SHA-256，任一變化拒絕舊計劃；同步後儲存舊值歷史並回讀，真實宿主與駕駛員門獨立呈現，材料缺失時不虛報進度。"
+    }
+  ]
+}

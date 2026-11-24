@@ -1,0 +1,25 @@
+{
+  "name": "codex-attachment-manager",
+  "version": "0.11.5",
+  "description": "For Codex tasks with many images: earlier images go out as short placeholders instead of being sent again with every message, the model fetches the original back by its ID (also after compaction), and the prompt cache keeps working.",
+  "author": {
+    "name": "chipfighter"
+  },
+  "homepage": "https://github.com/chipfighter/context-attachment-manager",
+  "repository": "https://github.com/chipfighter/context-attachment-manager",
+  "license": "MIT",
+  "keywords": ["codex", "images", "multimodal", "context", "context-management", "attachments", "prompt-caching", "mcp-app", "proxy"],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Context Attachment Manager",
+    "shortDescription": "Stop sending earlier images again with every message",
+    "longDescription": "In a long task, Codex sends every earlier image again with each message, so a task with many images gets slow and can stop going through. This plugin numbers each image (IMG-001, IMG-002, …) and sends earlier ones as short placeholders instead. When the model needs an earlier image again, it fetches the original back by its ID, also after the task is compacted. A placeholder is written once and then stays the same, so the earlier conversation is still read from the prompt cache. Nothing is deleted, and all data stays on your machine; nothing is sent anywhere besides the requests Codex already makes to your configured model provider. Once enabled, it works by itself; in the panel you can also find an image by a detail you remember, keep a reference image in every turn, or turn off Auto-select and choose the images yourself. After installing, open the panel (side panel → New tab → Plugins and MCPs → Context Assets), click \"Enable plugin\", then restart Codex. Before removing the plugin, click \"Disable plugin\" in the panel first. The panel follows Codex's language: English, Simplified Chinese or Japanese.\n\n長任務裡，Codex 每發一條訊息，都會把之前所有的圖再發一遍，圖一多，任務就越來越慢，最後可能發不出去。這個外掛給每張圖編號（IMG-001、IMG-002……），之前的圖改成發一段簡短的佔位。模型需要再看之前的某張圖時，按編號取回原圖，任務壓縮之後也可以。佔位符只寫一次，之後不再變，之前的對話照常從快取（prompt cache）讀取。什麼都不刪，所有資料只留在本機；除了 Codex 本來就要發給你配置的模型服務的請求，不向任何地方傳送資料。啟用後自動生效；在面板裡還可以憑印象找圖，讓重要的參考圖每輪都發，或者關掉自動選圖、自己決定帶哪些圖。裝好後打開面板（側邊面板 → 新建標籤頁 → 外掛和 MCP → 上下文素材），點“啟用外掛”，再重啟 Codex。移除外掛前，請先在面板裡點“停用外掛”。面板跟隨 Codex 的介面語言，支援簡體中文、英文和日文。",
+    "developerName": "chipfighter",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://github.com/chipfighter/context-attachment-manager",
+    "brandColor": "#339CFF",
+    "logo": "./assets/logo.png",
+    "composerIcon": "./assets/logo.png"
+  }
+}

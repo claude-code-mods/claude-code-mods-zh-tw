@@ -1,0 +1,455 @@
+import { ledgerActions } from './row-actions'
+import { clipLabel } from '../../hooks/text'
+import { allRows, replyHint, ROW_COPY, shortAgo } from '../../hooks/rows'
+import { Sep } from './tab-parted'
+import { drawnLists, rowAfterClose } from '../../hooks/action-plan'
+import type { AnswerRow } from '../../hooks/action-plan'
+import { isRowTab } from '../../hooks/tabs'
+import { feedbackOf } from '../../hooks/feedback'
+import { earliestOf, isDrawnInPlace, SETTLED_MS } from '../../hooks/timing'
+import type { Feedback, PressState } from '../../hooks/feedback'
+import type { RowView } from '../../hooks/rows'
+import { actionId } from '../../hooks/press-labels'
+import { stepEffects } from '../../hooks/help-steps'
+import { isPressConfirmed, noteText } from '../../hooks/press-reducer'
+import type { Effect } from '../../hooks/press-reducer'
+import { pendingResult } from '../../hooks/pressed'
+import type { RowPress } from '../../hooks/presses'
+import { checkActions, threadActions } from '../../hooks/pr-tab'
+import {
+  checkRowText,
+  prBlockRows,
+  PR_QUOTE_CHARS,
+  splitFollowUps,
+  prCheckId,
+  prMarkId,
+  prThreadId,
+  threadRowText,
+} from '../../hooks/pr-rows'
+import { prPressEffect } from '../../hooks/pr-press'
+import type { DrawnPr } from '../../hooks/pr-views'
+import type { PrAction, PrPress } from '../../hooks/pr-press'
+import { commentParts, readableComment, threadWhere } from '../../hooks/prs'
+import type { Finding, PrCheck, PressKind, PrThread, PrView, Tab } from '../../types'
+import type { TabView as View } from './core'
+import type { PressReply } from './server'
+import { PRESS_TIMEOUT_MS } from '../../hooks/session-view'
+import {
+  tabState,
+  selection,
+  drafts,
+  optionsShown,
+  sending,
+  sendingSince,
+  errors,
+  notes,
+  copies,
+  undoing,
+} from './tab-state'
+import type { Key, Row, Lists } from './tab-state'
+import { isTabInPlace } from './settle'
+import { listInput } from './list-input'
+import { later, callTool } from './tab-host'
+import { revealSelected, drawIn } from './tab-motion'
+import {
+  drawnTab,
+  tabWaits,
+  shownSettled,
+  open,
+  keepPressedOpen,
+  openRowId,
+  isOpenGuarded,
+  select,
+} from './tab-selection'
+import { applyView, replies, holds } from './tab-read'
+import { isNotSent, showCopyFallback, startTyping, discardReply, lastPressKey } from './tab-press'
+import { askTree } from './tab-ask-tree'
+import { partAttrs } from './tab-part-gap'
+import { resultHandle, inlineHtml } from './tab-parts'
+
+function isListed(v: View, id: string): boolean {
+  return (
+    allRows(v).some(r => r.id === id && r.state.is !== 'settled') ||
+    prRows(v).some(r => r.id === id) ||
+    v.prs.drawn.some(d => prMarkId(d.pr.ref) === id)
+  )
+}
+
+export async function act(
+  rowId: string,
+  press: RowPress | PrPress,
+  onSent?: () => void,
+  pending: Feedback | null = null,
+  kind: PressKind | null = null,
+) {
+  if (tabState.isDisposed) return
+  const generation = tabState.viewGeneration
+  const seq = ++tabState.requested
+  const isLatest = () => sending.get(rowId)?.seq === seq
+  if (press.action !== 'undo' && !rowId.startsWith('pr:')) keepPressedOpen(rowId)
+  const t = drawnTab()
+  const wasWaiting =
+    !!tabState.view && isRowTab(t) && tabWaits(tabState.view, t).some(r => r.id === rowId && r.isWaiting)
+  sending.set(rowId, {
+    seq,
+    since: Date.now(),
+    pending,
+    action: press.action === 'type' ? null : actionId(press),
+    lastBefore: lastPressKey(tabState.view, rowId),
+    kind,
+  })
+  errors.delete(rowId)
+  notes.delete(rowId)
+  copies.delete(rowId)
+  tabState.draw()
+  tabState.activePresses++
+  try {
+    const r = await callTool<PressReply>(
+      'inbox_press',
+      { press, thread: tabState.view?.thread, demo: tabState.isDemo, ...holds() },
+      PRESS_TIMEOUT_MS,
+    )
+    if (tabState.isDisposed || generation !== tabState.viewGeneration) return
+    if (r.copy) showCopyFallback(rowId, r.copy, isLatest)
+    if (tabState.isDisposed || generation !== tabState.viewGeneration || !isLatest()) return
+    // A new request number, so this view replaces any view a poll read while the press was out.
+    if (r.view) applyView(r.view, ++tabState.requested)
+    if (r.error && !(tabState.view && isNotSent(tabState.view, rowId))) errors.set(rowId, r.error)
+    const isConfirmed = isPressConfirmed({ error: r.error, note: r.note, isUnconfirmed: r.delivery === 'unconfirmed' })
+    // After the view, so `onSent` reads the rows as they are after the press.
+    if (isConfirmed) onSent?.()
+    if (isConfirmed && r.view && wasWaiting && tabState.typing !== rowId) openAfterClose(r.view, rowId)
+    const { note } = r
+    if (note && tabState.view && isListed(tabState.view, rowId)) {
+      notes.set(rowId, { text: noteText(), at: Date.now() })
+      drawIn(SETTLED_MS)
+      if (note === 'stale' && press.action === 'type') tabState.typing = rowId
+    } else if (note) {
+      tabState.lineNote = { text: noteText(), at: Date.now() }
+      drawIn(SETTLED_MS)
+    }
+  } catch {
+    if (tabState.isDisposed || generation !== tabState.viewGeneration || !isLatest()) return
+    errors.set(rowId, '未確認：收件箱沒有響應。')
+  } finally {
+    tabState.activePresses--
+    if (isLatest()) {
+      sending.delete(rowId)
+      tabState.draw()
+    }
+  }
+}
+
+function openAfterClose(v: View, id: string) {
+  const t = drawnTab()
+  if (!isRowTab(t) || selection[t]?.id !== id) return
+  const rows = tabWaits(v, t)
+  if (rows.find(r => r.id === id)?.isWaiting) return
+  const next = rowAfterClose(rows, id)
+  const index = next === null ? -1 : tabRows(v, t).findIndex(r => r.id === next)
+  if (next === null || index < 0) {
+    selection[t] = null
+    return
+  }
+  open(t, next, index)
+  // After the press's own draw, which draws the row open.
+  later(revealSelected, 0)
+}
+
+/**
+ * A click on a row's title: it opens a closed row, and collapses or expands the open one. `foldAll` takes the place of
+ * that collapse or expand, and is told whether the click opens.
+ */
+export function pressTitle(t: Tab, rows: Row[], index: number, foldAll?: (isOpening: boolean) => void) {
+  const v = tabState.view
+  const row = rows[index]
+  if (!v || !row) return
+  const isOpen = openRowId(rows, t, v) === row.id
+  if (isOpen && isOpenGuarded()) return
+  if (!isOpen && !v.collapsed.includes(row.id)) select(t, rows, index)
+  else if (foldAll) foldAll(!isOpen)
+  else toggleCollapse(t, row.id, index)
+}
+
+/** The collapse key: collapses or expands the row the cursor is on. */
+export function pressCollapseKey(t: Tab, rows: Row[], at: number) {
+  const row = rows[at]
+  if (row) toggleCollapse(t, row.id, at)
+}
+
+/**
+ * Collapses the row `id`, or expands it once collapsed, in this draw. The cursor stays on the row, so a collapse opens
+ * no other row, and a collapse closes the row's reply field, keeping its draft. The view drawn here counts as the
+ * newest, so no view asked for before the press replaces it. The server's answer replaces it in the order the presses
+ * were made, so an earlier collapse's answer cannot undo a later one.
+ */
+function toggleCollapse(t: Tab, id: string, index: number) {
+  const v = tabState.view
+  if (!v) return
+  const isCollapsed = !v.collapsed.includes(id)
+  if (!isCollapsed) open(t, id, index)
+  else if (selection[t]?.id !== id) selection[t] = { id, openedAt: 0, index }
+  if (isCollapsed && tabState.typing === id) tabState.typing = null
+  pressCollapse(id, isCollapsed)
+}
+
+/**
+ * Saves that the row `id` is collapsed or not, and draws it so at once, ahead of the server's answer. The save waits for
+ * `after`, and the returned promise settles when its answer is applied.
+ */
+export function pressCollapse(id: string, isCollapsed: boolean, after?: Promise<unknown>): Promise<unknown> {
+  const v = tabState.view
+  if (!v) return after ?? Promise.resolve()
+  const seq = ++tabState.requested
+  tabState.shown = seq
+  tabState.view = { ...v, collapsed: isCollapsed ? [...v.collapsed, id] : v.collapsed.filter(x => x !== id) }
+  tabState.draw()
+  const generation = tabState.viewGeneration
+  const request = {
+    press: { action: 'collapse', id, isCollapsed },
+    thread: v.thread,
+    demo: tabState.isDemo,
+    ...holds(),
+  }
+  return (
+    after
+      ? after.then(() => callTool<PressReply>('inbox_press', request))
+      : callTool<PressReply>('inbox_press', request)
+  )
+    .then(r => {
+      if (!tabState.isDisposed && generation === tabState.viewGeneration && r.view) applyView(r.view, seq)
+    })
+    .catch(() => undefined)
+}
+
+function sendReply(id: string, text: string) {
+  const draft = drafts.get(id)
+  void act(id, { action: 'type', id, text }, () => {
+    if (drafts.get(id) === draft) drafts.delete(id)
+  })
+}
+
+function rowKeys(r: RowView): { options: Key[]; keys: Key[]; more: Key[]; answerRow: AnswerRow | null } {
+  const actions = ledgerActions(r, optionsShown.has(r.id), sending.get(r.id)?.action ?? null, {
+    press: (p, kind) => {
+      const step = p.action === 'step' ? r.steps[p.step] : undefined
+      const pending: Feedback | null =
+        kind === 'local' && r.item && step
+          ? { is: 'local', result: pendingResult(stepEffects(r.item, step), Date.now()) }
+          : null
+      void act(r.id, p, undefined, pending, kind)
+    },
+    reply: () => startTyping(r.id),
+    discard: () => discardReply(r.id),
+    showOptions: () => {
+      optionsShown.add(r.id)
+      tabState.draw()
+    },
+  })
+  return actions
+}
+
+function itemRow(v: View, r: RowView): Row {
+  const isHandedOff = r.state.is === 'handedOff'
+  const id = r.id
+  const { answerRow, ...actions } = rowKeys(r)
+
+  return {
+    id,
+    view: r,
+    ...resultHandle(r),
+    ...(isHandedOff ? { fold: {} } : {}),
+    title: r.title,
+    ...(r.holdsUpLine ? { holdsUp: r.holdsUpLine } : {}),
+    age: r.at === null ? undefined : shortAgo(v.at - r.at),
+    ...askTree(r, actions.options, answerRow, isOpenGuarded),
+    ...actions,
+    typing: {
+      hint: replyHint(r, 'Codex'),
+      send: text => sendReply(id, text),
+    },
+    feedback: r.feedback,
+  }
+}
+
+function findingRow(v: View, r: RowView, f: Finding): Row {
+  const isHandedOff = r.state.is === 'handedOff'
+  const id = r.id
+
+  return {
+    id,
+    view: r,
+    ...resultHandle(r),
+    kind: f.kind,
+    ...(isHandedOff ? { fold: {} } : {}),
+    title: r.title,
+    age: r.at === null ? undefined : shortAgo(v.at - r.at),
+    body: () => (
+      <div>
+        <p class="pre-line" {...partAttrs('title', 'detail')}>
+          {inlineHtml(r.detail ?? '')}
+        </p>
+        {f.path ? (
+          <p {...partAttrs('detail', 'file')}>
+            <span class="muted">{ROW_COPY.relevantFile}</span>
+            <code title={f.path}>{r.fileName}</code>
+          </p>
+        ) : null}
+      </div>
+    ),
+    bodyEnd: () => (f.path ? 'file' : 'detail'),
+    ...rowKeys(r),
+    typing: {
+      hint: replyHint(r, 'Codex'),
+      send: text => sendReply(id, text),
+    },
+    feedback: r.feedback,
+  }
+}
+
+export const pressesOf = (v: View): PressState => ({ lastActions: v.lastActions, turns: v.turns, now: v.at })
+
+export function prKey(rowId: string, pr: PrView, a: PrAction): Key {
+  const effect = prPressEffect(pr, a.press)
+  const pending = effect ? pendingLocal(effect) : null
+
+  return {
+    ...(a.hotkey ? { hotkey: a.hotkey } : {}),
+    label: a.label,
+    emphasis: a.emphasis,
+    ...(a.icon ? { icon: a.icon } : {}),
+    ...(a.press.action === 'pr-dismiss' ? { isDismiss: true } : {}),
+    ...(a.isOut || sending.get(rowId)?.action === a.press.action ? { isOut: true } : {}),
+    run: () => void act(rowId, a.press, undefined, pending, a.kind),
+  }
+}
+
+export function pendingLocal(effect: Effect): Feedback {
+  return { is: 'local', result: pendingResult([effect], Date.now()) }
+}
+
+function prThreadRow(v: View, pr: PrView, t: PrThread): Row {
+  const id = prThreadId(pr, t)
+  const text = threadRowText(pr, t, v.lastActions)
+  const press =
+    (action: 'thread-address' | 'thread-draft' | 'thread-discuss' | 'thread-open', pending: Feedback | null = null) =>
+    () =>
+      void act(id, { action, ref: pr.ref, thread: t.id }, undefined, pending)
+  const where = threadWhere(t)
+  const { rest } = commentParts(t.body)
+  const actions = splitFollowUps(threadActions(pr, t, pressesOf(v)))
+  const openEffect = prPressEffect(pr, { action: 'thread-open', ref: pr.ref, thread: t.id })
+
+  return {
+    id,
+    handle: text.mark.text,
+    handleTone: text.mark.tone ?? undefined,
+    ...(text.mark.isRunning ? { isHandleRunning: true } : {}),
+    isMarkDone: text.mark.isDone,
+    ...(text.fold ? { fold: text.fold } : {}),
+    title: text.title,
+    meta: text.meta,
+    age: t.at === null ? undefined : shortAgo(v.at - t.at),
+    body: () => (
+      <div>
+        {rest ? <p class="quote">{inlineHtml(clipLabel(rest, PR_QUOTE_CHARS))}</p> : null}
+        <p class="muted parted">
+          <span class="part">
+            <button type="button" class="link" onClick={press('thread-open', openEffect && pendingLocal(openEffect))}>
+              {where}
+            </button>
+          </span>
+          <span class="part">
+            <Sep />@{t.author}
+          </span>
+        </p>
+        {t.reply ? (
+          <p class="quote">
+            <b>@{t.reply.author}:</b> {inlineHtml(clipLabel(readableComment(t.reply.body), PR_QUOTE_CHARS))}
+          </p>
+        ) : null}
+      </div>
+    ),
+    options: [],
+    keys: actions.keys.map(a => prKey(id, pr, a)),
+    more: actions.more.map(a => prKey(id, pr, a)),
+    feedback: feedbackOf(id, v.lastActions[id], undefined, v.turns, v.at),
+  }
+}
+
+function prCheckRow(v: View, pr: PrView, c: PrCheck): Row {
+  const id = prCheckId(pr, c)
+  const text = checkRowText(pr, c)
+  const ran = text.meta
+
+  return {
+    id,
+    ...(text.fold ? { fold: text.fold } : {}),
+    handle: text.mark.text,
+    handleTone: text.mark.tone ?? undefined,
+    isMarkDone: text.mark.isDone,
+    ...(text.lead ? { lead: `${text.lead} /` } : {}),
+    title: text.title,
+    meta: ran,
+    age: c.finishedAt === undefined ? undefined : shortAgo(v.at - c.finishedAt),
+    body: () => <div class="muted">{ran}</div>,
+    options: [],
+    keys: checkActions(pr, c, pressesOf(v)).map(a => prKey(id, pr, a)),
+    more: [],
+    feedback: feedbackOf(id, v.lastActions[id], undefined, v.turns, v.at),
+  }
+}
+
+export type PrBlockPlan = DrawnPr & ReturnType<typeof prBlockRows<Row>>
+
+export function prPlan(v: View): { blocks: PrBlockPlan[]; rows: Row[] } {
+  const blocks: PrBlockPlan[] = []
+  const now = Date.now()
+  const placing = {
+    shownSince: tabState.shownSince,
+    seen: tabState.seen,
+    input: listInput(now),
+    now,
+    pressOutSince: earliestOf([v.prs.pressOutSince, sendingSince()]),
+  }
+  for (const d of v.prs.drawn) {
+    const id = prMarkId(d.pr.ref)
+    const isShown =
+      d.state.is === 'settled' ? isTabInPlace(id, d.state, placing) : isDrawnInPlace(d, tabState.shownSince)
+    if (!isShown && !undoing.has(id)) continue
+    blocks.push({
+      ...d,
+      ...prBlockRows(d.pr, d.state.is === 'settled', {
+        thread: t => prThreadRow(v, d.pr, t),
+        check: c => prCheckRow(v, d.pr, c),
+      }),
+    })
+  }
+
+  return { blocks, rows: blocks.flatMap(b => b.rows) }
+}
+
+function prRows(v: View): Row[] {
+  return prPlan(v).rows
+}
+
+export function tabRows(v: View, t: Tab): Row[] {
+  return t === 'prs' ? prRows(v) : listsOf(v, shownSettled(v)).byTab[t]
+}
+
+export function listsOf(v: View, drawn: ReadonlySet<string>): Lists {
+  const held = replies()
+
+  return drawnLists(
+    v,
+    id => drawn.has(id),
+    r =>
+      r.state.is === 'held' && !(r.id in held)
+        ? null
+        : r.item
+          ? itemRow(v, r)
+          : r.finding
+            ? findingRow(v, r, r.finding)
+            : null,
+  )
+}

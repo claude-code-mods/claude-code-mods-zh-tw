@@ -1,0 +1,207 @@
+#!/usr/bin/env bash
+# Fetch all review threads, reviews, issue comments, commits, head-commit checks,
+# and metadata for a GitHub PR. Emits a single merged JSON document on stdout:
+#   {
+#     "meta":          { title, url, headRefName, headRefOid, baseRefName, body },
+#     "reviewThreads": [ ... ],
+#     "reviews":       [ ... ],   # includes submittedAt
+#     "issueComments": [ ... ],   # PR conversation comments; author, body, createdAt, updatedAt, url
+#     "commits":       [ ... ],   # oid, abbreviatedOid, message, committedDate
+#     "checks":        [ ... ]    # head commit's check runs and commit statuses;
+#                                 # name, app, state, conclusion, title, detailsUrl
+#   }
+#
+# Each check's "state" is "failing", "pending", or "passing". Skipped check runs are
+# left out.
+#
+# Paginates reviewThreads, reviews, issue comments, and commits to avoid silent
+# drops on long PRs. For any thread whose inner comments exceed the initial page,
+# walks the remaining comments via node(id:) and merges them back into the thread.
+#
+# Fetched values go to jq on stdin, since a long PR overflows an argument.
+#
+# Usage: fetch-pr-data.sh <owner> <repo> <pr_number>
+
+set -euo pipefail
+
+if [ "$#" -ne 3 ]; then
+  echo "Usage: $0 <owner> <repo> <pr_number>" >&2
+  exit 2
+fi
+
+owner="$1"
+repo="$2"
+pr="$3"
+
+meta_query=$(cat <<'GRAPHQL'
+query($owner: String!, $repo: String!, $pr: Int!) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $pr) { title url headRefName headRefOid baseRefName body }
+  }
+}
+GRAPHQL
+)
+
+threads_query=$(cat <<'GRAPHQL'
+query($owner: String!, $repo: String!, $pr: Int!, $endCursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $pr) {
+      reviewThreads(first: 100, after: $endCursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id isResolved isOutdated
+          comments(first: 100) {
+            pageInfo { hasNextPage endCursor }
+            nodes { author { login } body path line originalLine diffHunk }
+          }
+        }
+      }
+    }
+  }
+}
+GRAPHQL
+)
+
+reviews_query=$(cat <<'GRAPHQL'
+query($owner: String!, $repo: String!, $pr: Int!, $endCursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $pr) {
+      reviews(first: 100, after: $endCursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes { author { login } body state submittedAt }
+      }
+    }
+  }
+}
+GRAPHQL
+)
+
+issue_comments_query=$(cat <<'GRAPHQL'
+query($owner: String!, $repo: String!, $pr: Int!, $endCursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $pr) {
+      comments(first: 100, after: $endCursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes { author { login } body createdAt updatedAt url }
+      }
+    }
+  }
+}
+GRAPHQL
+)
+
+commits_query=$(cat <<'GRAPHQL'
+query($owner: String!, $repo: String!, $pr: Int!, $endCursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $pr) {
+      commits(first: 100, after: $endCursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes { commit { oid abbreviatedOid message committedDate } }
+      }
+    }
+  }
+}
+GRAPHQL
+)
+
+thread_tail_query=$(cat <<'GRAPHQL'
+query($thread_id: ID!, $cursor: String!) {
+  node(id: $thread_id) {
+    ... on PullRequestReviewThread {
+      comments(first: 100, after: $cursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes { author { login } body path line originalLine diffHunk }
+      }
+    }
+  }
+}
+GRAPHQL
+)
+
+meta=$(gh api graphql \
+  -f query="$meta_query" \
+  -f owner="$owner" -f repo="$repo" -F pr="$pr" \
+  --jq '.data.repository.pullRequest')
+
+threads=$(gh api graphql --paginate \
+  -f query="$threads_query" \
+  -f owner="$owner" -f repo="$repo" -F pr="$pr" \
+  --jq '.data.repository.pullRequest.reviewThreads.nodes[]' \
+  | jq -s '.')
+
+threads=$(jq -c '.[]' <<<"$threads" | while IFS= read -r thread; do
+  has_next=$(jq -r '.comments.pageInfo.hasNextPage' <<<"$thread")
+  if [ "$has_next" != "true" ]; then
+    printf '%s\n' "$thread"
+    continue
+  fi
+  thread_id=$(jq -r '.id' <<<"$thread")
+  cursor=$(jq -r '.comments.pageInfo.endCursor' <<<"$thread")
+  nodes=$(jq '.comments.nodes' <<<"$thread")
+  while [ "$has_next" = "true" ]; do
+    page=$(gh api graphql \
+      -f query="$thread_tail_query" \
+      -f thread_id="$thread_id" -f cursor="$cursor" \
+      --jq '.data.node.comments')
+    page_nodes=$(jq '.nodes' <<<"$page")
+    nodes=$(printf '%s\n' "$nodes" "$page_nodes" | jq -s '.[0] + .[1]')
+    has_next=$(jq -r '.pageInfo.hasNextPage' <<<"$page")
+    cursor=$(jq -r '.pageInfo.endCursor // ""' <<<"$page")
+  done
+  printf '%s\n' "$thread" "$nodes" | jq -s '
+    .[1] as $nodes
+    | .[0]
+    | .comments.nodes = $nodes
+    | .comments.pageInfo.hasNextPage = false
+    | .comments.pageInfo.endCursor = null
+  '
+done | jq -s '.')
+
+reviews=$(gh api graphql --paginate \
+  -f query="$reviews_query" \
+  -f owner="$owner" -f repo="$repo" -F pr="$pr" \
+  --jq '.data.repository.pullRequest.reviews.nodes[]' \
+  | jq -s '.')
+
+issue_comments=$(gh api graphql --paginate \
+  -f query="$issue_comments_query" \
+  -f owner="$owner" -f repo="$repo" -F pr="$pr" \
+  --jq '.data.repository.pullRequest.comments.nodes[]' \
+  | jq -s '.')
+
+commits=$(gh api graphql --paginate \
+  -f query="$commits_query" \
+  -f owner="$owner" -f repo="$repo" -F pr="$pr" \
+  --jq '.data.repository.pullRequest.commits.nodes[]' \
+  | jq -s '.')
+
+head_oid=$(jq -r '.headRefOid' <<<"$meta")
+
+# Only a successful or neutral conclusion passes. A cancelled or stale run never
+# produced a result, so it counts as failing rather than as confirmation.
+check_runs=$(gh api --paginate \
+  "repos/$owner/$repo/commits/$head_oid/check-runs?per_page=100" \
+  --jq '.check_runs[]' \
+  | jq -s '[ .[] | select(.conclusion != "skipped")
+      | (if .status != "completed" then "pending"
+         elif (.conclusion | IN("success", "neutral")) then "passing"
+         else "failing" end) as $state
+      | { name, app: .app.slug, state: $state, conclusion,
+          title: .output.title, detailsUrl: .details_url } ]')
+
+# Commit statuses are the older API some services still report through.
+statuses=$(gh api --paginate \
+  "repos/$owner/$repo/commits/$head_oid/status?per_page=100" \
+  --jq '.statuses[]' \
+  | jq -s '[ .[]
+      | { name: .context, app: null,
+          state: (if .state == "pending" then "pending"
+                  elif (.state | IN("failure", "error")) then "failing"
+                  else "passing" end),
+          conclusion: (if .state == "pending" then null else .state end),
+          title: .description, detailsUrl: .target_url } ]')
+
+checks=$(printf '%s\n' "$check_runs" "$statuses" | jq -s '.[0] + .[1]')
+
+printf '%s\n' "$meta" "$threads" "$reviews" "$issue_comments" "$commits" "$checks" \
+  | jq -s '{meta: .[0], reviewThreads: .[1], reviews: .[2], issueComments: .[3], commits: .[4], checks: .[5]}'

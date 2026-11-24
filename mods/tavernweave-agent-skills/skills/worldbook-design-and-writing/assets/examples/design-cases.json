@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic-design-contract",
+  "runtimeVerified": false,
+  "note": "Original Kingdom of Yuguan examples with expected selections for offline checks. This is not a SillyTavern export, EJS runtime or model-behavior result.",
+  "nativePolicy": {
+    "effectiveKeywordScanDepth": 2,
+    "activatedByRecursiveText": false,
+    "activatesFurtherEntries": false
+  },
+  "bridge": {
+    "nativeBody": "嵐河舊橋平水時開放，漲水時關閉。水位不明時，尚不知能否通行。",
+    "nativeBodyId": "bridge-passage",
+    "branches": {
+      "closed": { "contentId": "bridge.closed", "body": "嵐河漲水，舊橋關閉。" },
+      "open": { "contentId": "bridge.open", "body": "嵐河水位正常，舊橋開放。" },
+      "unknown": { "contentId": "bridge.unknown", "body": "嵐河水位不明，尚不知舊橋能否通行。" }
+    },
+    "cases": [
+      { "id": "bridge-true", "reachable": true, "state": { "flooded": true }, "expected": "closed" },
+      { "id": "bridge-false", "reachable": true, "state": { "flooded": false }, "expected": "open" },
+      { "id": "bridge-missing", "reachable": true, "state": {}, "expected": "unknown" },
+      { "id": "bridge-null", "reachable": true, "state": { "flooded": null }, "expected": "unknown" },
+      { "id": "bridge-invalid-zero", "reachable": true, "state": { "flooded": 0 }, "expected": "unknown" },
+      { "id": "bridge-invalid-text", "reachable": true, "state": { "flooded": "false" }, "expected": "unknown" },
+      { "id": "bridge-unreachable", "reachable": false, "state": { "flooded": true }, "expected": "unreachable" }
+    ]
+  },
+  "era": {
+    "validEras": ["A", "B", "C"],
+    "entities": {
+      "harbor": { "contentId": "place.harbor", "aliases": ["港口", "港灣"] },
+      "guild": { "contentId": "institution.guild", "aliases": ["行會"] }
+    },
+    "cases": [
+      { "id": "R1", "currentEra": "C", "mentions": ["A"], "crossEraReferences": [], "expected": ["current.C"] },
+      { "id": "R2", "currentEra": "C", "mentions": ["不是 A"], "crossEraReferences": [], "expected": ["current.C"] },
+      { "id": "R3", "currentEra": "C", "mentions": ["A"], "crossEraReferences": ["A"], "comparisonAuthorized": true, "expected": ["current.C", "reference.A"] },
+      { "id": "R4", "currentEra": "C", "switchRequest": { "target": "A", "result": "pending" }, "expected": ["current.C"] },
+      { "id": "R4-failed", "currentEra": "C", "switchRequest": { "target": "A", "result": "failed" }, "expected": ["current.C"] },
+      { "id": "R5", "currentEra": "A", "switchRequest": { "target": "A", "result": "committed" }, "mentions": ["C"], "expected": ["current.A"] },
+      { "id": "R6", "currentEra": null, "mentions": ["A"], "expected": ["state.unknown"] },
+      { "id": "R6-sentinel", "currentEra": "待初始化", "mentions": ["A"], "expected": ["state.unknown"] },
+      { "id": "R6-other-sentinel", "currentEra": "未開始", "mentions": ["A"], "expected": ["state.unknown"] },
+      { "id": "R7", "currentEra": "C", "entityAliases": ["港口", "港灣", "行會"], "presenceRequired": false, "expected": ["current.C", "place.harbor", "institution.guild"] },
+      { "id": "R8", "currentEra": "C", "entityAliases": ["港口"], "presenceRequired": true, "presence": { "harbor": false }, "expected": ["current.C"] },
+      { "id": "R8-missing", "currentEra": "C", "entityAliases": ["港口"], "presenceRequired": true, "presence": {}, "expected": ["current.C"] },
+      { "id": "R8-present", "currentEra": "C", "entityAliases": ["港口"], "presenceRequired": true, "presence": { "harbor": true }, "expected": ["current.C", "place.harbor"] },
+      { "id": "comparison-unapproved", "currentEra": "C", "crossEraReferences": ["A"], "comparisonAuthorized": false, "expected": ["current.C"] }
+    ]
+  },
+  "port": {
+    "passageBody": "石渡港的貨引由港署簽發，記有貨主、貨物和納稅印記。平日，持有效貨引的普通商貨可以出港。封港時，賑濟物資才有通行資格；普通商貨縱有貨引，也須留港。嵐河沿岸村鎮遇荒年多靠糧船接濟，王令因此保留了賑濟通道。",
+    "warehouseBody": "港署鐘樓下藏著一間倉庫，封存著未記入公開賬冊的查扣貨物。賬房知道倉庫的位置，新來的守衛不知道。",
+    "knowledge": { "bookkeeper": true, "newGuard": false },
+    "cases": [
+      { "id": "port-normal-valid", "closed": false, "cargo": "ordinary", "permitValid": true, "askedPerson": "newGuard", "expectedEligibility": "eligible", "expectedLocationKnowledge": false },
+      { "id": "port-closed-valid", "closed": true, "cargo": "ordinary", "permitValid": true, "askedPerson": "newGuard", "expectedEligibility": "ineligible", "expectedLocationKnowledge": false },
+      { "id": "port-normal-invalid-permit", "closed": false, "cargo": "ordinary", "permitValid": false, "askedPerson": "bookkeeper", "expectedEligibility": "ineligible", "expectedLocationKnowledge": true },
+      { "id": "port-missing-state", "cargo": "ordinary", "permitValid": true, "askedPerson": "newGuard", "expectedEligibility": "unknown", "expectedLocationKnowledge": false },
+      { "id": "port-closed-relief", "closed": true, "cargo": "relief", "askedPerson": "newGuard", "expectedEligibility": "category-eligible-other-rules-unresolved", "expectedLocationKnowledge": false }
+    ]
+  },
+  "guardReview": {
+    "kind": "authored-semantic-expectations",
+    "modelRun": false,
+    "cases": [
+      {
+        "id": "warning-obeyed",
+        "scene": "滋事者聽見警告便讓開道路，現場無人受傷。",
+        "expected": { "detentionRequiredByThisRule": false }
+      },
+      {
+        "id": "ongoing-harm",
+        "scene": "有人正在毆打平民。",
+        "expected": { "immediateInterventionPermitted": true, "immediateInterventionRequired": false }
+      },
+      {
+        "id": "merchant-debt-demand",
+        "scene": "商人舉著稅票，要求守衛替他抓走欠款人。",
+        "expected": { "receiptGrantsArrestAuthority": false, "debtDecisionOwner": "city-court" }
+      }
+    ]
+  },
+  "semanticCases": [
+    {
+      "id": "mentor-boundaries",
+      "body": "石渡的符燈工坊由師傅帶徒。學徒參與修燈，工料按修繕需要和各人承擔的活計分配。師傅由同行公開評議選任，不世襲；學徒可以更換師傅，但須交接未完的修繕。",
+      "mustRetain": ["公開評議", "不世襲", "可以更換", "須交接"],
+      "forbiddenAdditions": ["終身忠誠", "不可更換"]
+    },
+    {
+      "id": "guard-strength",
+      "body": "石渡城門外常有等候驗貨的車隊。城門守衛負責維持通行，貨款爭執由市法庭裁斷。對堵路推搡的滋事者，他們通常先警告；不聽勸的，再拘留。有人正在傷害平民時，可直接制止。拘押簿要寫明釦人的緣由，商人付過門稅，也不能憑稅票指使守衛抓人。",
+      "mustRetain": ["堵路推搡的滋事者", "通常先警告", "不聽勸的，再拘留", "正在傷害平民", "可直接制止", "貨款爭執由市法庭裁斷", "不能憑稅票指使守衛抓人"],
+      "forbiddenAdditions": ["一律", "必須直接制止"]
+    },
+    {
+      "id": "rumor-uncertainty",
+      "body": "青岑領的佃戶流傳廢井藏龍的說法，尚無確證。",
+      "mustRetain": ["流傳", "說法", "尚無確證"],
+      "forbiddenAdditions": ["真龍確實存在", "只是騙局"]
+    },
+    {
+      "id": "barrier-scope",
+      "body": "石渡城門的護障阻擋箭矢，但聲音可穿過。",
+      "mustRetain": ["阻擋箭矢", "聲音可穿過"],
+      "forbiddenAdditions": ["擋火", "隔絕思想"]
+    }
+  ]
+}

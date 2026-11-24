@@ -1,0 +1,94 @@
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: calc(2 * var(--edge));
+  text-align: center;
+}
+.empty > * {
+  max-width: var(--empty-max-width);
+  margin-inline: auto;
+}
+.empty .title {
+  margin-bottom: var(--list-gap);
+}
+footer {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--list-gap) var(--edge);
+  padding: var(--control-gap) var(--edge) var(--edge);
+  color: var(--muted);
+  font-size: 12px;
+}
+.footer-end {
+  display: flex;
+  gap: var(--edge);
+  margin-left: auto;
+}
+.demo-toggle {
+  padding: 0 var(--unit);
+  border-radius: 5px;
+  color: var(--muted);
+}
+.help-icon text {
+  font-size: 10px;
+  font-weight: 600;
+}
+.demo-toggle:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+/*
+ * Help's sections share one pair of columns. A key or a mark starts at the text column, one step under its section's
+ * title, and its words start one `item` step after the widest key. Each section takes the page's columns as a subgrid, so the
+ * keys, the marks and the tabs all use the same two.
+ */
+.help {
+  display: grid;
+  grid-template-columns: var(--text-x) max-content var(--item-gap) minmax(0, 1fr);
+}
+.help > section {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+.help .group-title {
+  grid-column: 1 / -1;
+  padding-right: 0;
+}
+.help-keys,
+.help-marks {
+  display: contents;
+}
+.help-keys > :nth-child(odd),
+.help-marks > :nth-child(odd) {
+  grid-column: 2;
+}
+.help-keys > :nth-child(even),
+.help-marks > :nth-child(even) {
+  grid-column: 4;
+  padding-right: var(--edge);
+}
+.help-keys > *,
+.help-marks > * {
+  padding-top: var(--row-pad);
+  padding-bottom: var(--row-pad);
+}
+.help-keys b,
+.help-marks .mark {
+  white-space: nowrap;
+}
+.help-marks .mark {
+  padding-right: 0;
+}
+.earlier {
+  padding: var(--row-pad) var(--edge) var(--row-pad) var(--text-x);
+}

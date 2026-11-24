@@ -1,0 +1,15 @@
+{
+  "name": "iamumeransari",
+  "owner": {
+    "name": "Umer Ansari"
+  },
+  "metadata": {
+    "description": "show-your-work: Claude shows screenshots and videos of its work inline in your terminal"
+  },
+  "plugins": [
+    {
+      "name": "show-your-work",
+      "source": "./"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+// What your sessions would have cost had Claude Code compacted earlier: each main conversation
+// replayed request by request at smaller windows (lib/replay.mjs). Read-only; an estimate, in shares of
+// the cost at API list prices.
+// Usage: tokendoctor-replay [--days <n>] [--project <dir>] [--window <n>[,<n>...]] [--json]
+import { configDir } from '../lib/collect.mjs'
+import { leftAfterCompaction, replay, request } from '../lib/replay.mjs'
+import { loadUsage } from '../lib/sessions.mjs'
+
+const args = process.argv.slice(2)
+const value = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined)
+const days = Number(value('--days') ?? 30)
+const windows = (value('--window') ?? '200000,300000,400000,600000').split(',').map((w) => Number(w.replace(/k$/i, '000')))
+
+const sessions = loadUsage(configDir(), { days, project: value('--project') })
+const all = sessions.reduce((n, s) => n + s.agents, 0)
+const rows = windows.map((window) => {
+  const t = { window, sessions: sessions.length, touched: 0, compactions: 0, real: 0, replayed: 0, agents: all }
+  for (const s of sessions) {
+    const requests = s.usage.map(({ usage, model }) => request(usage, model))
+    const r = replay(requests, window, leftAfterCompaction(requests))
+    t.real += r.real
+    t.replayed += r.replayed
+    t.compactions += r.compactions
+    if (r.compactions) t.touched++
+  }
+  t.saved = (t.real - t.replayed) / (t.real + t.agents)
+  return t
+})
+
+if (args.includes('--json')) {
+  console.log(JSON.stringify({ days, sessions: sessions.length, windows: rows }))
+} else {
+  const pct = (x) => `${Math.round(x * 1000) / 10}%`
+  console.log(`过去 ${days} 天内有 ${sessions.length} 个会话。如果 Claude Code 在更小的窗口压缩：`)
+  for (const r of rows) {
+    console.log(`  ${String(r.window / 1000).padStart(4)}K  ${pct(r.saved).padStart(6)} 可省下全部费用的比例  ` +
+      `（影响 ${r.touched} 个会话，多压缩 ${r.compactions} 次）`)
+  }
+  console.log('这是一份估算：无法看出模型在总结之后又做了多少工作。bench/ 会实际测量。')
+}

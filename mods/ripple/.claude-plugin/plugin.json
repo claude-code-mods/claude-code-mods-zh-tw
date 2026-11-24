@@ -1,0 +1,9 @@
+{
+  "name": "ripple",
+  "displayName": "ClaudeRipple",
+  "version": "0.7.0",
+  "description": "為每條提示挑選推理強度、為每個委派任務挑選 worker，可保持 prompt 快取溫熱，並顯示 ClaudeRipple 把每個請求發到了哪裡。",
+  "author": { "name": "ClaudeRipple" },
+  "license": "GPL-3.0-only",
+  "types": "./types/index.d.ts"
+}

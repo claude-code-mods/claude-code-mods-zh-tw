@@ -1,0 +1,18 @@
+{
+  "name": "agent-standup-band",
+  "version": "1.47.1",
+  "description": "本機其他 Claude Code 會話需要你處理（審批或回答）時，在提示上方顯示一行；某個會話完成一輪時彈出提醒。只讀取 Claude Code 為各會話儲存的狀態檔案，不向外發送任何內容。",
+  "author": {
+    "name": "Double Geste",
+    "url": "https://github.com/Atoll92"
+  },
+  "homepage": "https://agent-standup.com",
+  "repository": "https://github.com/Atoll92/agent-standup",
+  "license": "MIT",
+  "keywords": [
+    "agents",
+    "sessions",
+    "notifications",
+    "standup"
+  ]
+}

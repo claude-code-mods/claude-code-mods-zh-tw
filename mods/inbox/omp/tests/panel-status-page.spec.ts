@@ -1,0 +1,175 @@
+import { expect, test } from 'bun:test'
+
+import { parseStatus } from '../../hooks/status'
+import { applyStatus } from '../../hooks/status-ops'
+import { SETTLED_MS, NO_HOLDS } from '../../hooks/timing'
+import { STATUS_TEXT_LINES } from '../../hooks/status-page'
+import { EMPTY_STATUS_TEXT } from '../../hooks/empty-tab'
+import { sessionView } from '../../hooks/session-view'
+import { cellWidth } from '../../hooks/text'
+import { PAGE_MARK_AT, PAGE_TEXT_AT } from '../src/panel-entries'
+import { render } from '../src/panel'
+import type { Style } from '../src/panel'
+import { demoState } from '../src/demo'
+import { emptyState } from '../src/state'
+import { drawn, ESC, labelOf, NOW, onPage, screenOf, strip, style, text } from './panel-harness'
+
+const toneNamed: Style = { ...style, tone: (name, s) => `<${name}>${s}</${name}>` }
+
+function noGoalScreen() {
+  const state = demoState(NOW)
+  const o = state.ledger.overview!
+  state.ledger = { ...state.ledger, overview: { ...o, goal: null, milestones: [], serves: {} } }
+  return screenOf({ view: sessionView(state, NOW, SETTLED_MS, NO_HOLDS) })
+}
+
+function trialChangedScreen() {
+  const state = demoState(NOW)
+  const o = state.ledger.overview!
+  const subjects = o.subjects.map(x => (x.name === 'Glasses trial' ? { ...x, changedAt: NOW - 60_000 } : x))
+  state.ledger = { ...state.ledger, overview: { ...o, subjects } }
+  return screenOf({ view: sessionView(state, NOW, SETTLED_MS, NO_HOLDS) })
+}
+
+test('the Status page shows the head’s title and description, then its rows in order, each subject’s marks at the left edge, where it stands under its name and its Prev line under that', () => {
+  const screen = noGoalScreen()
+  const page = screen.view.statusPage
+  const lines = text(screen, onPage).split('\n')
+  const at = (s: string) => lines.findIndex(l => l.includes(s))
+  const order = [
+    page.head!.title,
+    page.head!.description!,
+    ...page.rows.filter(r => !(r.kind === 'part' && r.isTitle)).map(labelOf),
+  ].map(at)
+  expect(order.every(n => n >= 0)).toBe(true)
+  expect(order).toEqual([...order].sort((a, b) => a - b))
+  const headAt = lines[at(page.head!.title)]!.search(/\S/)
+  expect(headAt).toBe(PAGE_MARK_AT)
+  expect(lines[at(page.head!.description!)]!.search(/\S/)).toBe(PAGE_MARK_AT)
+  const subjects = page.rows.flatMap(r => (r.kind === 'subject' ? [r] : []))
+  for (const row of subjects) expect(lines[at(row.name)]!.search(/\S/)).toBe(PAGE_MARK_AT)
+  const withWas = subjects.filter(r => r.was !== null && r.text !== null)
+  expect(withWas.length).toBeGreaterThan(0)
+  for (const row of withWas) {
+    const first = at(row.name) + (row.waitsOn ? 2 : 1)
+    if (row.waitsOn) expect(lines[at(row.name) + 1]).toContain(row.waitsOn!)
+    expect(lines[first]).toContain(row.text!)
+    expect(lines[first + 1]).toContain(`Prev: ${row.was}`)
+  }
+})
+
+test('on the Status page, the rows under a subject hang from its mark, ├─ for each and └─ for the last, and the line runs beside each wrapped line', () => {
+  const lines = text(screenOf(), onPage, 28).split('\n')
+  const at = (s: string) => lines.findIndex(l => l.includes(s))
+  const [subject, first, mid, last, next] = [
+    at('Dismiss gesture'),
+    at('Review the'),
+    at('Tune how hard'),
+    at('Time the'),
+    at('Flick'),
+  ]
+  const col = lines[subject]!.indexOf('Dismiss gesture') - 2
+  const glyphs = (from: number, to: number) => lines.slice(from, to).map(l => l.slice(col, col + 2))
+
+  expect(subject).toBeLessThan(first)
+  expect(glyphs(subject + 1, first).every(g => g.startsWith('│'))).toBe(true)
+  expect(glyphs(first, mid)).toEqual(['├─', ...Array<string>(mid - first - 1).fill('│ ')])
+  expect(glyphs(mid, last)).toEqual(['├─', ...Array<string>(last - mid - 1).fill('│ ')])
+  expect(last - mid).toBeGreaterThan(1)
+  expect(glyphs(last, next).map(g => g.trim())).toEqual(['└─', ...Array<string>(next - last - 1).fill('')])
+})
+
+test('on the Status page, a blocked delegate, running work and work waiting on someone else show no stall word, at every width', () => {
+  const wide = text(trialChangedScreen(), onPage, 80).split('\n')
+  expect(wide.some(l => l.includes('◆') && l.includes('Tune how hard a pinch must be') && !l.includes(' · '))).toBe(
+    true,
+  )
+  expect(wide.some(l => l.includes('Time the fade-out') && !l.includes(' · '))).toBe(true)
+  expect(wide.some(l => l.includes('Search the pairing errors') && !l.includes(' · '))).toBe(true)
+  expect(wide.some(l => l.includes('Glasses trial') && !l.includes(' · '))).toBe(true)
+
+  for (const width of [26, 28, 30, 34, 40, 50]) {
+    const lines = text(trialChangedScreen(), onPage, width).split('\n')
+    expect(lines.some(l => l.includes('· waiting'))).toBe(false)
+  }
+})
+
+test('on the Status page, the list after the goal’s milestones starts with Other work’s labelled rule, and no bare rule falls between rows', () => {
+  const bareRules = (screen: ReturnType<typeof screenOf>) => {
+    const rule = new RegExp(`^ {${PAGE_TEXT_AT}}─+$`)
+
+    return text(screen, onPage, 40)
+      .split('\n')
+      .filter(l => rule.test(l))
+  }
+  const screen = screenOf()
+
+  expect(screen.view.statusPage.rows[0]!.kind).toBe('part')
+  expect(bareRules(screen)).toEqual([])
+  expect(bareRules(noGoalScreen())).toEqual([])
+})
+
+test('on the Status page, a subject’s name stays plain, and where it stands goes dim under it, wrapped to three lines and cut with an ellipsis past them', () => {
+  const name = 'Help text for every greeting command'
+  const where = 'being written with examples, defaults, descriptions, environment variables, configuration precedence'
+  const state = emptyState('s1')
+  state.ledger = {
+    ...state.ledger,
+    overview: applyStatus(null, parseStatus(`NEW: working | ${name} | ${where}`)!, NOW, new Set()),
+  }
+  const screen = screenOf({ view: sessionView(state, NOW, SETTLED_MS, NO_HOLDS) })
+  const raw = drawn(screen, onPage, 34)
+  const first = raw.findIndex(l => strip(l).includes('Help text'))
+  const subject = raw.slice(first, first + 2 + STATUS_TEXT_LINES + 1).map(strip)
+
+  expect(subject.slice(0, 3)).toEqual([
+    ' ◐ Help text for every greeting',
+    '   command',
+    '   being written with examples,',
+  ])
+  expect(subject[1 + STATUS_TEXT_LINES]).toMatch(/…$/)
+  expect(subject[2 + STATUS_TEXT_LINES]?.trim() ?? '').not.toMatch(/^[a-z]/)
+  expect(raw[first + 1]).not.toContain(ESC)
+  expect(raw[first + 2]).toContain(`${ESC}2mbeing`)
+  const wide = text(screen, onPage, 200).split('\n')
+  expect(wide[wide.findIndex(l => l.includes(name)) + 1]?.trim()).toBe(where)
+})
+
+test('each subject’s mark takes its tone, and a mark with no tone is muted', () => {
+  const screen = trialChangedScreen()
+  const page = screen.view.statusPage
+  const drawnRows = [...page.rows, ...(page.goal?.milestones ?? []).flatMap(m => (m.foldId === null ? m.rows : []))]
+  const subjects = drawnRows.flatMap(r => (r.kind === 'subject' ? [r] : []))
+  const lines = render(screen, onPage, 200, NOW, toneNamed)
+  const lineOf = (s: string) => lines.find(l => l.includes(s))!
+  for (const row of subjects.filter(r => r.tone !== null && !r.isRunning))
+    expect(lineOf(row.name)).toContain(`<${row.tone}>${row.mark}</${row.tone}> `)
+  const running = subjects.find(r => r.tone === 'working' && r.isRunning)!
+  expect(lineOf(running.name)).toContain('<working>')
+  const muted = subjects.find(r => r.tone === null && !r.isRunning)!
+  expect(lineOf(muted.name)).toContain(`${ESC}2m${muted.mark}${ESC}22m `)
+})
+
+test('a Status page with nothing yet reads its empty text', () => {
+  const screen = screenOf({ view: sessionView(emptyState('s1'), NOW, SETTLED_MS, NO_HOLDS) })
+  expect(screen.view.statusPage.isEmpty).toBe(true)
+  expect(text(screen, onPage)).toContain(EMPTY_STATUS_TEXT.title)
+  expect(text(screen, onPage)).toContain(EMPTY_STATUS_TEXT.hint)
+})
+
+test('no line on the Status page is wider than the panel', () => {
+  const screen = screenOf()
+  for (const width of [30, 50, 60, 80, 120])
+    for (const line of drawn(screen, onPage, width)) expect(cellWidth(strip(line))).toBeLessThanOrEqual(width)
+})
+
+test('on the Status page, a subject an open ask holds up draws what it waits on under its name, with no stall word', () => {
+  const screen = noGoalScreen()
+  const held = screen.view.statusPage.rows.flatMap(r => (r.kind === 'subject' && r.waitsOn ? [r] : []))
+  expect(held.length).toBeGreaterThan(0)
+  const drawnText = text(screen, onPage)
+  for (const row of held) {
+    expect(drawnText).toContain(row.waitsOn!)
+    expect(row.stall).toBeNull()
+  }
+})

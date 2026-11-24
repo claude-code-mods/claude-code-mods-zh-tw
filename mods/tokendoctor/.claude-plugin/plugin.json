@@ -1,0 +1,34 @@
+{
+  "name": "tokendoctor",
+  "displayName": "tokendoctor",
+  "version": "0.6.1",
+  "description": "同樣的 Claude Code，最多省 38%。回放你自己的歷史會話，展示每項改動本可省下多少，然後只改你選中的項。",
+  "author": {
+    "name": "rsaryev"
+  },
+  "license": "MIT",
+  "keywords": [
+    "tokens",
+    "cost",
+    "context",
+    "settings",
+    "audit"
+  ],
+  "icon": "./.claude-plugin/icon.png",
+  "homepage": "https://tokendoctor.localix.ai",
+  "repository": "https://github.com/localixai/tokendoctor",
+  "userConfig": {
+    "slide": {
+      "type": "boolean",
+      "title": "滑動視窗，而不是壓縮",
+      "description": "在 Claude Code 本該總結對話的地方，改為省略舊的工具輸出（它們可以重新讀取）：不發起總結請求，每條提示和回答都逐字保留。/compact 仍然會總結。",
+      "default": false
+    },
+    "slideTo": {
+      "type": "number",
+      "title": "滑到（Claude Code 壓縮點的百分比）",
+      "description": "一次滑動把上下文釋放到多低，取 Claude Code 壓縮點的百分比（20 到 90）。數值越低，留下的內容越少，距離下一次滑動可進行的輪次越多。",
+      "default": 25
+    }
+  }
+}

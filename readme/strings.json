@@ -1,0 +1,28 @@
+{
+  "zh-TW": {
+    "label": "繁體中文",
+    "file": "README.md",
+    "categories": {
+      "dashboards": "儀表板與用量",
+      "agents": "Agent 與子 agent",
+      "productivity": "效率與上下文",
+      "rendering": "呈現與預覽",
+      "safety": "安全與防護",
+      "git": "Git、PR 與部署",
+      "fun": "等待時的消遣"
+    },
+    "columns": [
+      "Mod",
+      "功能",
+      "權限"
+    ],
+    "reach": {
+      "http": "連網",
+      "process": "執行指令",
+      "model": "呼叫模型",
+      "fs": "讀寫檔案",
+      "mcp": "MCP"
+    },
+    "by": "作者"
+  }
+}

@@ -1,0 +1,293 @@
+import assert from 'node:assert/strict'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { test } from 'node:test'
+import { zstdCompressSync } from 'node:zlib'
+
+import { bytesBefore, firstBytes } from '../src/rollout-file'
+import { newestTurnEvent, readRollout, rolloutFor, turnIn, withCurrentRollout } from '../src/transcript'
+import { movedRollout, ROLLOUT_FIXTURE, rolloutAt, tempDir } from './helpers'
+
+const rows = (...list: unknown[]) => list.map(row => (typeof row === 'string' ? row : JSON.stringify(row))).join('\n')
+
+const started = (turn: string) => ({ type: 'event_msg', payload: { type: 'task_started', turn_id: turn } })
+
+const completed = (turn: string) => ({ type: 'event_msg', payload: { type: 'task_complete', turn_id: turn } })
+
+const response = (payload: Record<string, unknown>) => ({ type: 'response_item', payload })
+
+const message = (role: string, text: string) =>
+  response({
+    type: 'message',
+    role,
+    content: [{ type: role === 'assistant' ? 'output_text' : 'input_text', text }],
+  })
+
+function rolloutOf(text: string, ext = 'jsonl'): string {
+  const path = join(tempDir(), `rollout.${ext}`)
+  writeFileSync(path, ext === 'jsonl.zst' ? zstdCompressSync(text) : text)
+
+  return path
+}
+
+test('the fixture rollout reads as the conversation, with no injected context, environment rows or compaction', async () => {
+  const rollout = await readRollout(ROLLOUT_FIXTURE, '/repo', undefined)
+
+  assert.equal(
+    rollout?.conversation,
+    [
+      'Person: List the files here and say what each does',
+      'Agent: I’ll list the files in this directory and read them to see what each does.',
+      "Agent ran: pwd && rg --files -g '!node_modules' -g '!.git' -g '!vendor' -g '!dist' -g '!build' && ls -la",
+      'Agent ran: cat README.md calc.py',
+      'Agent: There are two files and one hidden directory:',
+      '',
+      '- **`README.md`** — Describes the project as “Toy,” a tiny calculator.',
+      '- **`calc.py`** — Defines `add(a, b)`, which returns `a + b`.',
+      '- **`.git/`** — Stores Git history and repository metadata.',
+      'Person: Now add a subtract function to calc.py (just try to apply a patch) and tell me what happened',
+      'Agent: I’ll try applying a patch to add `subtract(a, b)` to `calc.py`.',
+      'Agent edited /repo/calc.py',
+      'Agent: The patch was rejected because the sandbox is read-only and approval settings block writes. `calc.py` is unchanged.',
+      '',
+      'The attempted addition was:',
+      '',
+      '```python',
+      'def subtract(a, b):',
+      '    return a - b',
+      '```',
+      'Person: In one sentence, what did we discuss so far?',
+      'Agent: We reviewed the repo’s files, then tried adding a `subtract` function to `calc.py`, but the read-only sandbox rejected the patch.',
+      'Person: SYNTHETIC: what do you suggest?',
+      'Agent ran: cat calc.py',
+      'Agent: SYNTHETIC: add tests.',
+    ].join('\n'),
+  )
+})
+
+test('earlier turns are the finished turns and the turns with a person message, other than the turn a hook runs in', async () => {
+  assert.equal((await readRollout(ROLLOUT_FIXTURE, '/repo', undefined))?.earlierTurns, 4)
+  assert.equal((await readRollout(ROLLOUT_FIXTURE, '/repo', '00000000-0000-7000-8000-000000000004'))?.earlierTurns, 3)
+  const current = rolloutOf(rows(started('t1'), message('user', '<environment_context>x</environment_context>')))
+  assert.equal((await readRollout(current, '/repo', undefined))?.earlierTurns, 0)
+  const interrupted = rolloutOf(rows(started('t1'), message('user', 'Fix it'), started('t2')))
+  assert.equal((await readRollout(interrupted, '/repo', 't2'))?.earlierTurns, 1)
+})
+
+test('a rollout of older shapes reads shell calls, patches, spawned agents, dialogs and MCP calls', async () => {
+  const path = rolloutOf(
+    rows(
+      'not json',
+      '[1, 2]',
+      { type: 'something_new', payload: { type: 'other' } },
+      started('t1'),
+      message('user', 'Ship the fix'),
+      message('user', 'inbox: carried context'),
+      message('assistant', 'On it.'),
+      response({
+        type: 'function_call',
+        name: 'shell',
+        arguments: JSON.stringify({ command: ['bash', '-lc', 'npm test'] }),
+      }),
+      response({ type: 'function_call', name: 'shell', arguments: JSON.stringify({ command: ['ls', '-la'] }) }),
+      response({ type: 'local_shell_call', action: { type: 'exec', command: ['/bin/zsh', '-lc', 'git status'] } }),
+      response({
+        type: 'function_call',
+        name: 'apply_patch',
+        arguments: JSON.stringify({
+          input: '*** Begin Patch\n*** Update File: src/a.ts\n*** Add File: /abs/b.ts\n*** End Patch',
+        }),
+      }),
+      response({ type: 'function_call', name: 'spawn_agent', arguments: JSON.stringify({ task_name: 'review' }) }),
+      response({
+        type: 'function_call',
+        name: 'request_user_input_async',
+        arguments: JSON.stringify({ questions: [{ title: 'Push now?', options: ['Yes', 'No'] }] }),
+      }),
+      response({ type: 'function_call', namespace: 'mcp__docs__', name: 'search', arguments: '{}' }),
+      response({ type: 'function_call', name: 'update_plan', arguments: '{}' }),
+      response({ type: 'function_call_output', call_id: 'c1', output: 'ok' }),
+      { type: 'compacted', payload: { message: '' } },
+      message('assistant', 'Fixed.'),
+      completed('t1'),
+    ),
+  )
+  const conversation = (await readRollout(path, '/repo', undefined))?.conversation.split('\n')
+
+  assert.deepEqual(conversation, [
+    'Person: Ship the fix',
+    'Agent: On it.',
+    'Agent ran: npm test',
+    'Agent ran: ls -la',
+    'Agent ran: git status',
+    'Agent edited /repo/src/a.ts',
+    'Agent edited /abs/b.ts',
+    'Agent started agent: review',
+    `Agent asked the user in a dialog: "Push now?" (options: Yes / No); still open, waiting on the user's answer`,
+    'Agent called docs__search',
+    'Agent: Fixed.',
+  ])
+})
+
+test('a rollout reads no line for a command the person declined or a hook blocked', async () => {
+  const command = (script: string, status: string) => ({
+    type: 'event_msg',
+    payload: { type: 'item_completed', item: { type: 'CommandExecution', command: ['zsh', '-lc', script], status } },
+  })
+  const path = rolloutOf(
+    rows(
+      started('t1'),
+      message('user', 'Ship the fix'),
+      command('npm test', 'completed'),
+      command('git push', 'declined'),
+      completed('t1'),
+      started('t2'),
+      message('user', 'Clean up'),
+      response({ type: 'function_call', name: 'shell', call_id: 'c1', arguments: '{"command":"rm -rf build"}' }),
+      response({
+        type: 'function_call_output',
+        call_id: 'c1',
+        output: 'Command blocked by PreToolUse hook: no deletes. Command: rm -rf build',
+      }),
+      response({ type: 'function_call', name: 'shell', call_id: 'c2', arguments: '{"command":"ls"}' }),
+      completed('t2'),
+    ),
+  )
+
+  assert.deepEqual((await readRollout(path, '/repo', undefined))?.conversation.split('\n'), [
+    'Person: Ship the fix',
+    'Agent ran: npm test',
+    'Person: Clean up',
+    'Agent ran: ls',
+  ])
+})
+
+test('a rollout over the size limit keeps its newest turns and drops the cut line, compressed or not', async () => {
+  const filler = 'x'.repeat(1024 * 1024)
+  const old = Array.from({ length: 10 }, (_, n) => message('user', `Old ${n} ${filler}`))
+  const text = rows(started('t1'), ...old, started('t2'), message('user', 'Newest question'))
+  const rollout = await readRollout(rolloutOf(text), '/repo', undefined)
+
+  assert.ok(rollout?.conversation.endsWith('Person: Newest question'))
+  assert.ok((rollout?.conversation.match(/Person: Old/g)?.length ?? 0) < 10)
+  const compressed = rolloutOf(text, 'jsonl.zst')
+  assert.deepEqual(await readRollout(compressed, '/repo', undefined), rollout)
+  assert.deepEqual(await newestTurnEvent(compressed), { kind: 'started', id: 't2' })
+  assert.deepEqual(await turnIn(compressed, 't2'), await turnIn(rolloutOf(text), 't2'))
+})
+
+test('a rollout that cannot be read gives nothing, compressed or not', async () => {
+  assert.equal(await readRollout(null, '/repo', undefined), null)
+  assert.equal(await readRollout(join(tempDir(), 'missing.jsonl'), '/repo', undefined), null)
+  const missing = join(tempDir(), 'missing.jsonl.zst')
+  assert.equal(await readRollout(missing, '/repo', undefined), null)
+  await assert.rejects(firstBytes(missing, 1024), { code: 'ENOENT' })
+  await assert.rejects(bytesBefore(missing, 1024, 2048), { code: 'ENOENT' })
+})
+
+test('a reverted chat reads the kept turns of each rollout it continues, then its own, and stops where a rollout is missing', async () => {
+  const home = tempDir()
+  const write = (day: string, name: string, kept: unknown[], dropped: unknown[] = []) => {
+    const folder = join(home, 'sessions', day)
+    mkdirSync(folder, { recursive: true })
+    const path = join(folder, name)
+    const keptText = `${rows(...kept)}\n`
+    writeFileSync(path, dropped.length > 0 ? `${keptText}${rows(...dropped)}\n` : keptText)
+
+    return { path, end: Buffer.byteLength(keptText) }
+  }
+  const meta = (base?: { id: string; end: number }) => ({
+    type: 'session_meta',
+    payload: { id: 'chat-r', ...(base ? { history_base: { thread_id: base.id, end_byte_offset: base.end } } : {}) },
+  })
+  const turn = (id: string, ask: string, answer: string) => [
+    started(id),
+    message('user', ask),
+    message('assistant', answer),
+    completed(id),
+  ]
+  const firstAsk = `First ask ${'é'.repeat(400)}`
+  const first = write(
+    '2026/10/20',
+    'rollout-2026-10-20T05-01-10-chat-r.jsonl',
+    [meta(), ...turn('t1', firstAsk, 'First answer')],
+    turn('t2', 'Reverted ask', 'Reverted answer'),
+  )
+  const second = write(
+    '2026/10/21',
+    'rollout-2026-10-21T05-01-10-chat-r_roll-2.jsonl',
+    [meta({ id: 'chat-r', end: first.end }), ...turn('t3', 'Second ask', 'Second answer')],
+    turn('t4', 'Also reverted', 'Also reverted answer'),
+  )
+  const third = write('2026/10/22', 'rollout-2026-10-22T05-01-10-chat-r_roll-3.jsonl', [
+    meta({ id: 'roll-2', end: second.end }),
+    ...turn('t5', 'Third ask', 'Third answer'),
+  ])
+  const persons = async (path: string) =>
+    (await readRollout(path, '/repo'))?.conversation.split('\n').filter(line => line.startsWith('Person: '))
+
+  assert.deepEqual(await persons(second.path), [`Person: ${firstAsk}`, 'Person: Second ask', 'Person: Also reverted'])
+  assert.deepEqual(await persons(third.path), [`Person: ${firstAsk}`, 'Person: Second ask', 'Person: Third ask'])
+  assert.equal((await readRollout(third.path, '/repo'))?.earlierTurns, 3)
+  const firstArchived = movedRollout(first.path, home, 'archived_sessions')
+  movedRollout(second.path, home, 'archived_sessions')
+  const thirdArchived = movedRollout(third.path, home, 'archived_sessions')
+  assert.deepEqual(await persons(thirdArchived), [`Person: ${firstAsk}`, 'Person: Second ask', 'Person: Third ask'])
+  const firstCompressed = `${firstArchived}.zst`
+  writeFileSync(firstCompressed, zstdCompressSync(readFileSync(firstArchived)))
+  rmSync(firstArchived)
+  assert.deepEqual(await persons(thirdArchived), [`Person: ${firstAsk}`, 'Person: Second ask', 'Person: Third ask'])
+  rmSync(firstCompressed)
+  assert.deepEqual(await persons(thirdArchived), ['Person: Second ask', 'Person: Third ask'])
+})
+
+test('rolloutFor finds a chat’s newest rollout by its thread id and reads its folder', async () => {
+  const home = tempDir()
+  rolloutAt(home, 'chat-1', { cwd: '/old' }, { day: '2026/09/30' })
+  const newest = rolloutAt(home, 'chat-1', { cwd: '/repo' }, { day: '2026/10/20' })
+  rolloutAt(home, 'chat-2', {}, { day: '2026/10/21' })
+
+  assert.deepEqual(await rolloutFor(home, 'chat-1'), { path: newest, cwd: '/repo' })
+  const reverted = rolloutAt(home, 'chat-1', { cwd: '/reverted' }, { day: '2026/10/22', rolloutId: 'rollout-2' })
+  assert.deepEqual(await rolloutFor(home, 'chat-1'), { path: reverted, cwd: '/reverted' })
+  assert.equal(await rolloutFor(home, 'chat-3'), null)
+  assert.equal(await rolloutFor(join(home, 'missing'), 'chat-1'), null)
+  assert.equal(await rolloutFor(home, ''), null)
+})
+
+test('a saved rollout path that Codex archived, then unarchived, is found again by thread id', async () => {
+  const home = tempDir()
+  const saved = rolloutAt(home, 'chat-1', { cwd: '/repo' })
+  const state = { sessionId: 'chat-1', transcriptPath: saved }
+  assert.equal(await withCurrentRollout(state), state)
+
+  const archived = movedRollout(saved, home, 'archived_sessions')
+  assert.deepEqual(await rolloutFor(home, 'chat-1'), { path: archived, cwd: '/repo' })
+  const found = await withCurrentRollout(state)
+  assert.deepEqual(found, { sessionId: 'chat-1', transcriptPath: archived })
+
+  const unarchived = movedRollout(archived, home, 'sessions/2026/10/20')
+  assert.deepEqual(await withCurrentRollout(found), { sessionId: 'chat-1', transcriptPath: unarchived })
+  rmSync(unarchived)
+  assert.equal(await withCurrentRollout(found), found)
+  assert.deepEqual(await withCurrentRollout({ sessionId: 'chat-1', transcriptPath: null }), {
+    sessionId: 'chat-1',
+    transcriptPath: null,
+  })
+})
+
+test('rolloutFor reads a compressed rollout, archived or not, and skips a subagent’s and a codex exec run’s', async () => {
+  const home = tempDir()
+  const packed = rolloutAt(home, 'packed', { cwd: '/repo' }, { ext: 'jsonl.zst' })
+  assert.deepEqual(await rolloutFor(home, 'packed'), { path: packed, cwd: '/repo' })
+  const archived = movedRollout(packed, home, 'archived_sessions')
+  assert.deepEqual(await withCurrentRollout({ sessionId: 'packed', transcriptPath: packed }), {
+    sessionId: 'packed',
+    transcriptPath: archived,
+  })
+  assert.match((await readRollout(archived, '/repo'))?.conversation ?? '', /^Person: List the files here/)
+  rolloutAt(home, 'sub', { parent_thread_id: 'chat-1' })
+  rolloutAt(home, 'exec', { originator: 'codex_exec', source: 'exec' })
+
+  for (const id of ['sub', 'exec']) assert.equal(await rolloutFor(home, id), null)
+})

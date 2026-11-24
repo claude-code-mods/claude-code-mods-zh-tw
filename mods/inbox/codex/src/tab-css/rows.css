@@ -1,0 +1,460 @@
+/* A question's tree line is opaque, the text color mixed into the row's background, so a pixel two strokes share draws
+   in the same shade. Codex's muted color is translucent, so the line is not mixed from it. */
+.row {
+  --row-bg: var(--bg);
+  --tree-line: color-mix(in srgb, var(--text) 32%, var(--row-bg));
+  display: grid;
+  grid-template-columns: calc(var(--text-x) - var(--mark-x)) minmax(0, 1fr) auto;
+  padding: var(--row-pad) var(--edge) var(--row-pad) var(--mark-x);
+}
+.row.selected {
+  --row-bg: var(--selected);
+  background-color: var(--row-bg);
+}
+.mark {
+  align-self: start;
+  padding-right: var(--control-gap);
+  text-align: center;
+  color: var(--muted);
+}
+.mark.done {
+  color: var(--done);
+}
+.mark.success {
+  color: var(--success);
+}
+.mark.working {
+  color: var(--text);
+}
+.mark.opportunity {
+  color: var(--opportunity);
+}
+.mark-shape {
+  width: 8px;
+  height: 8px;
+  overflow: visible;
+}
+.mark.tasks {
+  color: var(--tasks);
+}
+.mark.issue {
+  color: var(--issue);
+}
+.mark.error {
+  color: var(--error-mark);
+}
+.side {
+  align-self: start;
+  margin-left: var(--item-gap);
+  color: var(--age);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+.mark.tone-needsYou,
+.mark.needsYou,
+.side.tone-needsYou {
+  color: var(--needs-you);
+}
+.side[data-room]::after {
+  content: attr(data-room);
+  display: block;
+  height: 0;
+  overflow: clip;
+  visibility: hidden;
+}
+.row.collapsed:hover .side {
+  color: var(--muted);
+}
+.content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+}
+.row > .panel {
+  grid-column: 2 / -1;
+}
+.content.tight {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.line {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+}
+.line .text {
+  min-width: 0;
+}
+/* A closed row's title takes two lines at most, cut with an ellipsis. Its status is a part of its own, so the cut never
+   reaches it. */
+.line .text .title-part {
+  overflow: clip;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.line .after {
+  color: var(--muted);
+}
+.row.collapsed .line .after:not(.tone-error, .tone-done) {
+  color: var(--age);
+}
+.row.collapsed:hover .line .after:not(.tone-error, .tone-done) {
+  color: var(--muted);
+}
+.line .after.tone-error {
+  color: var(--error);
+}
+.line .after.tone-done {
+  color: var(--done);
+}
+.row.selected .line,
+.row.closing .line {
+  display: block;
+}
+.row.selected .line .text:not(.short) .title-part,
+.row.closing .line .text:not(.short) .title-part {
+  display: block;
+}
+/* A moving row's full title draws the open form's weight, and a closing row's keeps it until the row's height rests.
+   The clamped title it swaps with draws the closed weight, so it wraps as the closed row does. */
+.row.selected .line .text:not(.short),
+.row.closing .line .text:not(.short) {
+  font-weight: 600;
+}
+/* A moving row's title in its closed form, which shows in place of the full title under it. */
+.row .line .text.short {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(100% + var(--sep-w));
+  opacity: 0;
+  pointer-events: none;
+}
+.row.selected .line .after,
+.row.closing .line .after {
+  white-space: normal;
+  font-weight: 400;
+}
+.line .lead {
+  color: var(--muted);
+  font-weight: 400;
+}
+/* A closed row's meta line, such as a review thread's place, is drawn whole, its parts wrapping as `.parted` sets them. */
+.line .meta {
+  display: flex;
+  color: var(--muted);
+}
+.row.collapsed:not(:hover) .line .meta {
+  color: var(--age);
+}
+.line .holds-up {
+  display: block;
+  color: var(--muted);
+  font-weight: 400;
+  overflow: clip;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row.selected .line .meta,
+.row.closing .line .meta {
+  display: none;
+}
+/* An open row's Holds up line is the first branch of its tree. A closing row's panel draws it, at full opacity, in the
+   place the closed line's Holds up line takes once the close ends, so that line shows at once. */
+.row.selected .line .holds-up,
+.row.closing .line .holds-up {
+  display: none;
+}
+.row.closing .closed-only,
+.row.collapsed:not(.closing) .open-only {
+  display: none;
+}
+.quote,
+.pre-line {
+  white-space: pre-line;
+}
+.row.collapsed:hover {
+  background-color: var(--row-hover);
+}
+.still .row.collapsed:not(:active):hover {
+  background-color: transparent;
+}
+.still .fold:not(:active):hover {
+  color: var(--muted);
+}
+.title {
+  font-weight: 600;
+}
+.body {
+  overflow-wrap: anywhere;
+}
+.body p {
+  margin-block: 0;
+}
+/* A PR row's lines sit a list step apart. */
+.body p + p:not([data-part]) {
+  margin-top: var(--list-gap);
+}
+.body .option-description {
+  color: var(--muted);
+}
+.body .option-label {
+  color: var(--text);
+}
+.body .reason-line {
+  display: block;
+}
+.body .tree p + p,
+.body .tree p {
+  margin: 0;
+}
+.body .tree .context-line {
+  color: var(--muted);
+}
+/*
+ * The tree hangs from the ◆ in the mark column. The ◆'s cell draws the line down to its row's end, and each branch
+ * of the tree draws the rest from the top of its own block to its tick, `--tree-x` left of the text column.
+ */
+.body .tree {
+  --tree-x: calc((var(--text-x) - var(--mark-x) - var(--control-gap)) / 2 + var(--control-gap));
+  position: relative;
+}
+.body .tree > p {
+  position: relative;
+}
+.body .tree:not(.plain) > p::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--tree-x) - 0.75px);
+  top: 0;
+  bottom: 0;
+  border-left: 1.5px solid var(--tree-line);
+}
+.body .tree > p:first-child::before {
+  top: calc(-1 * var(--inside-gap));
+}
+.body .tree > p.branch::after {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--tree-x) - 0.75px);
+  top: calc(var(--above) + var(--tick, 0.8em));
+  width: calc(var(--tree-x) - 6px + 0.75px);
+  border-top: 1.5px solid var(--tree-line);
+}
+.body .tree > p.tree-last::before {
+  bottom: auto;
+  height: calc(var(--above) + var(--tick, 0.8em));
+}
+/* An answer is its button with its note a list step under it, the note starting at the button's label. The button's wrapper draws
+   the arm to the button's middle, however many lines the label takes. On the last answer the trunk stops at the
+   button's top, and the wrapper draws it on to the arm. */
+.body .tree > p.option-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.body .tree > p.option-choice.tree-last::before {
+  height: var(--above);
+}
+.option-button {
+  position: relative;
+  display: flex;
+  max-width: 100%;
+}
+.option-button::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--tree-x) - 0.75px);
+  top: calc(50% - 0.75px);
+  width: calc(var(--tree-x) - 6px + 0.75px);
+  border-top: 1.5px solid var(--tree-line);
+  pointer-events: none;
+}
+.tree-last > .option-button::after {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--tree-x) - 0.75px);
+  top: 0;
+  height: 50%;
+  border-left: 1.5px solid var(--tree-line);
+  pointer-events: none;
+}
+.option-choice .option-note {
+  display: block;
+  padding-left: calc(var(--button-border) + var(--button-pad-x));
+}
+/* Answers side by side share one wrapper, so its arm meets the line of buttons. Each button keeps its whole width, so
+   the tab measures what the line needs. */
+.option-row > .option-button {
+  gap: var(--control-gap);
+}
+.option-row > .option-button > .key {
+  flex: none;
+}
+.body .tree > p.tree-after::before {
+  display: none;
+}
+.mark.has-tree.running {
+  animation: none;
+}
+.mark.has-tree.running .glyph {
+  animation: running-pulse var(--pulse) ease-in-out infinite;
+}
+.mark.has-tree {
+  position: relative;
+  align-self: stretch;
+}
+.mark.has-tree::after {
+  content: '';
+  position: absolute;
+  left: calc((var(--text-x) - var(--mark-x) - var(--control-gap)) / 2 - 0.75px);
+  top: 1.7em;
+  bottom: 0;
+  border-left: 1.5px solid var(--tree-line);
+}
+code {
+  padding: 1px var(--unit);
+  border-radius: 4px;
+  background: var(--soft);
+  font-family: var(--mono);
+}
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--control-gap);
+}
+/* After a question's answers, the first bordered button's label starts at the text edge, where a ghost button's does. */
+.keys.follows-answers > .key:first-child:not(.ghost) {
+  margin-left: calc(-1 * (var(--button-border) + var(--button-pad-x)));
+}
+.follow-ups {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--control-gap);
+  max-width: 100%;
+}
+.key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--unit);
+  min-height: calc(7 * var(--unit));
+  padding: var(--unit) var(--button-pad-x);
+  border: var(--button-border) solid color-mix(in oklab, var(--text) 28%, transparent);
+  border-radius: calc(3.5 * var(--unit));
+  background: transparent;
+  font-weight: 400;
+  /* A label that wraps starts each line where its first line starts, as the option's note under it does. */
+  text-align: start;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.key:not(:disabled):hover {
+  background: var(--soft);
+}
+.key:focus-visible {
+  outline-width: 2px;
+  outline-offset: 2px;
+  border-radius: calc(3.5 * var(--unit));
+}
+.key.primary {
+  border-color: transparent;
+  background: var(--text);
+  color: var(--bg);
+}
+.key.primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--text) 82%, var(--bg));
+}
+.key .icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+/* A ghost button keeps its side padding as hit area, and is drawn left by it and its border so its label starts at the
+   text edge. A shift, unlike a negative margin, leaves the line's width alone, so a short label never wraps inside
+   itself. */
+.key.ghost {
+  padding: 0 var(--unit);
+  position: relative;
+  left: calc(-1 * (var(--unit) + var(--button-border)));
+  border-color: transparent;
+  background: none;
+  color: var(--muted);
+}
+.key.ghost:not(:disabled):hover {
+  background: none;
+  color: var(--text);
+}
+.key.out {
+  opacity: 0.4;
+}
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--control-gap);
+}
+form {
+  display: flex;
+  align-items: center;
+  gap: var(--control-gap);
+}
+input {
+  flex: 1;
+  min-width: 0;
+  min-height: calc(7 * var(--unit));
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid color-mix(in oklab, var(--text) 15%, transparent);
+  border-radius: 10px;
+  padding: var(--unit) calc(3 * var(--unit));
+}
+input::placeholder {
+  color: var(--muted);
+}
+/* The radius again, since :focus-visible sets 4px. */
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: color-mix(in oklab, var(--text) 32%, transparent);
+  border-radius: 10px;
+}
+textarea {
+  width: 100%;
+  font: 12px var(--mono);
+  color: inherit;
+  background: transparent;
+  border: 1px solid color-mix(in oklab, var(--text) 15%, transparent);
+  border-radius: 10px;
+}
+@property --tint {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+.title-tint {
+  --tone: var(--key);
+  color: color-mix(in oklab, var(--tone) var(--tint), currentcolor);
+}
+.title-tint.tint-done {
+  --tone: var(--done);
+}
+.title-tint.tint-muted {
+  --tone: var(--muted);
+}
+.title-tint.tint-error {
+  --tone: var(--error-mark);
+}

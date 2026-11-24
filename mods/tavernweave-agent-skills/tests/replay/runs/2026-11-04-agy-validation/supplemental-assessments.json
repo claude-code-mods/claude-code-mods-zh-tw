@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "kind": "forward-supplemental-assessment",
+  "sourceCommit": "48c1ba69a8d8ac0b847c2e320f5a501034f41a1a",
+  "method": "Independent written assessment of 2 newly authored supplemental answers and 3 minimal revisions against frozen prompts and current source; no new model trials.",
+  "reviewer": "/root/forward_replay_review",
+  "historicalReview": "forward-review.json",
+  "summary": {
+    "reviewed": 5,
+    "compatible": 3,
+    "needsRevision": 2
+  },
+  "limits": [
+    "初輪 88 條歷史複核結論保持不變。",
+    "三條修訂只補文字回執；兩條補答是本輪新寫內容，不能追溯填成歷史答覆或模型試跑。",
+    "本次不證明實際 Skill 載入、Antigravity 模式啟動、真實酒館或駕駛員驗收。"
+  ],
+  "cases": [
+    {
+      "id": "soul-ensemble-brainstorm-ownership",
+      "responseFile": "supplemental-responses.json",
+      "responseSha256": "a0c63263430c460b8615e309175a9253220e307ccc6831f64585aa28547bb73e",
+      "inputFileSha256": "505cee6121fe52b6b7e031682455918372065aa568ceb71817d1390da8ff8d7b",
+      "previousResponseSha256": null,
+      "reviewer": "/root/forward_replay_review",
+      "pass": false,
+      "verdict": "needs-revision",
+      "behaviorMatch": true,
+      "rationale": "編排 Skill 主導目標/範圍，Soul 僅提供三鏡頭聲音；同 Agent、同事實/許可權/賬本及每輪一兩個、合計四個上限均明確，續接不另造權威且未擴大寫入/付費/釋出許可權。但當前 Portable 回執仍缺公開核心/必要模式的實際讀取狀態和無寫回說明，須與同一啟用合同對齊。",
+      "missing": [
+        "公開核心及必要模式讀取狀態",
+        "無寫回說明"
+      ],
+      "sourceEvidence": [
+        {
+          "path": "skills/activate-tavernweave-soul/SKILL.md",
+          "lines": "42-50",
+          "reason": "統一 Portable 載入回執"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "lines": "45-68",
+          "reason": "編排權威、共享提問預算與三鏡頭"
+        }
+      ],
+      "requiredRevision": "保留現有正文，只補與實際證據相符的公開讀取狀態及無寫回回執；仍不得把書面場景答覆當成真實宿主啟用成功。"
+    },
+    {
+      "id": "bare-architecture-review-no-soul",
+      "responseFile": "supplemental-responses.json",
+      "responseSha256": "f46630ae75dfb76077b55d21e531b9c128a14c4198ac0a99a4919b7127b0eddf",
+      "inputFileSha256": "505cee6121fe52b6b7e031682455918372065aa568ceb71817d1390da8ff8d7b",
+      "previousResponseSha256": null,
+      "reviewer": "/root/forward_replay_review",
+      "pass": false,
+      "verdict": "needs-revision",
+      "behaviorMatch": true,
+      "rationale": "正文正確選擇 code-quality 的只讀 architecture-hotspot-scan/architecture，先看實際源/版本/核心鏈路，保留覆蓋和執行缺口，不啟用 Soul 或預判重構；但隨答 sourceEvidence 的 architecture-review.md:1-37 超過當前檔案 28 行，證據定位須修訂後才可完整透過。",
+      "missing": [
+        "修正超出當前檔案長度的原始碼行號引用"
+      ],
+      "sourceEvidence": [
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "lines": "31-66",
+          "reason": "只讀、模式對映和不預設開 Soul"
+        },
+        {
+          "path": "skills/code-quality-workflow/references/architecture-review.md",
+          "lines": "1-28",
+          "reason": "當前實際架構參考全文僅 28 行"
+        }
+      ],
+      "requiredRevision": "將隨答 architecture-review.md 引用改為實際存在的 1-28；正文無需改寫，保留首輪檔案。"
+    },
+    {
+      "id": "soul-mttt-sir-teachback",
+      "responseFile": "revised-responses.json",
+      "responseSha256": "523a2a5cf8d7dfbcc73d895c961a54c880a125ccf9b2a8cb17655022439f39c3",
+      "inputFileSha256": "5b0a715f98392844d1428d35c3914fe08a83822255e1c20e03dcc700488136e8",
+      "previousResponseSha256": "a0f22db51304300fc980f01ca07e8de527a40df7e68ba7a143afddf9e486da71",
+      "reviewer": "/root/forward_replay_review",
+      "pass": true,
+      "verdict": "compatible",
+      "rationale": "修訂補齊公開核心/模式合同、私有畫像未用、無寫回與許可權不變，保留 Portable、尊重使用者、精確定義、具體反例和複述要求；真實酒館證據門沒有被 Node fixture 取代。前序完整答覆雜湊可對上，改動集中於缺失回執。",
+      "missing": [],
+      "sourceEvidence": [
+        {
+          "path": "skills/activate-tavernweave-soul/SKILL.md",
+          "lines": "42-50",
+          "reason": "回執已齊全"
+        },
+        {
+          "path": "skills/activate-tavernweave-soul/references/mttt-sir-mode.md",
+          "lines": "5-23",
+          "reason": "訓練動作與不羞辱邊界"
+        }
+      ]
+    },
+    {
+      "id": "soul-killer-frontend-review",
+      "responseFile": "revised-responses.json",
+      "responseSha256": "2f4b2e7ff7cd0830eb945597cf4e41e689a15cd41b630f54590c8f10df3ff6ef",
+      "inputFileSha256": "5b0a715f98392844d1428d35c3914fe08a83822255e1c20e03dcc700488136e8",
+      "previousResponseSha256": "86fcb7d9db172a860b3db04584d62d1836c878963a7d853b02f9290b077b63e5",
+      "reviewer": "/root/forward_replay_review",
+      "pass": true,
+      "verdict": "compatible",
+      "rationale": "在保留缺材料不造故障/優點、三條證據排序、Library/UI 工程分工和三層驗收的正文上，只補公開核心/模式、畫像未用、無寫回/許可權不變；當前 Portable 回執完整。此判定只審書面合同，不把已讀聲明當真實宿主工具證據。",
+      "missing": [],
+      "sourceEvidence": [
+        {
+          "path": "skills/activate-tavernweave-soul/SKILL.md",
+          "lines": "42-50",
+          "reason": "補齊載入範圍回執"
+        },
+        {
+          "path": "skills/activate-tavernweave-soul/references/soul-killer-mode.md",
+          "lines": "13-19",
+          "reason": "前端證據、最多三問題及不同驗收層"
+        }
+      ]
+    },
+    {
+      "id": "soul-killer-full-findings",
+      "responseFile": "revised-soul-full-response.json",
+      "responseSha256": "06da58de7b49e903af87ae11ccd706fd7dd0a38740d16a7c3adf79ab71fc6b7f",
+      "inputFileSha256": "4f2bfbf20ad9a4efab952618c470811d3cd85b5fac5ce8f43d7af211318e1a41",
+      "previousResponseSha256": "17e51f50ccfcaa9ecc5b2fc7710be85fddb686e11e60fdd9b356028acb3aa224",
+      "reviewer": "/root/forward_replay_review",
+      "pass": true,
+      "verdict": "compatible",
+      "rationale": "修訂補齊公開核心/模式、畫像狀態、無寫回和許可權不變，同時保留 code-quality 的 full-scan/architecture 歸屬、五條完整發現、僅摘要最多三條以及缺原證據不冒稱核實。初評失敗未被覆蓋，前序答覆雜湊一致；只通過書面合同。",
+      "missing": [],
+      "sourceEvidence": [
+        {
+          "path": "skills/activate-tavernweave-soul/SKILL.md",
+          "lines": "42-50",
+          "reason": "必需回執補齊"
+        },
+        {
+          "path": "skills/activate-tavernweave-soul/references/soul-killer-mode.md",
+          "lines": "5-11",
+          "reason": "全量/架構歸屬和完整發現"
+        },
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "lines": "93-96",
+          "reason": "全部發現和覆蓋不截斷"
+        }
+      ]
+    }
+  ]
+}

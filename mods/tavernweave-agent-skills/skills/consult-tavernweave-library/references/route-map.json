@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "snapshotVersion": "2026-09-13",
+  "standingGuide": "ST-A0",
+  "routes": [
+    {"id":"build-work-library","terms":["作品資料庫","小說轉資料庫","小說轉資料庫","同人資料","同人內容轉","聯網收集文圖","二創資料庫","二創資料包"],"guides":[],"domains":[]},
+    {"id":"tavern-card-builder","terms":["制卡","角色卡","世界觀","知曉程度","純文字卡","mvu zod","mvuzod","hybrid","開場白","初始變數","更新規則","設定","開局","mvu","變數","提示詞","預設","接手","二創","續更","繼續更新原卡","人物創作","人物性情","人物生境","人設設計","設計人設","人設構思","人設診斷","人設實測","人設糾偏","人設修改","修改人設","調整人設","多階段人設","寫人設","整理人設","人設寫法","檢查人設","人設分析","一個人設","一份人設","建立人設","撰寫人設","玩家資料","玩家角色","允許代演","代演邊界","有限代演","委託代演","代演玩家","代演範圍","代演許可權","代寫玩家","不要代演","人物糾偏","角色糾偏","輕量npc","npc設計","character design","player persona","character stages","portrayal diagnosis","酒館卡","劇情事件","卡內事件","卡內道具","卡內場景","文風約定","卡內規則","卡內創作限制"],"guides":["ST-A2","ST-A3","ST-A4","ST-A6","ST-B1","ST-C10"],"domains":[]},
+    {"id":"worldbook-design-and-writing","terms":["世界書","worldbook","lorebook","條目觸發","條目拆分","條目合併","混合觸發","條目正文"],"guides":["ST-A3","ST-A4"],"domains":[]},
+    {"id":"sillytavern-card-components","terms":["拆卡","元件","registry","recipe"],"guides":["ST-A2","ST-A6"],"domains":[]},
+    {"id":"sillytavern-component-update","terms":["元件更新","正則更新","指令碼更新"],"guides":["ST-A2","ST-A6","ST-B2"],"domains":[]},
+    {"id":"sillytavern-render-regex-pipeline","terms":["正則","渲染管線","宏"],"guides":["ST-A5","ST-A6"],"domains":[]},
+    {"id":"sillytavern-rolecard-security","terms":["安全","xss","注入","許可權"],"guides":["ST-D6"],"domains":[]},
+    {"id":"sillytavern-database-rolecards","terms":["資料庫","表格","同層資料庫"],"guides":["ST-C4","ST-C7"],"experimentalGuides":["ST-C8"],"domains":[]},
+    {"id":"sillytavern-extension-dev","terms":["擴充套件","外掛","酒館指令碼","魔棒"],"guides":["ST-D5","ST-E5"],"domains":[]},
+    {"id":"sillytavern-rolecard-performance","terms":["效能","大卡","預算","inp"],"guides":["ST-D2"],"domains":["motion"]},
+    {"id":"sillytavern-media-live2d-runtime","terms":["媒體","音訊","影片","live2d","立繪"],"guides":["ST-E3","ST-E4"],"domains":["motion"]},
+    {"id":"sillytavern-card-pipeline","terms":["構建","打包","釋出","部署","json","png"],"guides":["ST-A2","ST-D1","ST-D4"],"domains":[]},
+    {"id":"sillytavern-api-reference","terms":["api","簽名","stscript","quickreplies","宏","事件監聽","事件回撥","事件載荷","事件訂閱","事件解綁"],"guides":["ST-A5","ST-B1","ST-B2","ST-C1","ST-D3"],"domains":[]},
+    {"id":"sillytavern-runtime-debug","terms":["除錯","白屏","空白","控制檯","宿主","不更新","報錯","壞了"],"guides":["ST-C1","ST-D4"],"domains":[]},
+    {"id":"sillytavern-embedded-ui","terms":["狀態列","控制中心","抽屜","浮窗","懸浮球","開局頁","美化","移動端","前端沙盒","聯合模擬","狀態對照","滑條除錯","封裝前打磨","訊息內容頁","信件頁面","論壇頁面","卡內檔案頁"],"guides":["ST-C1","ST-C2","ST-C3","ST-C9","ST-C10","ST-C11","ST-C12","ST-C13","ST-D7"],"domains":["design","motion"]},
+    {"id":"code-quality-workflow","terms":["程式碼質量","重構","最佳化","收尾","全量審查","架構審查","全量架構審查"],"guides":[],"domains":[]},
+    {"id":"shadcn-tailwind-ui","terms":["shadcn","tailwind","react","產品介面"],"guides":["ST-C3","ST-D7"],"domains":["design","motion"]},
+    {"id":"rolecard-workshop-ops","terms":["工坊","釋出鏈","閘道器","儲存","502"],"guides":["ST-D1","ST-D4","ST-E5"],"domains":[]},
+    {"id":"consult-tavernweave-library","terms":["資料庫","指南","設計庫","動效庫","概念庫","蒸餾賬本","篩選頁","挑選","引導檔位","引導擋位","新人檔","入門檔","熟練檔","老手檔","大白話","術語對照"],"guides":[],"domains":["design","motion","wiki","ledger"]},
+    {"id":"activate-tavernweave-soul","terms":["阿瞳","mttt.sir","soul","三席聯席"],"guides":[],"domains":[]},
+    {"id":"orchestrate-project-blueprint","terms":["腦暴","總設計案","藍圖","子藍圖","第一版","first playable","first usable","vibe code","許願","從零開始","第一次體驗","不知道從哪開始","專案進度畫板","進度畫板","專案看板","百分比進度條","稽核進度","記錄新想法","bug回報記錄","畫板同步","next同步","總設計案同步","提示規格","提示詞規格","提示詞反推","樣例反推","樣例歸納","提示詞模板","玩法設計","事件圖","有向地圖"],"guides":[],"domains":[]},
+    {"id":"rewrite-natural-prose","terms":["洗稿","去 AI 味","去AI味","去八股","自然表達","寫自然一點","文字精修"],"guides":[],"domains":[]}
+  ]
+}

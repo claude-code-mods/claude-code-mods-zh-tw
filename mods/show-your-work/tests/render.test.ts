@@ -1,0 +1,521 @@
+import { expect, mock, test } from 'claude-code/testing'
+
+const shown = {
+  kind: 'video', path: '/tmp/x/f00001.png', source: '/tmp/x.webm', width: 960, height: 540, title: 'Agent QA', generation: 1,
+  frames: { dir: '/tmp/x', count: 20, fps: 12, duration: 1.6 },
+}
+
+for (const columns of [140, 90]) {
+  test(`the player draws a picture at ${columns} columns`, async $ => {
+    const output = `Shown to the user: Agent QA.\nshow-your-work:${JSON.stringify(shown)}`
+    const target = {
+      plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'tu-1',
+      props: { tool_use_id: 'tu-1', tool: 'mcp__show-your-work__show_video', output, isErrored: false },
+      viewport: { columns, rows: 50 },
+    } as any
+    const mounted = await $.ui.mount(target)
+    const tree = JSON.stringify(await mounted.drawn())
+
+    expect(tree.includes('"Image"')).toBe(true)
+  })
+}
+
+test('the window is never wider than the terminal', async $ => {
+  for (const columns of [70, 100, 160]) {
+    const output = `Shown.\nshow-your-work:${JSON.stringify(shown)}`
+    const target = {
+      plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: `w-${columns}`,
+      props: { tool_use_id: `w-${columns}`, tool: 'mcp__show-your-work__show_video', output, isErrored: false },
+      viewport: { columns, rows: 50 },
+    } as any
+    const mounted = await $.ui.mount(target)
+    const tree = (await mounted.drawn()) as any
+    expect(tree.props.width).toBeLessThanOrEqual(columns - 4)
+  }
+})
+
+test('a narrow window shows the report under the player', async $ => {
+  const report = { ...shown, changes: [{ title: 'Stats moved inside the cards', at: 0.5 }], summary: [{ label: 'Layout', ok: true, passed: 4, total: 4 }] }
+  for (const columns of [80, 100]) {
+    const output = `Shown.\nshow-your-work:${JSON.stringify(report)}`
+    const target = {
+      plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: `n-${columns}`,
+      props: { tool_use_id: `n-${columns}`, tool: 'mcp__show-your-work__show_video', output, isErrored: false },
+      viewport: { columns, rows: 50 },
+    } as any
+    const mounted = await $.ui.mount(target)
+    const tree = JSON.stringify(await mounted.drawn())
+    expect(tree.includes('WHAT CHANGED')).toBe(true)
+    expect(tree.includes('All checks passed')).toBe(true)
+  }
+})
+
+test('a picture with earlier versions draws with the version row', async $ => {
+  const pic = { kind: 'image', path: '/tmp/a.png', source: '/tmp/a.png', width: 1600, height: 1060, title: 'Hero', generation: 1 }
+  const withHistory = { ...pic, changes: [{ title: 'Centred the play button' }], compare: { ...pic, title: 'Original' }, history: [{ path: '/tmp/v1.png', note: 'Cloud photo' }, { path: '/tmp/v2.png' }], note: 'Centred play' }
+  for (const columns of [160, 90]) {
+    const output = `Shown.\nshow-your-work:${JSON.stringify(withHistory)}`
+    const target = {
+      plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: `h-${columns}`,
+      props: { tool_use_id: `h-${columns}`, tool: 'mcp__show-your-work__show_image', output, isErrored: false },
+      viewport: { columns, rows: 50 },
+    } as any
+    const mounted = await $.ui.mount(target)
+    const tree = JSON.stringify(await mounted.drawn())
+    expect(tree.includes('History · 3')).toBe(true)
+    expect(tree.includes('"Image"')).toBe(true)
+  }
+})
+
+test('the history lists every version by what changed, newest first', async $ => {
+  const pic = { kind: 'image', path: '/tmp/a.png', source: '/tmp/a.png', width: 1600, height: 1060, title: 'Hero', generation: 1 }
+  const withHistory = { ...pic, compare: { ...pic, title: 'Original' }, history: [{ path: '/tmp/v1.png', note: 'Cloud photo' }, { path: '/tmp/v2.png', note: 'Real icons' }], note: 'Centred play' }
+  const output = `Shown.\nshow-your-work:${JSON.stringify(withHistory)}`
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'hist',
+    props: { tool_use_id: 'hist', tool: 'mcp__show-your-work__show_image', output, isErrored: false },
+    viewport: { columns: 160, rows: 50 },
+  } as any
+  const m = await $.ui.mount(target) as any
+  await m.press({ key: 'history' })
+  await m.redraw()
+  const tree = JSON.stringify(await m.drawn())
+  expect(tree.includes('VERSIONS · 3')).toBe(true)
+  expect(tree.indexOf('Centred play')).toBeLessThan(tree.indexOf('Cloud photo'))
+})
+
+test('scrubbing while the clip plays moves the playhead and pauses', async $ => {
+  const output = `Shown.\nshow-your-work:${JSON.stringify(shown)}`
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'scrub',
+    props: { tool_use_id: 'scrub', tool: 'mcp__show-your-work__show_video', output, isErrored: false },
+    viewport: { columns: 140, rows: 50 },
+  } as any
+  const m = await $.ui.mount(target) as any
+  const before = JSON.stringify(await m.drawn())
+  if (before.includes('Pause')) { /* autoplayed */ } else await m.press({ key: 'play' })
+  await m.redraw()
+  const tree = JSON.stringify(await m.drawn())
+  expect(tree.includes('Pause')).toBe(true)
+  expect(tree.includes('"seek-0"')).toBe(true)
+  // Pressing near the end while playing moves the playhead there.
+  const keys = [...tree.matchAll(/"seek-(\d+)"/g)].map(x => Number(x[1]))
+  await m.press({ key: `seek-${keys.at(-1)}` })
+  await m.redraw()
+  const after = JSON.stringify(await m.drawn())
+  expect(after.includes('0:01')).toBe(true)
+  // A jump to the middle pauses there: Resume, not a Pause over a still frame.
+  if (!after.includes('Pause')) await m.press({ key: 'play' })
+  await m.redraw()
+  expect(JSON.stringify(await m.drawn()).includes('Pause')).toBe(true)
+  await m.press({ key: `seek-${keys[Math.floor(keys.length / 2)]}` })
+  await m.redraw()
+  const middle = JSON.stringify(await m.drawn())
+  expect(middle.includes('Pause')).toBe(false)
+  expect(middle.includes('Resume')).toBe(true)
+})
+
+test('a preview whose files are gone says it expired, with a prompt to copy', async $ => {
+  const gone = { kind: 'image', path: '/tmp/definitely-gone-xyz.png', source: '/tmp/definitely-gone-xyz.png', width: 800, height: 600, title: 'Hero', generation: 1 }
+  const output = `Shown.\nshow-your-work:${JSON.stringify(gone)}`
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'gone',
+    props: { tool_use_id: 'gone', tool: 'mcp__show-your-work__show_image', output, isErrored: false },
+    viewport: { columns: 140, rows: 50 },
+  } as any
+  const tree = JSON.stringify(await (await $.ui.mount(target)).drawn())
+  expect(tree.includes('"Image"') || tree.includes('expired')).toBe(true)
+})
+
+test('a video without ffmpeg says so in place, with a prompt to copy', async $ => {
+  const output = "show-your-work: videos need ffmpeg, and it isn't installed. Pictures still work. Install it with `brew install ffmpeg` " +
+    '(Claude can run that for you), then restart Claude Code. No Homebrew? Install it first from https://brew.sh.'
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'no-ff',
+    props: { tool_use_id: 'no-ff', tool: 'mcp__show-your-work__show_video', output, isErrored: true },
+    viewport: { columns: 120, rows: 50 },
+  } as any
+  const tree = JSON.stringify(await (await $.ui.mount(target)).drawn())
+  expect(tree.includes('Videos need ffmpeg')).toBe(true)
+  expect(tree.includes('Copy prompt')).toBe(true)
+})
+
+test('other errors keep the engine\'s own drawing', async $ => {
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'other-err',
+    props: { tool_use_id: 'other-err', tool: 'mcp__show-your-work__show_video', output: 'show-your-work: no such file', isErrored: true },
+    viewport: { columns: 120, rows: 50 },
+  } as any
+  // The harness has no engine drawing, so passing it on shows up as a refusal.
+  const drawn = await $.ui.mount(target).then(m => m.drawn()).then(t => JSON.stringify(t), (err: Error) => String(err))
+  expect(drawn.includes('Videos need ffmpeg')).toBe(false)
+})
+
+// The tour's row in the chat: the player, and the step's bar under it.
+const tourRow = (requestId: string) => ({ plugin: 'show-your-work', surface: 'terminal', component: 'CommandOutput', requestId, props: { command: 'show-your-work', args: 'tour', text: 'show-your-work tour.', isErrored: false }, viewport: { columns: 120, rows: 50 } }) as any
+
+test('while a step\'s demo is loading, the tour shows no bar, so Next can\'t be pressed early', async ($, on) => {
+  on('store.get', () => ({ value: undefined }))
+  const row = await $.ui.mount(tourRow('tour-row'))
+  await new Promise(r => (globalThis as any).setTimeout(r, 30))
+  const tree = JSON.stringify(await row.drawn())
+  // The harness can't prepare the demo video, so step 1 stays loading.
+  expect(tree.includes('Loading the demo')).toBe(true)
+  expect(tree.includes('Next ›')).toBe(false)
+  expect(tree.includes('1 of 5')).toBe(false)
+})
+
+test('/show-your-work update opens a pane that checks first', async ($, on) => {
+  on('store.get', () => ({ value: undefined }))
+  const target = { plugin: 'show-your-work', surface: 'terminal', component: 'Pane', requestId: 'show-your-work-update', props: { bodyColumns: 66, bodyRows: 7 }, viewport: { columns: 120, rows: 50 } } as any
+  const tree = JSON.stringify(await (await $.ui.mount(target)).drawn())
+  expect(tree.includes('Checking for updates')).toBe(true)
+})
+
+// Every node of a drawn tree whose type is `type`.
+const nodesOf = (node: any, type: string, out: any[] = []): any[] => {
+  if (!node || typeof node !== 'object') return out
+  if (Array.isArray(node)) { for (const n of node) nodesOf(n, type, out); return out }
+  if (node.type === type) out.push(node)
+  nodesOf(node.children, type, out)
+  return out
+}
+
+test('Original and Updated of different shapes share one frame, each whole inside it', async $ => {
+  const tall = { kind: 'image', path: '/tmp/tall.png', source: '/tmp/tall.png', width: 900, height: 1600, title: 'Tall', generation: 1 }
+  const big = { kind: 'image', path: '/tmp/big.png', source: '/tmp/big.png', width: 3000, height: 1875, title: 'Original', generation: 2 }
+  const output = `Shown.\nshow-your-work:${JSON.stringify({ ...tall, changes: [{ title: 'Shapes differ' }], compare: big })}`
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'shapes',
+    props: { tool_use_id: 'shapes', tool: 'mcp__show-your-work__show_image', output, isErrored: false },
+    viewport: { columns: 160, rows: 50 },
+  } as any
+  const mounted = await $.ui.mount(target)
+  const frameOf = (tree: any) => {
+    const image = nodesOf(tree, 'Image')[0].props
+    const holder = nodesOf(tree, 'Box').find(b => b.props?.justifyContent === 'center' && nodesOf(b.children, 'Image').length)
+    return { image: { columns: image.columns, rows: image.rows }, frame: holder ? { columns: holder.props.width, rows: holder.props.height } : { columns: image.columns, rows: image.rows } }
+  }
+  const updated = frameOf(await mounted.drawn())
+  await mounted.press({ key: 'side-before' })
+  const original = frameOf(await mounted.drawn())
+
+  // One frame for both: switching moves nothing.
+  expect(original.frame).toEqual(updated.frame)
+  // Each side is its own shape, inside the frame, and neither is shrunk to the other's.
+  for (const side of [updated, original]) {
+    expect(side.image.columns).toBeLessThanOrEqual(side.frame.columns)
+    expect(side.image.rows).toBeLessThanOrEqual(side.frame.rows)
+  }
+  expect(updated.image.rows).toBeGreaterThan(updated.image.columns / 2)
+  expect(original.image.columns).toBeGreaterThan(updated.image.columns)
+})
+
+test('Open page opens only a web address, never an app or a script', async $ => {
+  const pic = { kind: 'image', path: '/tmp/a.png', source: '/tmp/a.png', width: 1600, height: 1000, title: 'Page', generation: 1 }
+  const cases: [string, string][] = [['https://example.com/pricing', 'Open page'], ['/tmp/x.command', 'View'], ['file:///Applications/Calculator.app', 'View'], ['-a Terminal', 'View']]
+  for (const [url, label] of cases) {
+    const output = `Shown.\nshow-your-work:${JSON.stringify({ ...pic, url })}`
+    const id = `u-${label}-${url.length}`
+    const target = {
+      plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: id,
+      props: { tool_use_id: id, tool: 'mcp__show-your-work__show_image', output, isErrored: false },
+      viewport: { columns: 140, rows: 50 },
+    } as any
+    const mounted = await $.ui.mount(target)
+    const page = nodesOf(await mounted.drawn(), 'Button').find(b => b.props.key === 'page')
+    expect(page.props.label).toBe(`↗ ${label}`)
+  }
+})
+
+test('clicking a change pauses the video on that moment', async $ => {
+  const clip = { ...shown, changes: [{ title: 'Stats moved inside the cards', at: 1 }] }
+  const output = `Shown.\nshow-your-work:${JSON.stringify(clip)}`
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'jump-pause',
+    props: { tool_use_id: 'jump-pause', tool: 'mcp__show-your-work__show_video', output, isErrored: false },
+    viewport: { columns: 140, rows: 50 },
+  } as any
+  const mounted = await $.ui.mount(target)
+  await mounted.press({ key: 'play' })
+  const playing = nodesOf(await mounted.drawn(), 'Button').find(b => b.props.key === 'play')
+  expect(playing.props.label.includes('Pause')).toBe(true)
+  const change = nodesOf(await mounted.drawn(), 'Button').find(b => String(b.props.key).startsWith('change-'))
+  await mounted.press({ key: change.props.key })
+  const after = nodesOf(await mounted.drawn(), 'Button').find(b => b.props.key === 'play')
+  expect(after.props.label.includes('Pause')).toBe(false)
+})
+
+test('/img draws the picture in the chat, under the command', async $ => {
+  const pic = { kind: 'image', path: '/tmp/a.png', source: '/tmp/a.png', width: 1600, height: 1000, title: 'hero.jpg', generation: 1 }
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'CommandOutput', requestId: 'img-row',
+    props: { command: 'img', args: '/tmp/a.png', text: `show-your-work: Showing hero.jpg.\nshow-your-work:${JSON.stringify(pic)}`, isErrored: false },
+    viewport: { columns: 140, rows: 50 },
+  } as any
+  const tree = await (await $.ui.mount(target)).drawn()
+  expect(nodesOf(tree, 'Image').length).toBe(1)
+  expect(JSON.stringify(tree).includes('hero.jpg')).toBe(true)
+})
+
+test('an /img row from before a restart says what it showed, without the raw marker', async $ => {
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'CommandOutput', requestId: 'img-old',
+    props: { command: 'img', args: 'x.png', text: 'Showing x.png (800×500).\nshow-your-work:#abcdef1234', isErrored: false },
+    viewport: { columns: 140, rows: 50 },
+  } as any
+  const text = JSON.stringify(await (await $.ui.mount(target)).drawn())
+  expect(text.includes('Showing x.png')).toBe(true)
+  expect(text.includes('show-your-work:#')).toBe(false)
+})
+
+// How often `text` appears in a drawn tree.
+const timesIn = (tree: unknown, text: string) => JSON.stringify(tree).split(text).length - 1
+
+test('the tabs are drawn once, in the title bar, in every layout', async $ => {
+  const pic = { kind: 'image', path: '/tmp/a.png', source: '/tmp/a.png', width: 1600, height: 1000, title: 'Hero', generation: 1 }
+  const withReport = { ...pic, changes: [{ title: 'Trip card beside the headline' }], compare: { ...pic, title: 'Original' } }
+  const noReport = { ...pic, compare: { ...pic, title: 'Original' } }
+  const withHistory = { ...withReport, history: [{ path: '/tmp/v1.png', note: 'First' }, { path: '/tmp/v2.png' }] }
+  for (const [name, shownNow, columns] of [['report beside', withReport, 170], ['report below', withReport, 90], ['no report', noReport, 170], ['history', withHistory, 170], ['narrow history', withHistory, 80]] as const) {
+    const id = `tabs-${name}`
+    const target = {
+      plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: id,
+      props: { tool_use_id: id, tool: 'mcp__show-your-work__show_image', output: `Shown.\nshow-your-work:${JSON.stringify(shownNow)}`, isErrored: false },
+      viewport: { columns, rows: 50 },
+    } as any
+    const tree = await (await $.ui.mount(target)).drawn()
+    const bars = nodesOf(tree, 'Box').filter(b => b.key === 'title-bar' || b.props?.key === 'title-bar')
+    expect(bars.length).toBe(1)
+    for (const key of ['side-before', 'side-after']) {
+      expect(nodesOf(tree, 'Button').filter(b => b.props.key === key).length).toBe(1)
+      expect(nodesOf(bars[0], 'Button').filter(b => b.props.key === key).length).toBe(1)
+    }
+  }
+})
+
+test('a wide window draws plain QA lines in the sidebar, never an empty one', async $ => {
+  const pic = { kind: 'image', path: '/tmp/k.png', source: '/tmp/k.png', width: 720, height: 3200, title: 'UI kit', generation: 1 }
+  const withQa = { ...pic, summary: [{ label: 'Components from live markup', ok: true }, { label: 'Renders standalone', ok: true }] }
+  const output = `Shown.\nshow-your-work:${JSON.stringify(withQa)}`
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'qa-wide',
+    props: { tool_use_id: 'qa-wide', tool: 'mcp__show-your-work__show_image', output, isErrored: false },
+    viewport: { columns: 200, rows: 60 },
+  } as any
+  const mounted = await $.ui.mount(target)
+  const tree = JSON.stringify(await mounted.drawn())
+  expect(tree.includes('All checks passed')).toBe(true)
+  expect(tree.includes('Renders standalone')).toBe(true)
+})
+
+test('a playing video swaps its frames in order, one at a time, at its frame rate', async ($, on) => {
+  const clock = mock.clock(on)
+  on('store.get', () => ({ value: undefined }))
+  // Every frame is already cut, and each swap is recorded.
+  on('fs.stat', () => ({ value: { kind: 'file', size: 1, mtimeMs: 0, isLink: false } }))
+  const swapped: number[] = []
+  on('ui.blit', (_$, e) => {
+    const file = String((e as any).source?.file ?? '')
+    const m = /f(\d+)\.png$/.exec(file)
+    if (m) swapped.push(Number(m[1]))
+    return { value: {} }
+  })
+  const clip = { ...shown, frames: { ...shown.frames, count: 30 } }
+  const output = `Shown.\nshow-your-work:${JSON.stringify(clip)}`
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'frames',
+    props: { tool_use_id: 'frames', tool: 'mcp__show-your-work__show_video', output, isErrored: false },
+    viewport: { columns: 140, rows: 50 },
+  } as any
+  const mounted = await $.ui.mount(target)
+  await mounted.press({ key: 'play' })
+  await clock.advance(1000)
+  const played = swapped.filter((f, i) => i === 0 || f !== swapped[i - 1])
+  // About a second at 12 fps, and never a frame drawn after a later one.
+  expect(played.length).toBeGreaterThanOrEqual(10)
+  expect(played.every((f, i) => i === 0 || f > played[i - 1]!)).toBe(true)
+})
+
+test('a skip during playback plays on from the new place', async ($, on) => {
+  const clock = mock.clock(on)
+  on('store.get', () => ({ value: undefined }))
+  on('fs.stat', () => ({ value: { kind: 'file', size: 1, mtimeMs: 0, isLink: false } }))
+  const swapped: number[] = []
+  on('ui.blit', (_$, e) => {
+    const m = /f(\d+)\.png$/.exec(String((e as any).source?.file ?? ''))
+    if (m) swapped.push(Number(m[1]))
+    return { value: {} }
+  })
+  const clip = { ...shown, frames: { ...shown.frames, count: 120, duration: 10 } }
+  const output = `Shown.\nshow-your-work:${JSON.stringify(clip)}`
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'skip',
+    props: { tool_use_id: 'skip', tool: 'mcp__show-your-work__show_video', output, isErrored: false },
+    viewport: { columns: 140, rows: 50 },
+  } as any
+  const mounted = await $.ui.mount(target)
+  await mounted.press({ key: 'play' })
+  await clock.advance(500)
+  await mounted.press({ key: 'forward' })
+  swapped.length = 0
+  await clock.advance(1000)
+  // From about frame 43 (0.5 s + 3 s in), still moving a second later.
+  const played = swapped.filter((f, i) => i === 0 || f !== swapped[i - 1])
+  expect(played.length).toBeGreaterThanOrEqual(8)
+  expect(played[0]!).toBeGreaterThanOrEqual(40)
+  expect(played.every((f, i) => i === 0 || f > played[i - 1]!)).toBe(true)
+})
+
+test('View pauses a playing video', async ($, on) => {
+  const clock = mock.clock(on)
+  on('store.get', () => ({ value: undefined }))
+  on('fs.stat', () => ({ value: { kind: 'file', size: 1, mtimeMs: 0, isLink: false } }))
+  on('ui.blit', () => ({ value: {} }))
+  on('process.run', () => ({ value: { exitCode: 0, stdout: '', stderr: '' } }) as any)
+  const clip = { ...shown, frames: { ...shown.frames, count: 120, duration: 10 } }
+  const mounted = await $.ui.mount({
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'view',
+    props: { tool_use_id: 'view', tool: 'mcp__show-your-work__show_video', output: `Shown.\nshow-your-work:${JSON.stringify(clip)}`, isErrored: false },
+    viewport: { columns: 140, rows: 50 },
+  } as any)
+  await mounted.press({ key: 'play' })
+  await clock.advance(500)
+  expect(JSON.stringify(await mounted.drawn()).includes('Pause')).toBe(true)
+  await mounted.press({ key: 'page' })
+  await clock.advance(100)
+  expect(JSON.stringify(await mounted.drawn()).includes('Pause')).toBe(false)
+})
+
+test('side by side plays its merged frames in order, made from both sides', async ($, on) => {
+  const clock = mock.clock(on)
+  on('store.get', () => ({ value: undefined }))
+  // Every side frame is already cut; merged frames are made by ffmpeg.
+  const merged = new Set<number>()
+  const copies = new Map<string, string>()
+  on('fs.stat', (_$, e) => {
+    const m = /\/tmp\/p\/f(\d+)\.png$/.exec(String((e as any).path))
+    if (m && !merged.has(Number(m[1]))) return { deny: 'ENOENT: no such file' } as any
+    return { value: { kind: 'file', size: 1, mtimeMs: 0, isLink: false } } as any
+  })
+  on('process.run', (_$, e) => {
+    const argv: string[] = (e as any).argv
+    // Outside Ghostty a frame is drawn from a temp-folder copy: which frame it is.
+    if (argv[0] === 'sh' && String(argv[2]).includes('cp -c')) copies.set(String(argv[4]), String(argv[3]))
+    const out = argv.at(-1) ?? ''
+    if (out.startsWith('/tmp/p/f')) {
+      const first = Number(argv[argv.indexOf('-start_number') + 1])
+      const n = Number(argv[argv.indexOf('-frames:v') + 1])
+      for (let k = first; k < first + n; k++) merged.add(k)
+    }
+    return { value: { exitCode: 0, stdout: '', stderr: '' } } as any
+  })
+  const swapped: number[] = []
+  on('ui.blit', (_$, e) => {
+    const file = String((e as any).source?.file ?? '')
+    const m = /\/tmp\/p\/f(\d+)\.png$/.exec(copies.get(file) ?? file)
+    if (m) swapped.push(Number(m[1]))
+    return { value: {} }
+  })
+  const before = { ...shown, path: '/tmp/o/f00001.png', source: '/tmp/o.webm', frames: { dir: '/tmp/o', count: 30, fps: 12, duration: 2.5 } }
+  const clip = {
+    ...shown, frames: { ...shown.frames, count: 30, duration: 2.5 }, compare: before,
+    pair: { dir: '/tmp/p', count: 30, fps: 12, duration: 2.5 }, pairWidth: 1960, pairHeight: 540, sync: [[0, 0]],
+  }
+  const output = `Shown.\nshow-your-work:${JSON.stringify(clip)}`
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'pair',
+    props: { tool_use_id: 'pair', tool: 'mcp__show-your-work__show_video', output, isErrored: false },
+    viewport: { columns: 140, rows: 50 },
+  } as any
+  const mounted = await $.ui.mount(target)
+  await mounted.press({ key: 'side-both' })
+  await clock.advance(300)
+  await mounted.press({ key: 'play' })
+  await clock.advance(1500)
+  const played = swapped.filter((f, i) => i === 0 || f !== swapped[i - 1])
+  expect(played.length).toBeGreaterThanOrEqual(10)
+  expect(played.every((f, i) => i === 0 || f > played[i - 1]!)).toBe(true)
+})
+
+test('on a slow terminal, playback drops frames instead of queueing or reordering them', async ($, on) => {
+  const clock = mock.clock(on)
+  on('store.get', () => ({ value: undefined }))
+  on('fs.stat', () => ({ value: { kind: 'file', size: 1, mtimeMs: 0, isLink: false } }))
+  // Each swap takes 250 ms, three frames' worth at 12 fps.
+  const swapped: number[] = []
+  let inFlight = 0
+  let mostAtOnce = 0
+  on('ui.blit', async (_$, e) => {
+    const m = /f(\d+)\.png$/.exec(String((e as any).source?.file ?? ''))
+    inFlight += 1
+    mostAtOnce = Math.max(mostAtOnce, inFlight)
+    await clock.sleep(250)
+    inFlight -= 1
+    if (m) swapped.push(Number(m[1]))
+    return { value: {} }
+  })
+  const clip = { ...shown, frames: { ...shown.frames, count: 40 } }
+  const output = `Shown.\nshow-your-work:${JSON.stringify(clip)}`
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'slow',
+    props: { tool_use_id: 'slow', tool: 'mcp__show-your-work__show_video', output, isErrored: false },
+    viewport: { columns: 140, rows: 50 },
+  } as any
+  const mounted = await $.ui.mount(target)
+  await mounted.press({ key: 'play' })
+  await clock.advance(2000)
+  const frames = swapped.filter(f => f > 1)
+  // Only one swap at a time, so about one every 250 ms, always moving forward.
+  expect(mostAtOnce).toBeLessThanOrEqual(2)
+  expect(frames.length).toBeLessThanOrEqual(10)
+  expect(frames.every((f, i) => i === 0 || f > frames[i - 1]!)).toBe(true)
+  expect(frames.at(-1)!).toBeGreaterThanOrEqual(15)
+})
+
+test('scrolling back to a picture re-sends it only if the terminal may have dropped it', async ($, on) => {
+  const clock = mock.clock(on)
+  on('store.get', () => ({ value: undefined }))
+  on('fs.stat', () => ({ value: { kind: 'file', size: 1, mtimeMs: 0, isLink: false } }))
+  let sent = 0
+  on('ui.blit', () => {
+    sent += 1
+    return { value: {} }
+  })
+  const pic = { kind: 'image', path: '/tmp/scroll.png', source: '/tmp/scroll.png', width: 1600, height: 1000, title: 'Scroll', generation: 1 }
+  const output = `Shown.\nshow-your-work:${JSON.stringify(pic)}`
+  const props = { tool_use_id: 'scroll', tool: 'mcp__show-your-work__show_image', output, isErrored: false }
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'scroll',
+    props, viewport: { columns: 140, rows: 50 },
+  } as any
+  const mounted = await $.ui.mount(target)
+  await clock.advance(1000)
+  const before = sent
+  // Away and straight back: the terminal still has it, nothing is sent.
+  await mounted.redraw({ ...props, onScreen: null } as any)
+  await mounted.redraw({ ...props, onScreen: true } as any)
+  await clock.settle()
+  expect(sent).toBe(before)
+  // Away while plenty of other pictures were sent: sent again at once.
+  await mounted.redraw({ ...props, onScreen: null } as any)
+  // A huge picture shown meanwhile: 8000 x 8000 is 256 MB decoded.
+  const big = { ...pic, path: '/tmp/big.png', source: '/tmp/big.png', width: 8000, height: 8000, title: 'Big' }
+  await $.ui.mount({ ...target, requestId: 'big', props: { ...props, tool_use_id: 'big', output: `Shown.\nshow-your-work:${JSON.stringify(big)}` } } as any)
+  await clock.settle()
+  await mounted.redraw({ ...props, onScreen: true } as any)
+  await clock.settle()
+  expect(sent).toBe(before + 1)
+})
+
+test('a tall, narrow picture still gets Copy path when the window has room', async $ => {
+  const pic = { kind: 'image', path: '/tmp/board.png', source: '/tmp/board.png', width: 1200, height: 1340, title: 'Scene board', generation: 1 }
+  const target = {
+    plugin: 'show-your-work', surface: 'terminal', component: 'ToolResult', requestId: 'tall-copy',
+    props: { tool_use_id: 'tall-copy', tool: 'mcp__show-your-work__show_image', output: `Shown.\nshow-your-work:${JSON.stringify(pic)}`, isErrored: false },
+    viewport: { columns: 140, rows: 50 },
+  } as any
+  const mounted = await $.ui.mount(target)
+  const keys = nodesOf(await mounted.drawn(), 'Button').map(b => b.props.key)
+  expect(keys.includes('copy')).toBe(true)
+})

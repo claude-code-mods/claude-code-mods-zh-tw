@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "kind": "forward-supplemental-v2-assessment",
+  "sourceCommit": "48c1ba69a8d8ac0b847c2e320f5a501034f41a1a",
+  "method": "Independent source-contract re-review of two revised supplemental written answers; no new model trials.",
+  "reviewer": "/root/forward_replay_review",
+  "previousAssessment": "supplemental-assessments.json",
+  "summary": {
+    "reviewed": 2,
+    "compatible": 2,
+    "needsRevision": 0
+  },
+  "evidenceLimits": [
+    "歷史 87/88 兩條缺失結論仍保留於 forward-review.json，不以本輪補答覆蓋。",
+    "本次透過的是補答正文及引用的源合同，非歷史模型執行或宿主發現證據。",
+    "真實 Skill 載入、模式啟動、持久設定和人類接受均未在本次複評中驗收。"
+  ],
+  "cases": [
+    {
+      "id": "soul-ensemble-brainstorm-ownership",
+      "primarySkill": "orchestrate-project-blueprint",
+      "responseSha256": "1bfa7076e758f20547bf82fbeb697a8f8920fb99e28515a68465c4df2dc1fe71",
+      "previousResponseSha256": "a0c63263430c460b8615e309175a9253220e307ccc6831f64585aa28547bb73e",
+      "responseFile": "supplemental-responses-v2.json",
+      "inputFileSha256": "69799fae089c787fc51e09aaf5d9c3f33b3e8ae3145c11259f5e5693ac210ca5",
+      "pass": true,
+      "verdict": "compatible",
+      "missing": [],
+      "rationale": "v2 僅增公開人格核心、Portable 合同及三席/各席參考的讀取狀態、畫像未用、無寫回和許可權不變，補齊初評缺項。編排主流程與 Soul 聲音所有權仍分明，同一 Agent 共事實/許可權/賬本和提問預算；未把新方案、寫入、付費或釋出當成已獲授權。前序雜湊對應保留的首輪補答；這是新寫場景的合同透過，不是找回歷史答覆或證明實際宿主啟用。",
+      "sourceEvidence": [
+        {
+          "path": "skills/activate-tavernweave-soul/SKILL.md",
+          "lines": "42-50",
+          "reason": "讀取狀態、畫像、無寫回與許可權回執齊備"
+        },
+        {
+          "path": "skills/orchestrate-project-blueprint/SKILL.md",
+          "lines": "45-68",
+          "reason": "編排流程、共享決定預算與同 Agent 鏡頭"
+        }
+      ]
+    },
+    {
+      "id": "bare-architecture-review-no-soul",
+      "primarySkill": "code-quality-workflow",
+      "responseSha256": "f46630ae75dfb76077b55d21e531b9c128a14c4198ac0a99a4919b7127b0eddf",
+      "previousResponseSha256": "f46630ae75dfb76077b55d21e531b9c128a14c4198ac0a99a4919b7127b0eddf",
+      "responseFile": "supplemental-responses-v2.json",
+      "inputFileSha256": "69799fae089c787fc51e09aaf5d9c3f33b3e8ae3145c11259f5e5693ac210ca5",
+      "pass": true,
+      "verdict": "compatible",
+      "missing": [],
+      "rationale": "正文保持初輪正確的 code-quality 只讀架構熱點路由，無 Soul、無隱式重構許可權；維護源/版本與核心邊界、覆蓋缺口及執行未驗界限保留。唯一修訂是將 architecture-review.md 的引用上界從 37 改為實際的 28，當前引用可解析；正文 SHA-256 與首輪相同，不能因本輪證據修好抹去初評記錄。",
+      "sourceEvidence": [
+        {
+          "path": "skills/code-quality-workflow/SKILL.md",
+          "lines": "31-66",
+          "reason": "只讀架構模式和不自動啟用 Soul"
+        },
+        {
+          "path": "skills/code-quality-workflow/references/architecture-review.md",
+          "lines": "1-28",
+          "reason": "正文內容依據及修正後的有效行號"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+#!/usr/bin/env node
+// Checks tokendoctor and the setup around it as Claude Code really loads them, from a debug log:
+// which copy of tokendoctor loaded and in which tier, whether the built-in guard was seated, mods
+// that hook compaction ahead of it, hooks that were skipped, the window Claude Code compacts at, and
+// a skill listing over its budget.
+//
+//   tokendoctor-selfcheck [--project <dir>] [--json]   starts `claude -p` once, in the project, on Haiku,
+//                                                       with no saved session and no MCP servers: one small request (its tools stay:
+//                                                       `--tools ""` would also refuse the tools mods register)
+//   tokendoctor-selfcheck --log <file> [--json]        reads a debug log you already have; no request
+import { spawnSync } from 'node:child_process'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { settingsPath } from '../lib/collect.mjs'
+import { debugFindings, parseDebugLog } from '../lib/debuglog.mjs'
+import { lines } from '../lib/transcript.mjs'
+
+const args = process.argv.slice(2)
+const value = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined)
+const project = resolve(value('--project') ?? process.cwd())
+
+let text
+let source
+if (value('--log')) {
+  source = value('--log')
+  // Its lines, not one string: a long session's log can pass the longest string Node makes.
+  text = lines(source)
+} else {
+  const dir = mkdtempSync(join(tmpdir(), 'tokendoctor-selfcheck-'))
+  const file = join(dir, 'debug.txt')
+  const run = spawnSync(
+    'claude',
+    // --strict-mcp-config: no MCP servers start; the log's mod, guard and compaction lines do not need them.
+    ['-p', 'Reply with the word ok.', '--model', 'haiku', '--strict-mcp-config', '--no-session-persistence', '--max-budget-usd', '0.10', '--debug-file', file],
+    { cwd: project, encoding: 'utf8', timeout: 180_000, env: { ...process.env, CLAUDECODE: '' } },
+  )
+  text = existsSync(file) ? readFileSync(file, 'utf8') : ''
+  rmSync(dir, { recursive: true, force: true })
+  source = 'a probe session'
+  if (!text) {
+    console.error(`claude -p 没有生成调试日志（退出码 ${run.status}）：${(run.stderr || run.stdout || '').trim().slice(0, 400)}`)
+    process.exit(1)
+  }
+}
+
+const log = parseDebugLog(text)
+if (!log.version && !value('--log')) {
+  log.version = /\d+\.\d+\.\d+/.exec(spawnSync('claude', ['--version'], { encoding: 'utf8' }).stdout ?? '')?.[0] ?? null
+}
+const slideOn = ['user', 'project', 'local'].some((sc) => {
+  try {
+    return JSON.parse(readFileSync(settingsPath(sc, project), 'utf8')).pluginConfigs?.['tokendoctor@tokendoctor']?.options?.slide === true
+  } catch {
+    return false
+  }
+})
+const findings = debugFindings(log, { slideOn, source })
+
+if (args.includes('--json')) {
+  console.log(JSON.stringify({ source, log, findings }, null, 2))
+  process.exit(0)
+}
+const ours = log.modules.find((m) => /tokendoctor@/.test(m.id))
+console.log(`Claude Code ${log.version ?? '?'}，来源：${source}`)
+console.log(`  guard（cc-plugin-sec-default）：${log.guard ? `${log.guard.seated ? '已就位' : '未就位'}，${log.guard.reason}` : '没有这一行'}`)
+console.log(`  tokendoctor：${ours ? `${ours.id}，层 ${ours.tier}，事件 ${ours.events.join(', ')}` : '未加载'}`)
+console.log(`  slide：${slideOn ? '开' : '关'}`)
+if (log.effectiveWindow) console.log(`  压缩点：${Math.round(log.effectiveWindow / 1000)}K（有效窗口）`)
+const compactors = log.modules.filter((m) => m.events.includes('session.compact')).map((m) => `${m.id} (${m.tier})`)
+if (compactors.length) console.log(`  挂在 session.compact 上的模组，按顺序：${compactors.join(' → ')}`)
+console.log('')
+if (!findings.length) console.log('没有问题。')
+for (const f of findings) console.log(`[${f.severity}] ${f.id}: ${f.title}\n  ${f.detail}\n  ${f.doc}\n`)

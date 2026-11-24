@@ -1,0 +1,38 @@
+{
+  "name": "tavernweave-agent-skills",
+  "version": "2.4.0",
+  "description": "TavernWeaveX無限月讀 2.4.0: 23 shared skills for rolecards, software work and bounded cloud tasks, with capability checks and resumable handoffs across supported hosts, plus the TavernWeave X DSH plugin bundle.",
+  "author": {
+    "name": "LiarMTTT"
+  },
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "keywords": [
+    "agent-skills",
+    "sillytavern",
+    "rolecard",
+    "mvu",
+    "code-quality"
+  ],
+  "skills": "./skills/",
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/consult-tavernweave-library/SKILL.md"
+    }
+  },
+  "interface": {
+    "displayName": "TavernWeaveX無限月讀",
+    "shortDescription": "角色卡與軟體製作，支援雲端任務續接",
+    "longDescription": "TavernWeaveX無限月讀 2.4.0 provides 23 skills for rolecards and software projects, plus the TavernWeave X DSH plugin bundle for DeepSeek Harness. The same plugin serves local hosts and cloud task workflows, including dots where supported. It checks available files, tools and permissions before work, records bounded milestones in the existing project handoff, and verifies evidence before resuming. Cloud scheduling, runtimes, storage and plugin availability are supplied by the host. Local global-instruction setup is optional and is not a cloud prerequisite. Rolecard architecture, worldbooks, variables, frontend design, source-backed libraries and natural expression share the existing TavernWeave workflow. Real SillyTavern and device acceptance remain separate from source and package checks.",
+    "developerName": "LiarMTTT",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "用 TavernWeave 開始這項雲端長任務。先核對可用素材、工具和續接記錄，再在已授權範圍內分階段推進；每階段保留成果和下一步。",
+      "我接手了這張角色卡，想沿原作繼續更新；先幫我看懂原卡，再選第一次改動。",
+      "把這部作品整理成二創資料庫，原作與同人分開；先核對代表樣本，再分批繼續並留下可恢復的交接記錄。"
+    ]
+  }
+}

@@ -1,0 +1,188 @@
+/* The host's variables when Codex passes them; otherwise the pane's own colors. */
+:root {
+  color-scheme: light;
+  --bg: var(--color-background-primary, #ffffff);
+  --text: var(--color-text-primary, #1f1f1f);
+  --muted: var(--color-text-secondary, #595959);
+  /*TONES:light*/
+  --needs-you: var(--amber);
+  --issue: var(--error-mark);
+  --sans: var(--font-sans, -apple-system, system-ui, sans-serif);
+  --mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+  --raised: color-mix(in srgb, var(--text) 9%, var(--bg));
+  --selected: color-mix(in srgb, var(--text) 6%, var(--bg));
+  --age: color-mix(in srgb, var(--muted) 90%, var(--bg));
+  --hover: color-mix(in srgb, var(--key) 14%, transparent);
+  --soft: color-mix(in oklab, var(--text) 8%, transparent);
+  --soft-hover: color-mix(in oklab, var(--text) 10%, transparent);
+  --row-hover: color-mix(in oklab, var(--soft) 50%, transparent);
+  --mark-x: var(--edge);
+  --text-x: calc(var(--edge) + var(--mark));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: var(--color-background-primary, #171717);
+    --text: var(--color-text-primary, #ececec);
+    --muted: var(--color-text-secondary, #a8a8a8);
+    /*TONES:dark*/
+    --raised: color-mix(in srgb, var(--text) 11%, var(--bg));
+    --selected: color-mix(in srgb, var(--text) 8%, var(--bg));
+    --age: color-mix(in srgb, var(--muted) 85%, var(--bg));
+    --soft: color-mix(in oklab, var(--text) 12%, transparent);
+    --soft-hover: color-mix(in oklab, var(--text) 14%, transparent);
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  /*TONES:dark*/
+  --raised: color-mix(in srgb, var(--text) 11%, var(--bg));
+  --selected: color-mix(in srgb, var(--text) 8%, var(--bg));
+  --age: color-mix(in srgb, var(--muted) 85%, var(--bg));
+  --soft: color-mix(in oklab, var(--text) 12%, transparent);
+  --soft-hover: color-mix(in oklab, var(--text) 14%, transparent);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px var(--sans);
+  line-height: var(--line);
+  -webkit-font-smoothing: antialiased;
+  cursor: default;
+  user-select: none;
+}
+input,
+textarea {
+  cursor: auto;
+  user-select: text;
+}
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+}
+:focus-visible {
+  outline: 1.5px solid var(--key);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+.muted {
+  color: var(--muted);
+}
+.tone-needsYou {
+  color: var(--needs-you);
+}
+.tone-tasks {
+  color: var(--tasks);
+}
+.tone-findings {
+  color: var(--findings);
+}
+.tone-prs {
+  color: var(--prs);
+}
+.tone-success {
+  color: var(--success);
+}
+.tone-done {
+  color: var(--done);
+}
+.tone-error {
+  color: var(--error);
+}
+.notice {
+  padding: var(--control-gap) var(--edge);
+  overflow-wrap: anywhere;
+}
+/* A message about the inbox's own state, in the tone of what it says. */
+.banner {
+  --tone: var(--error);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--item-gap);
+  flex-basis: 100%;
+  padding: var(--banner-pad-y) calc(3 * var(--unit));
+  border: 1px solid color-mix(in srgb, var(--tone) 30%, var(--bg));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tone) 9%, var(--bg));
+  color: var(--text);
+  line-height: var(--line);
+  overflow-wrap: anywhere;
+  cursor: auto;
+  user-select: text;
+}
+.banner-warning {
+  --tone: var(--needs-you);
+}
+.banner-notice,
+.banner-ask {
+  --tone: var(--key);
+}
+/* A question: its text, then its buttons on their own line. */
+.banner-ask {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--control-gap);
+}
+.banner-ask .body {
+  display: block;
+  color: var(--muted);
+}
+.banner .lead {
+  font-weight: 600;
+  color: var(--tone);
+}
+/* Drawn with no banners too, so its height glides as banners come and go. Its negative margin takes back the tab bar's row gap.
+   Each banner carries its own gap above it, so the gap grows and shrinks with the banner. */
+.banner-stack {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-top: calc(-1 * var(--list-gap));
+}
+.banner-stack > * {
+  margin-top: var(--banner-gap);
+}
+#app > .banner {
+  margin: calc(3 * var(--unit)) calc(3 * var(--unit)) 0;
+}
+.banner-place {
+  padding: calc(3 * var(--unit)) calc(3 * var(--unit)) 0;
+}
+.banner-text {
+  flex: 1;
+  min-width: 0;
+}
+.banner-keys {
+  display: flex;
+  flex: none;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--control-gap);
+  /* A text line's height, so the buttons stay centred on the first line while a status adds lines under it. */
+  height: var(--line);
+}
+.banner-ask .banner-keys {
+  flex-wrap: wrap;
+  height: auto;
+}
+.banner .pr-last {
+  padding: 0;
+}
+.banner .key:not(.primary) {
+  color: var(--text);
+}
+.banner .key {
+  flex: none;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+}

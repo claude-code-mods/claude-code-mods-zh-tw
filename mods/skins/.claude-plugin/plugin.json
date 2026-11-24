@@ -1,0 +1,9 @@
+{
+  "name": "skins",
+  "version": "0.5.16",
+  "description": "Claude Code 皮膚：工具行可展開檢視輸入與回答，高亮的程式碼、diff、表格、公式、Mermaid 與 shell 卡片，連結、摺疊、用量條、專注模式和 15 套主題。/skin 可即時切換。",
+  "author": { "name": "hellosverre", "url": "https://github.com/hellosverre" },
+  "license": "MIT",
+  "keywords": ["claude-code-mods", "claude-mods", "function-hooks", "theme", "skin"],
+  "types": "./types/index.d.ts"
+}

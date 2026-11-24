@@ -1,0 +1,285 @@
+// Purpose: v0.8 — feature lines and ratings (docs/v0.8/plan.md): the record lines read from the model's own replies
+// in both indexes, how a placeholder shows them, the feature line note's place, and ids on this turn's new images.
+// Input: synthetic records, transcripts and request items; output: Node test assertions only.
+
+import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import test from "node:test";
+import { buildClaudeIndex } from "../../plugin/src/adapters/claude/claude-index.ts";
+import { rewriteMessages } from "../../plugin/src/adapters/claude/claude-rewrite.ts";
+import { findImages, type ImageRef } from "../../plugin/src/adapters/protocols/openai-responses/images.ts";
+import { addNotes, notesBy, sceneOf, type Notes } from "../../plugin/src/core/notes.ts";
+import { autoPlaceholder, clip, featureNote, plainPlaceholder, type Described } from "../../plugin/src/core/words.ts";
+import { rewriteItems } from "../../plugin/src/adapters/protocols/openai-responses/rewrite.ts";
+import { buildIndex, writesNotes, type Parsed } from "../../plugin/src/adapters/codex/thread-index.ts";
+import { claudeTurnTexts } from "../../plugin/src/adapters/claude/panel.ts";
+import { loadPanelState } from "../../plugin/src/adapters/codex/panel.ts";
+import { panelStateOf } from "../../plugin/src/panel/panel-state.ts";
+import { image, pngA, pngB, text, transcript } from "./claude-fixtures.ts";
+import { assistant, line, sampleSessions, THREAD, turn } from "./testfixtures.ts";
+import { png } from "./testkit.ts";
+
+const notesOf = (text: string, turn: number | null = 1) => {
+  const notes = new Map<string, Notes>();
+  addNotes(notes, text, turn);
+  return notes;
+};
+
+test("record lines: a feature line per image, written once; ratings pile up with their turns", () => {
+  const notes = notesOf([
+    "兩張都生成好了。",
+    "",
+    "[//]: # (cam IMG-001 深藍雨夜｜近景，正臉，霓虹反光)",
+    "[//]: # (cam IMG-002 暖色燈光｜中景，側臉，逆光)",
+    "[//]: # (cam IMG-001 深藍雨夜｜別的寫法)",
+    "[//]: # (cam IMG-002 評價：太暗)",
+  ].join("\n"), 3);
+  addNotes(notes, "[//]: # (cam IMG-002 評價: 臉最好)\n  [//]: # (cam IMG-003 rated: too dark )", 5);
+  assert.deepEqual(notes.get("IMG-001"), { line: "深藍雨夜｜近景，正臉，霓虹反光", ratings: [] });
+  assert.deepEqual(notes.get("IMG-002"), { line: "暖色燈光｜中景，側臉，逆光", ratings: [{ turn: 3, text: "太暗" }, { turn: 5, text: "臉最好" }] });
+  assert.deepEqual(notes.get("IMG-003"), { line: null, ratings: [{ turn: 5, text: "too dark" }] });
+  // Not a record line: inside other text, ASCII parentheses inside, no id, more than three spaces before it.
+  const none = notesOf("看這裡 [//]: # (cam IMG-004 x)\n[//]: # (cam IMG-005 帶(括號)的)\n[//]: # (cam 沒有編號)\n    [//]: # (cam IMG-006 縮排太多)");
+  assert.equal(none.size, 0);
+  assert.equal(sceneOf("深藍雨夜｜近景，正臉"), "深藍雨夜");
+  assert.equal(sceneOf("rainy blue night | close-up"), "rainy blue night");
+  assert.equal(sceneOf(null), null);
+});
+
+test("a long feature line or rating is cut at the last punctuation mark that fits", () => {
+  assert.equal(clip("深藍雨夜｜近景，正臉", 30), "深藍雨夜｜近景，正臉");
+  assert.equal(clip("深藍雨夜｜近景，正臉，霓虹反光，撐著一把透明的傘，背後是很長很長的街道和招牌", 30), "深藍雨夜｜近景，正臉，霓虹反光，撐著一把透明的傘…");
+  assert.equal(clip("一二三四五六七八九十一二三四五六", 15), "一二三四五六七八九十一二三四五…");
+  // v0.10: the cap counts width, whatever the language setting: 30 fits 30 Chinese characters or 100 Latin ones, so an
+  // English feature line in a Chinese task keeps its features (it was cut to its place before).
+  assert.equal(clip("cafe storefront morning | wide shot, girl reads chalkboard, passersby, cyclist right", 30), "cafe storefront morning | wide shot, girl reads chalkboard, passersby, cyclist right");
+  assert.equal(clip("rainy blue night | close-up, facing the camera, neon reflections on the wet street, a long row of shop signs behind", 30), "rainy blue night | close-up, facing the camera, neon reflections on the wet street, a long row of…");
+  assert.equal(clip("a".repeat(100), 30), "a".repeat(100));
+  assert.equal(clip("a".repeat(101), 30), `${"a".repeat(100)}…`);
+});
+
+const record = (type: string, payload: Record<string, any>): Parsed => ({ offset: 0, type, payload, timestamp: null });
+const url = (bytes: Buffer) => `data:image/png;base64,${bytes.toString("base64")}`;
+const red = png(4, 4, () => [255, 0, 0]);
+const blue = png(4, 4, () => [0, 0, 255]);
+
+test("the Codex index reads record lines from the model's replies only", () => {
+  const history = [
+    record("event_msg", { type: "task_started", turn_id: "t1" }),
+    record("response_item", { type: "message", id: "m1", role: "user", content: [{ type: "input_image", image_url: url(red) }, { type: "input_text", text: "[//]: # (cam IMG-001 使用者自己寫的)" }] }),
+    record("response_item", { type: "custom_tool_call", call_id: "c1", name: "exec", input: "x" }),
+    record("response_item", { type: "custom_tool_call_output", id: "o1", call_id: "c1", output: [{ type: "input_text", text: "[//]: # (cam IMG-001 網頁裡藏的)" }] }),
+    record("response_item", { type: "message", id: "m2", role: "assistant", content: [{ type: "output_text", text: "好的。\n\n[//]: # (cam IMG-001 深藍雨夜｜近景)" }] }),
+    record("event_msg", { type: "task_started", turn_id: "t2" }),
+    record("response_item", { type: "message", id: "m3", role: "assistant", content: [{ type: "output_text", text: "[//]: # (cam IMG-001 評價：太暗)" }] }),
+  ];
+  const index = buildIndex("thread", history);
+  assert.deepEqual(index.notes.get("IMG-001"), { line: "深藍雨夜｜近景", ratings: [{ turn: 2, text: "太暗" }] });
+});
+
+test("the Claude index reads record lines from the assistant's text, with the turn", () => {
+  const t = transcript();
+  t.prompt([image(pngA), text("[//]: # (cam IMG-001 使用者自己寫的)")]);
+  t.assistant(text("A red square.\n\n[//]: # (cam IMG-001 red square | flat, centered)"));
+  t.prompt("Is it too dark?");
+  t.assistant(text("[//]: # (cam IMG-001 rated: too dark)"));
+  const index = buildClaudeIndex("s", t.records);
+  assert.deepEqual(index.notes.get("IMG-001"), { line: "red square | flat, centered", ratings: [{ turn: 2, text: "too dark" }] });
+});
+
+const tagged = (name: string, n: number, bytes: Buffer) => [
+  { type: "input_text", text: `<image name=[Image #${n}] path="C:\\work\\${name}">` },
+  { type: "input_image", image_url: url(bytes), detail: "high" },
+  { type: "input_text", text: "</image>" },
+];
+// Turn 1: a.png; turn 2: b.png, the request's current turn.
+const turns = () => [
+  { type: "message", id: "dev", role: "developer", content: [{ type: "input_text", text: "instructions" }] },
+  { type: "message", id: "u1", role: "user", content: [{ type: "input_text", text: "第一張" }, ...tagged("a.png", 1, red)] },
+  { type: "message", id: "a1", role: "assistant", content: [{ type: "output_text", text: "收到" }] },
+  { type: "message", id: "u2", role: "user", content: [{ type: "input_text", text: "第二張" }, ...tagged("b.png", 1, blue)] },
+];
+const A_NOTES: Notes = { line: "深藍雨夜｜近景，正臉", ratings: [{ turn: 1, text: "一" }, { turn: 2, text: "二" }, { turn: 3, text: "三" }, { turn: 4, text: "臉最好" }] };
+function describer(list: Array<Record<string, any>>, notes: Record<string, Notes> = {}) {
+  const refs = findImages(list);
+  const byKey = new Map(refs.map((ref, i) => {
+    const id = `IMG-00${i + 1}`;
+    return [ref.key, { id, name: ref.name, label: ref.label, kind: ref.kind, turn: i + 1, width: ref.width, height: ref.height, ...(notes[id] ? { notes: notes[id] } : {}) } satisfies Described];
+  }));
+  return { describe: (ref: ImageRef) => byKey.get(ref.key), key: (id: string) => [...byKey].find(([, v]) => v.id === id)![0] };
+}
+const texts = (item: Record<string, any>): string[] => item.content.map((part: Record<string, any>) => part.text ?? part.type);
+
+test("a placeholder carries the feature line and the latest three ratings, with their turns", () => {
+  const image: Described = { id: "IMG-001", name: "a.png", label: null, kind: "upload", turn: 1, width: 4, height: 4, notes: A_NOTES };
+  assert.equal(autoPlaceholder(image), "[圖片 IMG-001 已省略｜a.png｜使用者上傳｜第 1 輪｜4×4]\n特徵：深藍雨夜｜近景，正臉；評價：第 2 輪“二”，第 3 輪“三”，第 4 輪“臉最好”\n需要原圖時呼叫 cam_view_image，傳入“IMG-001”。");
+  assert.equal(plainPlaceholder(image, "en"), "[Image IMG-001 omitted | a.png | uploaded by the user | turn 1 | 4×4]\nFeatures: 深藍雨夜｜近景，正臉; rated: \"二\" (turn 2), \"三\" (turn 3), \"臉最好\" (turn 4)\nTo see it again, write \"need IMG-001\" in your reply.");
+  assert.equal(autoPlaceholder({ ...image, notes: undefined }), "[圖片 IMG-001 已省略｜a.png｜使用者上傳｜第 1 輪｜4×4]\n需要原圖時呼叫 cam_view_image，傳入“IMG-001”。", "nothing noted: no line");
+});
+
+test("with feature lines, the note goes before the first image's turn and this turn's new image says its id", () => {
+  const input = turns();
+  const { describe, key } = describer(input, { "IMG-001": A_NOTES });
+  // Turn 2 with automatic selection: turn 1's a.png is left out, b.png is new.
+  const { items: out, report } = rewriteItems(input, describe, new Set([key("IMG-001")]), () => null, { auto: { currentTurn: 2 }, features: true });
+  assert.deepEqual(out.map((item) => item.role ?? item.type), ["developer", "developer", "developer", "user", "assistant", "user"]);
+  assert.equal(out[1].content[0].text, featureNote("zh"));
+  assert.match(out[2].content[0].text, /^上下文管理說明（來自使用者安裝的上下文素材管理工具）：這個任務開著“自動選圖”/);
+  assert.deepEqual([report.featureAt, report.noteAt, report.labeled], [1, 2, 1]);
+  assert.match(texts(out[3])[1], /^\[圖片 IMG-001（\[Image #1\]） 已省略｜a\.png｜使用者上傳｜第 1 輪｜4×4\]\n特徵：深藍雨夜｜近景，正臉；/);
+  assert.deepEqual(texts(out[5]).slice(0, 3), ["第二張", "[圖片 IMG-002（[Image #1]） 已提供｜b.png｜使用者上傳｜第 2 輪｜4×4]", `<image name=[Image #1] path="C:\\work\\b.png">`]);
+  // Turn 1's own request, nothing left out: the note and a.png's id only.
+  const first = turns().slice(0, 2);
+  const one = rewriteItems(first, describer(first).describe, new Set(), () => null, { auto: { currentTurn: 1 }, features: true });
+  assert.deepEqual(one.items.map((item) => item.role), ["developer", "developer", "user"]);
+  assert.deepEqual([one.report.replaced, one.report.featureAt, one.report.noteAt, one.report.labeled], [[], 1, undefined, 1]);
+  // Without feature lines (a side chat, a subagent) all is as before: nothing to do, the same items back.
+  assert.equal(rewriteItems(first, describer(first).describe, new Set(), () => null, { auto: { currentTurn: 1 } }).items, first);
+  // An image the index does not know yet is sent as it is, and counted.
+  const unknown = rewriteItems(first, () => undefined, new Set(), () => null, { features: true });
+  assert.deepEqual([unknown.items === first, unknown.report.unknown], [true, 1]);
+});
+
+test("Claude: the feature line note follows the message holding the first image, joining a note already there", () => {
+  const t = transcript();
+  t.prompt([image(pngA), text("first")]);
+  t.assistant(text("A red square."));
+  const p2 = t.prompt([image(pngB), text("second")]);
+  const index = buildClaudeIndex("s", t.records);
+  const messages = [
+    { role: "user", content: [image(pngA), text("first")] },
+    { role: "assistant", content: [text("A red square.")] },
+    { role: "user", content: [image(pngB), text("second")] },
+  ];
+  const plain = rewriteMessages(messages, index, new Set(), () => null, { features: true });
+  assert.deepEqual(plain.messages.map((message) => message.role), ["user", "system", "assistant", "user"]);
+  assert.equal(plain.messages[1].content, featureNote("zh"));
+  assert.deepEqual([plain.report.featureAt, plain.report.labeled], [1, 2]);
+  assert.match(plain.messages[3].content[0].text, /^\[圖片 IMG-002 已提供｜未命名｜使用者上傳｜第 2 輪｜8×8\]$/);
+  // B unchecked: the full note and its short note follow its message; the feature line note stays after A's.
+  const some = rewriteMessages(messages, index, new Set([`${p2}#0`]), () => null, { features: true });
+  assert.deepEqual(some.messages.map((message) => message.role), ["user", "system", "assistant", "user", "system"]);
+  assert.deepEqual([some.report.featureAt, some.report.noteAt], [1, 4]);
+});
+
+// v0.10: a placeholder or the list after a compaction changing later rewrote the prompt cache from there (anthropic-messages/cache.ts).
+test("v0.10: a placeholder shows the ratings of the image's own turn; the list after a compaction, the notes as they stood then", () => {
+  assert.deepEqual(notesBy({ line: "書房｜紅色方塊", ratings: [{ turn: 1, text: "好" }, { turn: 3, text: "太暗" }] }, 2), { line: "書房｜紅色方塊", ratings: [{ turn: 1, text: "好" }] });
+  assert.equal(notesBy({ line: null, ratings: [{ turn: 3, text: "太暗" }] }, 2), undefined);
+  const notes = { line: "x", ratings: [{ turn: null, text: "好" }] };
+  assert.equal(notesBy(notes, 1), notes);
+  const t = transcript();
+  const p1 = t.prompt([image(pngA), text("first")]);
+  t.assistant(text("[//]: # (cam IMG-001 書房｜紅色方塊)\n\nA red square."));
+  t.prompt("too dark");
+  t.assistant(text("[//]: # (cam IMG-001 評價：太暗)\n\nNoted."));
+  const messages = [
+    { role: "user", content: [image(pngA), text("first")] },
+    { role: "assistant", content: [text("A red square.")] },
+    { role: "user", content: [text("too dark")] },
+    { role: "assistant", content: [text("Noted.")] },
+    { role: "user", content: [text("next")] },
+  ];
+  const placeholder = rewriteMessages(messages, buildClaudeIndex("s", t.records), new Set([`${p1}#0`]), () => null, { features: true, auto: { currentTurn: 3 } }).messages[0].content[0].text;
+  assert.match(placeholder, /書房｜紅色方塊/);
+  assert.doesNotMatch(placeholder, /太暗/);
+  t.boundary();
+  t.summary();
+  t.prompt("after");
+  t.assistant(text("[//]: # (cam IMG-001 評價：又好了)\n\nOk."));
+  const index = buildClaudeIndex("s", t.records);
+  assert.deepEqual(index.compactedNotes.get("IMG-001")?.ratings.map((rating) => rating.text), ["太暗"]);
+  assert.deepEqual(index.notes.get("IMG-001")?.ratings.map((rating) => rating.text), ["太暗", "又好了"]);
+});
+
+// 2026-10-19: right after a tool result, Haiku 5.5 took the note for part of what the tool returned and refused it.
+test("Claude: when the first image came from a tool, the feature line note follows the user's message of that turn", () => {
+  const t = transcript();
+  t.prompt("Read a.png");
+  t.assistant({ type: "tool_use", id: "toolu_1", name: "Read", input: { file_path: "C:\\work\\a.png" } });
+  t.toolResult("toolu_1", [image(pngA)]);
+  const index = buildClaudeIndex("s", t.records);
+  const messages = [
+    { role: "user", content: [text("Read a.png")] },
+    { role: "system", content: "SessionStart hook additional context" },
+    { role: "assistant", content: [{ type: "tool_use", id: "toolu_1", name: "Read", input: { file_path: "C:\\work\\a.png" } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "toolu_1", content: [image(pngA)] }] },
+  ];
+  const out = rewriteMessages(messages, index, new Set(), () => null, { features: true });
+  assert.deepEqual(out.messages.map((message) => message.role), ["user", "system", "assistant", "user"]);
+  assert.deepEqual(out.messages[1].content.map((block: Record<string, any>) => block.text), [featureNote("zh"), "SessionStart hook additional context"]);
+  assert.match(out.messages[3].content[0].content[0].text, /^\[圖片 IMG-001 已提供｜a\.png｜工具檢視的圖片｜第 1 輪｜8×8\]$/);
+  assert.deepEqual([out.report.featureAt, out.report.labeled], [1, 1]);
+  // No message of the user's before it (a request cut short): after the image's own message, as before.
+  const bare = rewriteMessages(messages.slice(2), index, new Set(), () => null, { features: true });
+  assert.deepEqual([bare.messages.map((message) => message.role), bare.report.featureAt], [["assistant", "user", "system"], 2]);
+});
+
+test("a subagent's model writes no feature lines; the user's own task does, also before its rollout's first line", () => {
+  const sessions = mkdtempSync(join(tmpdir(), "cam-notes-sessions-"));
+  const day = join(sessions, "2026", "10", "19");
+  mkdirSync(day, { recursive: true });
+  const write = (id: string, meta: Record<string, any>) => writeFileSync(join(day, `rollout-2026-10-19T10-00-00-${id}.jsonl`), `${JSON.stringify({ type: "session_meta", payload: { id, ...meta } })}\n`);
+  const own = "01a15100-0000-7000-8000-000000000001";
+  const sub = "01a15100-0000-7000-8000-000000000002";
+  const forkedSub = "01a15100-0000-7000-8000-000000000003";
+  write(own, { source: "vscode" });
+  write(sub, { source: { subagent: { thread_spawn: { parent_thread_id: own, depth: 1 } } }, parent_thread_id: own });
+  write(forkedSub, { source: { subagent: { thread_spawn: { parent_thread_id: own } } }, forked_from_id: own });
+  assert.equal(writesNotes(sessions, own), true);
+  assert.equal(writesNotes(sessions, sub), false);
+  assert.equal(writesNotes(sessions, forkedSub), false);
+  assert.equal(writesNotes(sessions, "01a15100-0000-7000-8000-000000000009"), true, "no rollout yet");
+});
+
+// The panel searches and groups by these and never shows them (docs/v0.8/plan.md).
+test("the panel's data: each image's scene and noted words, and per turn what was said, without the record lines", () => {
+  const long = "很長的一段話".repeat(60);
+  const options = sampleSessions(
+    turn("t3") +
+    line("response_item", { type: "message", role: "user", content: [{ type: "input_text", text: "<environment_context>…</environment_context>" }, { type: "input_text", text: "第一張太暗了" }], internal_chat_message_metadata_passthrough: { turn_id: "t3" } }) +
+    line("response_item", { type: "function_call", name: "imagegen", arguments: "{\"prompt\":\"深藍雨夜 近景\"}", call_id: "c1" }) +
+    assistant(`[//]: # (cam IMG-001 深藍雨夜｜近景，正臉)\n[//]: # (cam IMG-002 評價：太暗)\n\n明白。${long}`, "t3"),
+  );
+  const state = loadPanelState(THREAD, options);
+  assert.deepEqual(state.images.map((image) => [image.id, image.scene, image.search]), [
+    ["IMG-001", "深藍雨夜", "深藍雨夜｜近景，正臉"],
+    ["IMG-002", null, "太暗"],
+    ["IMG-003", null, ""],
+  ]);
+  // Turn 1's own message holds only the images' tags; what the client adds is left out.
+  assert.deepEqual([state.turnTexts["1"], state.turnTexts["2"]], ["收到", "需要 IMG-001。IMG-003 與 IMG-002 相同。"]);
+  assert.match(state.turnTexts["3"], /^第一張太暗了 \{"prompt":"深藍雨夜 近景"\} 明白。很長的一段話/);
+  assert.ok(!state.turnTexts["3"].includes("[//]") && !state.turnTexts["3"].includes("environment_context"));
+  assert.ok(state.turnTexts["3"].length <= 600, "cut short");
+
+  const t = transcript();
+  t.prompt([image(pngA), text("看這張")]);
+  t.assistant({ type: "tool_use", id: "toolu_1", name: "Read", input: { file_path: "C:\\work\\b.png" } });
+  t.assistant(text("[//]: # (cam IMG-001 white room | wide shot)\n\nA white room."));
+  t.prompt("<system-reminder>x</system-reminder>", { isMeta: true });
+  t.prompt("Too bright");
+  const index = buildClaudeIndex("s", t.records);
+  assert.deepEqual(claudeTurnTexts(index.chain), { "1": "看這張 {\"file_path\":\"C:\\\\work\\\\b.png\"} A white room.", "2": "Too bright" });
+  const claude = panelStateOf("s", index, new Set(), null, null, true, [], true, claudeTurnTexts(index.chain));
+  assert.deepEqual([claude.images[0].scene, claude.images[0].search], ["white room", "white room | wide shot"]);
+});
+
+test("v0.10: a correction replaces the feature line; a line under another numbering is translated or dropped", () => {
+  const notes = new Map<string, Notes>();
+  addNotes(notes, "[//]: # (cam IMG-005 角色｜正面近景，右眉有疤)\n\nok", 2);
+  addNotes(notes, "[//]: # (cam IMG-005 角色｜正面近景，另一種寫法)", 3);
+  assert.equal(notes.get("IMG-005")?.line, "角色｜正面近景，右眉有疤");
+  addNotes(notes, "[//]: # (cam IMG-005 更正：角色｜正面近景，左眉有疤)\n[//]: # (cam IMG-006 corrected: street | wide shot)", 4);
+  assert.equal(notes.get("IMG-005")?.line, "角色｜正面近景，左眉有疤");
+  assert.equal(notes.get("IMG-006")?.line, "street | wide shot");
+  // An empty correction changes nothing.
+  addNotes(notes, "[//]: # (cam IMG-005 更正：)", 5);
+  assert.equal(notes.get("IMG-005")?.line, "角色｜正面近景，左眉有疤");
+  const mapped = new Map<string, Notes>();
+  addNotes(mapped, "[//]: # (cam IMG-001 書房｜窗邊)\n[//]: # (cam IMG-002 評價：太暗)\n[//]: # (cam IMG-003 門口｜白天)", 7, (id) => ({ "IMG-001": "IMG-095", "IMG-002": "IMG-096" } as Record<string, string>)[id] ?? null);
+  assert.deepEqual([...mapped.keys()], ["IMG-095", "IMG-096"]);
+  assert.deepEqual(mapped.get("IMG-096")?.ratings, [{ turn: 7, text: "太暗" }]);
+});

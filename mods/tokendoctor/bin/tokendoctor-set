@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+// Changes one token-related setting. Dry run by default; --write backs up and writes.
+// Usage: tokendoctor-set <key> [<value>|--unset] [--scope user|project|local] [--project <dir>] [--write]
+//        tokendoctor-set --list [--json]
+import { describePlan, planFix, writePlan } from '../lib/apply.mjs'
+import { aboutOf, parseValue, TUNABLES, tunableOp } from '../lib/tunables.mjs'
+
+const args = process.argv.slice(2)
+const value = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined)
+if (args.includes('--list') && args.includes('--json')) {
+  console.log(JSON.stringify(Object.entries(TUNABLES).map(([key, t]) => ({ key, path: t.path ?? key, live: t.live, about: t.about }))))
+  process.exit(0)
+}
+if (args.includes('--list')) {
+  for (const [k, t] of Object.entries(TUNABLES)) console.log(`${k.padEnd(44)} ${t.live ? '即时    ' : '重启    '} ${aboutOf(k)}`)
+  process.exit(0)
+}
+const positional = args.filter((a, i) => !a.startsWith('--') && !['--scope', '--project'].includes(args[i - 1]))
+const [key, raw] = positional
+const scope = value('--scope') ?? 'user'
+if (!['user', 'project', 'local'].includes(scope)) {
+  console.error('--scope must be user, project or local')
+  process.exit(2)
+}
+let op
+try {
+  if (!key || (raw === undefined && !args.includes('--unset'))) throw new Error('Usage: tokendoctor-set <key> <value>|--unset [--scope ...] [--write]')
+  op = tunableOp(key, args.includes('--unset') ? undefined : parseValue(raw))
+} catch (e) {
+  console.error(e.message)
+  process.exit(2)
+}
+
+const write = args.includes('--write')
+const plan = planFix({ scope, ops: [op] }, value('--project') ?? process.cwd())
+console.log(`${write ? '正在应用' : '将修改'}（${plan.scope}）：${describePlan(plan)}`)
+if (write) {
+  const result = writePlan(plan)
+  console.log(result.written ? `  已写入${result.backup ? `，备份：${result.backup}` : ''}` : `  已跳过：${result.reason}`)
+  console.log(TUNABLES[key].live ? '  Claude Code 会从设置文件中读取。' : '  下次会话生效。')
+} else console.log('\n试运行。加 --write 重新运行即可应用。')

@@ -1,0 +1,4 @@
+{
+  "description": "agent-usage-guard: the hooks module that gates agents, heavy context and retry loops",
+  "modules": ["./register.ts"]
+}

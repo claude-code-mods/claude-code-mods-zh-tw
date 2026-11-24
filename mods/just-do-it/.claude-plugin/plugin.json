@@ -1,0 +1,15 @@
+{
+  "name": "just-do-it",
+  "version": "0.1.0",
+  "description": "持續推進已授權的工作直至驗證與交付；發現可修復的環境問題就順手修好。",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "fleetConfigPath": {
+      "type": "file",
+      "title": "機群配置",
+      "description": "私有叢集配置的可選絕對路徑。留空則停用叢集檢查。",
+      "required": false,
+      "default": ""
+    }
+  }
+}

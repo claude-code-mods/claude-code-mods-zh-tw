@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "reviewType": "independent-written-contract-review",
+  "source": "cloud-scenarios.json",
+  "result": "pass",
+  "scope": "Ten proposed written answers compared with the 1.9.1 shared plugin runtime contract, 22 Skill entry links, install manifest, and public plugin guide. This is not a dots host run, model replay, installation, or driver acceptance.",
+  "cases": [
+    {
+      "id": "cloud-no-terminal-text-work",
+      "pass": true,
+      "rationale": "答覆繼續完成使用者給出文字能支援的設定整理，同時明確原卡檔案、終端、可寫目錄、JSON 構建、指令碼檢查和真實酒館驗證均不可用或未執行；符合公共合同對無終端環境和證據分層的要求。",
+      "unmet": []
+    },
+    {
+      "id": "cloud-local-only-materials",
+      "pass": true,
+      "rationale": "答覆沒有把 dots 雲電腦對映成已關機 Windows 的 E 盤，也沒有假稱已讀原小說；僅用本次已提供材料界定樣本，待原件可訪問後再核對版本與舊賬本，符合執行位置和來源檢查。",
+      "unmet": []
+    },
+    {
+      "id": "cloud-offline-scheduling-claim",
+      "pass": true,
+      "rationale": "答覆把關機後續行與每晚定時歸於宿主實際能力，拒絕聲稱外掛自帶常駐服務、無限執行或新付費設施，並要求批次、停止條件及持久交接；與公共合同和公開指南一致。",
+      "unmet": []
+    },
+    {
+      "id": "cloud-next-resume-external-write",
+      "pass": true,
+      "rationale": "答覆先回讀現有 NEXT、產物和釋出回執，並在外部發布結果不明時停住重發動作，同時推進獨立原始碼核對；符合唯一續接指標和避免重複外部寫入的合同。",
+      "unmet": []
+    },
+    {
+      "id": "cloud-authorized-independent-work",
+      "pass": true,
+      "rationale": "答覆承接已授權的原始碼修改與靜態檢查，不重複索取同一授權；真實 SillyTavern 單列為待驗，未將靜態檢查提升為實機或人工驗收，符合原卡流水線和公共證據邊界。",
+      "unmet": []
+    },
+    {
+      "id": "cloud-guidance-no-persistent-store",
+      "pass": true,
+      "rationale": "答覆按使用者直接選擇在本任務使用熟練檔，未虛構雲端全域性偏好儲存，也未猜測 AGENTS.md 位置並寫入；若將來有正式目標，先預覽實際檔案和受控區塊。",
+      "unmet": []
+    },
+    {
+      "id": "cloud-plugin-skill-unavailable",
+      "pass": true,
+      "rationale": "答覆區分外掛目錄已安裝與本任務能實際讀取 Skill、A0 和公共合同，明確不能聲稱已載入；在可見材料內繼續有界文字工作，並報告宿主能力缺口。",
+      "unmet": []
+    },
+    {
+      "id": "cloud-linux-not-windows-path",
+      "pass": true,
+      "rationale": "答覆先檢查 Linux 工作區的原卡、指令碼和輸出位置，再使用當前 Node/Git 與實際路徑；沒有照搬 Windows E 盤或 PowerShell 示例，並保留輸入雜湊和重組比對。",
+      "unmet": []
+    },
+    {
+      "id": "cloud-private-snapshot-rebuild",
+      "pass": true,
+      "rationale": "答覆核對隨包清單後只使用現有公開資料，不以搜尋摘要補造快照，不釋出 AFV 原始篩選 JSON；將缺頁記錄留給有授權私有源的維護流程。",
+      "unmet": []
+    },
+    {
+      "id": "cloud-browser-versus-real-st",
+      "pass": true,
+      "rationale": "答覆只把雲端靜態預覽列為已觀察事實，將 iframe、MVU、手機操作、真實 SillyTavern 和駕駛員驗收分層標未驗證，並給出後續目標例項復現項。",
+      "unmet": []
+    }
+  ],
+  "unmetOverall": []
+}

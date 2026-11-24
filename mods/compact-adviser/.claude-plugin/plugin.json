@@ -1,0 +1,69 @@
+{
+  "name": "compact-adviser",
+  "version": "0.1.14",
+  "license": "MIT",
+  "description": "在已完成的檢查點建議（選擇開啟後則直接執行）/compact，由 TypeSafe Jev 判斷。僅當 CLAUDE_CODE_ENABLE_FUNCTION_HOOKS 恰好為 1 時 hooks 模組才生效，否則完全不動作。",
+  "author": {
+    "name": "Kun Chen"
+  },
+  "homepage": "https://github.com/kunchenguid/compact-adviser#readme",
+  "repository": "https://github.com/kunchenguid/compact-adviser",
+  "keywords": [
+    "compact",
+    "context",
+    "context-management",
+    "checkpoint",
+    "productivity"
+  ],
+  "userConfig": {
+    "mode": {
+      "type": "string",
+      "title": "模式",
+      "description": "hint 僅顯示建議；auto 在首次透過 /compact-adviser 確認後，於符合條件的檢查點自動壓縮；off 關閉顧問（不影響 Claude Code 自帶的自動壓縮）。",
+      "options": [
+        "hint",
+        "auto",
+        "off"
+      ],
+      "default": "hint"
+    },
+    "minContextTokens": {
+      "type": "number",
+      "title": "最小上下文（token 數）",
+      "description": "固定的 token 數，不是百分比；低於該值不做判斷。",
+      "default": 40000,
+      "min": 1
+    },
+    "contextBudgetTokens": {
+      "type": "number",
+      "title": "上下文預算（token 數）",
+      "description": "可選。希望觸發壓縮的上下文大小：當上下文接近該值與 Claude Code 自動壓縮點（或視窗上限）中較小者時，提示閾值會放寬。0 表示關閉。",
+      "default": 0,
+      "min": 0
+    },
+    "logRequests": {
+      "type": "boolean",
+      "title": "記錄 TypeSafe 請求",
+      "description": "開啟後，每次 TypeSafe/Jev 請求及脫敏後的 Jev 結果會追加到 ~/.claude/compact-adviser-requests-<session-id>.jsonl。預設關閉。絕不會記錄 API key。",
+      "default": false
+    },
+    "profile": {
+      "type": "string",
+      "title": "評判配置 JSON（profile）",
+      "description": "可選的 v1 版評判配置 JSON。留空使用內建預設值。配置無效時會關閉建議。此項不會授予自動壓縮的同意。",
+      "default": ""
+    },
+    "beforeCompactPrompt": {
+      "type": "string",
+      "title": "壓縮前提示詞",
+      "description": "可選。留空則自動壓縮立即執行。在已確認的自動模式下，非空值會先作為一個回合執行，若該回合以確定的答覆結束，隨後執行壓縮。以 / 開頭的值會被視為斜槓命令（例如 /stow）；Claude Code 不會在外掛提示詞中展開斜槓命令或 @file 引用，並且會拒絕以 / 開頭的外掛提示詞。如果期間你傳送了自己的提示詞或運行了命令，或者該回合被打斷、出錯、未在 5 分鐘內完成，則不會進行壓縮。",
+      "default": ""
+    },
+    "typesafeApiKey": {
+      "type": "string",
+      "title": "TypeSafe API 金鑰",
+      "description": "由 /compact-adviser 儲存。在 /config 中隱藏，不顯示具體值。啟動環境中非空的 TYPESAFE_API_KEY 優先。請勿提交此值。",
+      "default": ""
+    }
+  }
+}

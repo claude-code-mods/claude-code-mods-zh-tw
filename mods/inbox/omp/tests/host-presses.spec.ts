@@ -1,0 +1,387 @@
+import { afterEach, beforeEach, expect, test } from 'bun:test'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+import { isSubjectSeen } from '../../hooks/status-children'
+import { NO_HOLDS } from '../../hooks/timing'
+import { createInbox } from '../src/host'
+import {
+  call,
+  deps,
+  endAgent,
+  endWorld,
+  makeCtx,
+  pi,
+  prompt,
+  record,
+  settle,
+  startWorld,
+  state,
+  w,
+} from './host-harness'
+
+beforeEach(startWorld)
+afterEach(endWorld)
+
+async function withQuestion() {
+  const inbox = createInbox(pi(), deps())
+  await prompt('Add a greeting CLI')
+  await endAgent('Plan written. Which runtime?')
+  await settle()
+  const [item] = state().ledger.items
+  return { inbox, id: item.id as string }
+}
+
+async function until(isReady: () => boolean) {
+  for (let waited = 0; !isReady() && waited < 4000; waited += 10) await Bun.sleep(10)
+  expect(isReady()).toBe(true)
+}
+
+const isDrained = (folder: string) => readdirSync(folder).length === 0
+
+test('only what the person submits in the editor counts as a typed message, not a press’s message or other input', async () => {
+  const { inbox, id } = await withQuestion()
+  const typedAt = () => state().presence.lastTypedMessageAt
+  await inbox.press(makeCtx(), { action: 'answer', id, option: 'Node' }, NO_HOLDS)
+  await afterSettle()
+  await prompt(w.sent[0]!.text)
+  await call('input', { type: 'input', text: 'from a client', source: 'rpc' })
+  await call('input', { type: 'input', text: 'from an extension', source: 'extension' })
+  expect(typedAt()).toBeNull()
+
+  await call('input', { type: 'input', text: 'what next?', source: 'interactive' })
+  const first = typedAt()
+  expect(first).toBeNumber()
+  await call('input', { type: 'input', text: 'and then?', source: 'interactive' })
+  expect(typedAt()).toBeGreaterThan(first!)
+})
+
+async function afterSettle() {
+  w.clock += 5000
+  w.timers.at(-1)!.fn()
+  await settle()
+}
+
+test('an answer press sends one follow-up once Undo ends, and the arriving prompt matches it', async () => {
+  const { inbox, id } = await withQuestion()
+  const outcome = await inbox.press(makeCtx(), { action: 'answer', id, option: 'Node' }, NO_HOLDS)
+  expect(outcome).toEqual({
+    copy: null,
+    error: null,
+    note: null,
+    isUnconfirmed: false,
+    isRowFailed: false,
+    wakesAfterSettle: true,
+  })
+  expect(w.sent).toEqual([])
+  await afterSettle()
+  expect(w.sent).toEqual([{ text: 'Re "Use Node or Python?": Node', options: { deliverAs: 'followUp' } }])
+  expect(state().sent.map((x: { phase: string }) => x.phase)).toEqual(['accepted'])
+
+  await prompt(w.sent[0]!.text)
+  expect(state().sent).toEqual([])
+  expect(state().turn.press).toMatchObject({ id, action: 'answer' })
+  const screen = await inbox.screen(makeCtx())
+  expect(screen.view.lastActions[id]?.delivery?.state).toBe('arrived')
+})
+
+test('a follow-up that starts inside a running turn matches its press once', async () => {
+  const { inbox, id } = await withQuestion()
+  await inbox.press(makeCtx(), { action: 'answer', id, option: 'Node' }, NO_HOLDS)
+  await afterSettle()
+  const started = {
+    type: 'message_start',
+    message: { role: 'user', content: [{ type: 'text', text: w.sent[0]!.text }] },
+  }
+  await call('message_start', started)
+  expect(state().sent).toEqual([])
+  expect(state().presence.turnsStarted).toBe(2)
+  expect(state().turn.press).toMatchObject({ id, action: 'answer' })
+  expect((await inbox.screen(makeCtx())).view.lastActions[id]?.delivery?.state).toBe('arrived')
+
+  await call('message_start', started)
+  expect(state().presence.turnsStarted).toBe(2)
+})
+
+const userMessage = (text: string) => ({ role: 'user', content: [{ type: 'text', text }] })
+const assistantMessage = (text: string) => ({ role: 'assistant', content: [{ type: 'text', text }] })
+
+test('a press queued during a turn gets its own update, after one for the reply the turn gave before it', async () => {
+  const { inbox, id } = await withQuestion()
+  const opened = 'Opened https://github.com/acme/app/pull/12 for the fix.'
+  await prompt('Open a PR for the fix')
+  await call('agent_start', { type: 'agent_start' })
+  await call('message_end', { type: 'message_end', message: assistantMessage(opened) })
+  await inbox.press(makeCtx(), { action: 'answer', id, option: 'Node' }, NO_HOLDS)
+  await afterSettle()
+  const pressed = w.sent[0]!.text
+  await prompt(pressed)
+  await call('message_start', { type: 'message_start', message: userMessage(pressed) })
+  expect(state().ledger.prs).toEqual(['acme/app#12'])
+
+  await call('message_end', { type: 'message_end', message: assistantMessage('Using Node.') })
+  await call('agent_end', {
+    type: 'agent_end',
+    messages: [
+      userMessage('Open a PR for the fix'),
+      assistantMessage(opened),
+      userMessage(pressed),
+      assistantMessage('Using Node.'),
+    ],
+  })
+  await settle()
+  expect(w.completions).toHaveLength(3)
+  expect(w.completions[1]!.prompt).toContain(opened)
+  expect(w.completions[1]!.prompt).not.toContain(pressed)
+  expect(w.completions[2]!.prompt).toContain(pressed)
+  expect(w.completions[2]!.prompt).toContain('Using Node.')
+  expect(w.completions[2]!.prompt).not.toContain(opened)
+  expect(state().pending).toEqual([])
+  expect(state().presence).toMatchObject({ turnsStarted: 3, turnsApplied: 3, isTurnRunning: false })
+})
+
+test('two presses that start before any new reply share one turn and its reply', async () => {
+  const { inbox, id } = await withQuestion()
+  await record({ kind: 'task', ask: 'Try the CLI by hand' })
+  const task = state().ledger.items.find((i: { kind: string }) => i.kind === 'task').id
+  await prompt('Add a test')
+  await call('agent_start', { type: 'agent_start' })
+  await call('message_end', { type: 'message_end', message: assistantMessage('Test added.') })
+  await inbox.press(makeCtx(), { action: 'answer', id, option: 'Node' }, NO_HOLDS)
+  await afterSettle()
+  await inbox.press(makeCtx(), { action: 'explain', id: task }, NO_HOLDS)
+  const answered = w.sent[0]!.text
+  const explained = w.sent[1]!.text
+  await call('message_start', { type: 'message_start', message: userMessage(answered) })
+  await call('message_start', { type: 'message_start', message: userMessage(explained) })
+  await call('message_end', { type: 'message_end', message: assistantMessage('Both handled.') })
+  await endAgent('Both handled.')
+  await settle()
+  expect(w.completions).toHaveLength(3)
+  expect(w.completions[1]!.prompt).toContain('Test added.')
+  expect(w.completions[2]!.prompt).toContain(answered)
+  expect(w.completions[2]!.prompt).toContain(explained)
+  expect(w.completions[2]!.prompt).toContain('Both handled.')
+  expect(w.completions[2]!.prompt).not.toContain('Test added.')
+})
+
+test('a message that arrives after the agent’s tool calls, before it replies, stays in the running turn', async () => {
+  createInbox(pi(), deps())
+  await prompt('Add a test')
+  await call('agent_start', { type: 'agent_start' })
+  await call('message_end', {
+    type: 'message_end',
+    message: { role: 'assistant', content: [{ type: 'text', text: 'Running the tests.' }, { type: 'toolCall' }] },
+  })
+  await prompt('Also run the linter')
+  await call('message_end', { type: 'message_end', message: assistantMessage('Tests and lint pass.') })
+  await endAgent('Tests and lint pass.')
+  await settle()
+  expect(w.completions).toHaveLength(1)
+  expect(w.completions[0]!.prompt).toContain('Add a test')
+  expect(w.completions[0]!.prompt).toContain('Also run the linter')
+  expect(w.completions[0]!.prompt).toContain('Tests and lint pass.')
+})
+
+test('a user message that no press sent is left to before_agent_start', async () => {
+  createInbox(pi(), deps())
+  await prompt('hello')
+  await call('message_start', { type: 'message_start', message: { role: 'user', content: 'hello' } })
+  await call('message_start', { type: 'message_start', message: { role: 'assistant', content: [] } })
+  expect(state().presence.turnsStarted).toBe(1)
+})
+
+test('a press while the agent is idle sends the message with no delivery option', async () => {
+  const { inbox, id } = await withQuestion()
+  w.isIdle = true
+  await inbox.press(makeCtx(), { action: 'answer', id, option: 'Node' }, NO_HOLDS)
+  await afterSettle()
+  expect(w.sent[0]!.options).toBeUndefined()
+})
+
+test("a press omp drops before a run starts is not counted as sent, and its row shows omp's reason", async () => {
+  const { inbox, id } = await withQuestion()
+  w.sendAnswer = () => Promise.reject(new Error('Session cost cap of $5.00 reached'))
+  await inbox.press(makeCtx(), { action: 'answer', id, option: 'Node' }, NO_HOLDS)
+  await afterSettle()
+  expect(w.sent).toHaveLength(1)
+  expect(state().sent).toEqual([])
+  expect(JSON.stringify(state().lastActions)).toContain('Session cost cap of $5.00 reached')
+})
+
+test('a press omp refuses and hands back to the editor leaves the editor as it was', async () => {
+  const { inbox, id } = await withQuestion()
+  w.sendAnswer = () => {
+    w.editorText = w.sent[0]!.text
+    return Promise.reject(new Error('No model selected.'))
+  }
+  await inbox.press(makeCtx(), { action: 'answer', id, option: 'Node' }, NO_HOLDS)
+  await afterSettle()
+  expect(w.editorText).toBe('')
+  expect(JSON.stringify(state().lastActions)).toContain('No model selected.')
+})
+
+test("a refused press leaves the person's own editor text alone", async () => {
+  const { inbox, id } = await withQuestion()
+  w.editorText = 'my own draft'
+  w.sendAnswer = () => Promise.reject(new Error('No model selected.'))
+  await inbox.press(makeCtx(), { action: 'answer', id, option: 'Node' }, NO_HOLDS)
+  await afterSettle()
+  expect(w.editorText).toBe('my own draft')
+})
+
+test('a press sent while the agent is idle counts as sent once its run starts, before the run ends', async () => {
+  const { inbox, id } = await withQuestion()
+  w.isIdle = true
+  w.sendAnswer = () => new Promise(() => {})
+  await inbox.press(makeCtx(), { action: 'answer', id, option: 'Node' }, NO_HOLDS)
+  w.clock += 5000
+  w.timers.at(-1)!.fn()
+  for (let waited = 0; w.sent.length === 0 && waited < 200; waited += 1) await new Promise(r => setTimeout(r, 5))
+  await call('agent_start', { type: 'agent_start' })
+  await settle()
+  expect(state().sent.map((x: { phase: string }) => x.phase)).toEqual(['accepted'])
+})
+
+test('a press for a row that is gone reports it stale and sends nothing', async () => {
+  const { inbox } = await withQuestion()
+  const outcome = await inbox.press(makeCtx(), { action: 'answer', id: 'nope', option: 'Node' }, NO_HOLDS)
+  expect(outcome.note).toBe('stale')
+  expect(w.sent).toEqual([])
+})
+
+async function withSteps(given = deps()) {
+  const inbox = createInbox(pi(), given)
+  await record({ kind: 'task', ask: 'Run it and read the page', steps: ['npm start', 'https://example.com/x'] })
+  const screen = await inbox.screen(makeCtx())
+  const row = screen.view.needsYou.tasks[0]!
+  const stepPress = (index: number) => ({
+    action: 'step' as const,
+    id: row.id,
+    step: index,
+    label: row.steps[index]!.label,
+  })
+  return { inbox, stepPress }
+}
+
+test('a copy step hands the command to the clipboard and leaves no text to copy by hand', async () => {
+  const { inbox, stepPress } = await withSteps()
+  const outcome = await inbox.press(makeCtx(), stepPress(0), NO_HOLDS)
+  expect(w.copied).toEqual(['npm start'])
+  expect(outcome.copy).toBeNull()
+  expect(outcome.error).toBeNull()
+})
+
+test('an open step for a link runs open on it', async () => {
+  const { inbox, stepPress } = await withSteps()
+  const outcome = await inbox.press(makeCtx(), stepPress(1), NO_HOLDS)
+  expect(w.execCalls).toEqual([{ command: 'open', args: ['https://example.com/x'] }])
+  expect(outcome.error).toBeNull()
+})
+
+test('an open that fails leaves the reason on the row', async () => {
+  const { inbox, stepPress } = await withSteps()
+  w.execResults.set('open', { code: 1, stderr: 'no browser' })
+  await inbox.press(makeCtx(), stepPress(1), NO_HOLDS)
+  const screen = await inbox.screen(makeCtx())
+  const last = screen.view.lastActions[screen.view.needsYou.tasks[0]!.id]
+  expect(JSON.stringify(last?.result)).toContain('no browser')
+})
+
+test('in a Herdr app terminal, a press the look ran itself records its result and opens nothing', async () => {
+  const appHome = join(w.dir, 'herdr-app')
+  const target = { kind: 'terminal', terminal: 't1', appHome, hc: ['hc'], herdrApp: ['herdr-app'] } as const
+  const { inbox, stepPress } = await withSteps({ ...deps(), herdrTarget: target })
+  await call('session_start', { type: 'session_start' })
+  const sessionFile = join(appHome, 'inbox/sessions/s1.json')
+  await until(() => existsSync(sessionFile))
+  const folder = join(appHome, 'inbox/presses/s1')
+  mkdirSync(folder, { recursive: true })
+  const press = {
+    format: 1,
+    id: 'p1',
+    pressedAt: 1,
+    press: stepPress(1),
+    holds: NO_HOLDS,
+    result: { error: 'no browser' },
+  }
+  writeFileSync(join(folder, 'p1.json'), JSON.stringify(press))
+
+  await until(() => isDrained(folder))
+  await settle()
+
+  expect(w.execCalls.filter(c => c.command === 'open')).toEqual([])
+  const screen = await inbox.screen(makeCtx())
+  expect(JSON.stringify(screen.view.lastActions[screen.view.needsYou.tasks[0]!.id]?.result)).toContain('no browser')
+  const published = () => JSON.parse(readFileSync(sessionFile, 'utf8'))
+  expect(published().lastPress).toEqual({ id: 'p1', outcome: 'applied' })
+
+  await record({ kind: 'task', ask: 'Write the notes' })
+  await settle()
+  expect(published().lastPress).toEqual({ id: 'p1', outcome: 'applied' })
+})
+
+test('in a Herdr app terminal, a look file the look wrote counts the Status subjects it showed as seen, and saves no press', async () => {
+  const appHome = join(w.dir, 'herdr-app')
+  const target = { kind: 'terminal', terminal: 't1', appHome, hc: ['hc'], herdrApp: ['herdr-app'] } as const
+  createInbox(pi(), { ...deps(), herdrTarget: target })
+  await call('session_start', { type: 'session_start' })
+  const sessionFile = join(appHome, 'inbox/sessions/s1.json')
+  await until(() => existsSync(sessionFile))
+  w.statusReply =
+    'HEAD: Offline sync | Adding offline sync\nNEW: working | Queue | built\nNEW: queued | Docs | not started'
+  await prompt('add offline sync')
+  await endAgent('Queue built.')
+  await settle()
+  const changedAt = state().ledger.overview.subjects[0].changedAt as number
+  const folder = join(appHome, 'inbox/presses/s1')
+  mkdirSync(folder, { recursive: true })
+  const look = {
+    startedAt: changedAt,
+    endedAt: changedAt + 10_000,
+    shown: { s1: changedAt },
+    drawnWrittenAt: changedAt,
+  }
+  writeFileSync(join(folder, 'l1.json'), JSON.stringify({ format: 1, id: 'l1', look }))
+
+  await until(() => isDrained(folder))
+  await settle()
+
+  const overview = state().ledger.overview
+  expect(
+    overview.subjects
+      .filter((s: { id: string; changedAt: number }) => isSubjectSeen(overview, s))
+      .map((s: { id: string }) => s.id),
+  ).toEqual(['s1'])
+  expect(state().lastHerdrPress).toBeUndefined()
+})
+
+test('a goal the Status call writes is set at once, Remove goal clears it, a typed goal sets the saved goal, and none sends a message', async () => {
+  const inbox = createInbox(pi(), deps())
+  w.statusReply = [
+    'HEAD: Pilot | Shipping the pilot',
+    'NEW: working | Fixes | built',
+    'NEW: queued | Announcement | not started',
+    'GOAL: Pilot ready to announce | done Fixes built; queued Announced',
+  ].join('\n')
+  await prompt('get the pilot ready to announce')
+  await endAgent('Fixes built.')
+  await settle()
+  expect(state().ledger.overview.goal).toMatchObject({ text: 'Pilot ready to announce', source: 'inferred' })
+  expect(state().ledger.overview.milestones.map((m: { name: string }) => m.name)).toEqual(['Fixes built', 'Announced'])
+
+  await inbox.press(makeCtx(), { action: 'remove-goal', id: 'goal' }, NO_HOLDS)
+  expect(state().ledger.overview).toMatchObject({ goal: null, removedGoals: ['announce pilot ready'] })
+
+  await inbox.press(makeCtx(), { action: 'type', id: 'goal', text: 'Pilot live for every team' }, NO_HOLDS)
+  expect(state().ledger.overview.goal).toMatchObject({ text: 'Pilot live for every team', source: 'typed' })
+  expect(w.sent).toEqual([])
+})
+
+test('a Compare press in omp lets the agent hand the comparison to a background subagent', async () => {
+  const { inbox, id } = await withQuestion()
+  await inbox.press(makeCtx(), { action: 'compare', id }, NO_HOLDS)
+
+  expect(w.sent.at(-1)!.text).toContain('If you can run a subagent in the background, hand it this work')
+  expect(w.sent.at(-1)!.text).not.toContain('reply with the result before this turn ends')
+})

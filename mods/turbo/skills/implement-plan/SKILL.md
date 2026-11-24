@@ -1,0 +1,96 @@
+---
+name: implement-plan
+description: "Execute an implementation plan file from .turbo/plans/. Use when the user asks to \"implement the plan\", \"execute the plan\", \"implement plans/[slug].md\", or starts a fresh session to implement one."
+---
+
+# Implement Plan
+
+Execute an implementation plan file.
+
+## Task Tracking
+
+At the start, use `TaskCreate` to create a task for each step:
+
+1. Resolve and read the plan file
+2. Read context files
+3. Run `/implement` skill
+4. Update plan status
+
+## Step 1: Resolve and Read the Plan File
+
+Determine which plan file to implement using these rules in order:
+
+1. **Explicit path** — If an absolute or relative path was passed and that file exists, use it
+2. **Explicit slug** — If a slug was passed (e.g., `add-image-cache`), resolve to `.turbo/plans/<slug>.md` if that file exists
+3. **Single file** — Glob `.turbo/plans/*.md`. If exactly one plan exists, use it
+4. **Most recent** — If multiple plans exist, use the most recently modified
+5. **Legacy fallback** — If `.turbo/plans/` does not exist but `.turbo/plan.md` exists, use it
+6. **Nothing found** — If no rule above resolved to an existing file, tell the user to run `/turbo:plan` and stop. When a slug or path was passed but no file matched it, say which one was tried
+
+If multiple plans exist and the most-recent choice is non-obvious (e.g., several plans were modified within the same minute), use `AskUserQuestion` to let the user pick from the candidates.
+
+State the resolved plan path before continuing, then read the file.
+
+Unless an explicit path or slug was passed, confirm the resolved plan still describes work that remains to be done:
+
+- **Already implemented** — the frontmatter `status:` is `done`
+- **Waiting on a gate** — the plan's Context states a gate that must pass before its work can start
+
+When you check whether a gate has passed, check each condition it names at its source of record, such as the remote's tags for another repository's release, rather than a local copy.
+
+When a signal fires, output it as text. Then use `AskUserQuestion` to offer:
+
+- **Implement anyway** — the marker is stale, or the gate has passed
+- **Pick another plan** — resolve to a different file under `.turbo/plans/`, then confirm that plan against these same signals
+- **Leave it unimplemented** — the plan needs revising first, or its gate has not passed
+
+On **Leave it unimplemented**, tell the user to bring the plan current with `/turbo:refine-plan` and run this skill again, or, for a plan whose gate has not passed, to run this skill again once it has. Mark the remaining implement steps deleted, then use the TaskList tool and proceed to any remaining task.
+
+When the input asks to implement in a worktree and this session does not already run inside a linked worktree (where `git rev-parse --git-dir` differs from `--git-common-dir`), enter a new git worktree with the EnterWorktree tool. Name it after the plan's slug. Keep using the plan at its absolute path in the main checkout, and read the files it references under `.turbo/` from the main checkout too. Copy from the main checkout each file the worktree lacks that the work needs, such as gitignored local configuration or untracked project instructions, and leave each copied file out of every commit.
+
+## Step 2: Read Context Files
+
+The read list, every file to read in full:
+
+- Every file listed in the plan's **Context Files** section
+- Files the user referenced in their original request (if any)
+- Every file path the plan references in the Context, Pattern Survey, and Implementation Steps sections
+
+Project the read's share of the context window before the bulk of it. With one Bash call, get the size in bytes of each read-list file that exists, and their total. Call the `mcp__turbo__context-level` tool, then read the plan's Context Files. Once those reads have returned, call the tool again. While the reading has dropped fewer than five percentage points and read-list files remain unread, read a further batch and call the tool again. The projection is the drop from the first reading to the last, multiplied by the total bytes over the bytes read so far.
+
+**When the projection is above 25%**, output as text that reading the plan's files is projected to take that share of the context window, with the number of files still unread. Then use `AskUserQuestion` to ask how to implement the plan:
+
+- **Implement in this session** — this session reads the remaining files and implements every step itself, and will likely need to compact before QA. Mark it recommended when the projection is 50% or less.
+- **One subagent per step** — the remaining files stay unread here, and each Implementation Step goes to a fresh subagent that reads what its step names. Every subagent gathers its own context, so the run takes longer and uses more tokens overall. Mark it recommended when the projection is above 50%.
+
+Read the remaining read-list files unless the answer was **One subagent per step**.
+
+## Step 3: Run `/implement` Skill
+
+Run the `/implement` skill. The plan file, its file references, and its Verification section are already in conversation context from Step 1. When Step 2 settled on one subagent per step, pass that choice along.
+
+## Step 4: Update Plan Status
+
+After `/implement` completes, when this session runs inside a linked worktree (where `git rev-parse --git-dir` differs from `--git-common-dir`), use `AskUserQuestion` to offer two options: leave the worktree and update the plan from the main checkout, or stay in the worktree. List leaving first and label it `(Recommended)`. While the branch's pull request is open (`gh pr view <branch> --json state`), list staying first and label it `(Recommended)` instead.
+
+- **Leave** — Leave with the ExitWorktree tool (`action: "keep"`). When it reports that no worktree session is active, take the Stay path instead. Otherwise:
+  1. Resolve the default branch with `gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'`. Fast-forward the main checkout's local default branch to `origin/<default-branch>` without switching the branch the main checkout has checked out. When the fast-forward fails, report it and leave that branch as it is.
+  2. When the worktree's commits are on `origin/<default-branch>` (`git merge-base --is-ancestor <branch> origin/<default-branch>`) or its branch's pull request is merged (`gh pr view <branch> --json state,headRefOid`), remove the worktree with `git worktree remove <path>`. When git refuses over files this session copied in from the main checkout, delete those copies and remove it again. Otherwise keep the worktree, without `--force`.
+  3. Delete the branch with `git branch -d <branch>` when its commits are on `origin/<default-branch>`, or with `git branch -D <branch>` when its pull request is merged and the branch's tip is that pull request's `headRefOid`. Keep it otherwise, or when git refuses.
+  4. Report what was kept.
+- **Stay** — Continue in the worktree.
+
+Set the plan's frontmatter `status:` to `done` with the Edit tool, in the plan under the main checkout's `.turbo/plans/` when this session runs inside or has left a linked worktree. If the plan is the legacy `.turbo/plan.md` without frontmatter, skip the status update.
+
+When that edit is refused while this session runs inside a linked worktree, report that the status update was not applied and name the edit to make from a session that can write to the main checkout: `status: done` in the resolved plan path.
+
+When the plan's Context names a larger source it implements part of (an assessment, a backlog, an issue), report the plan's completion separately from that source's: name the source's items the plan left out, and say whether another plan under `.turbo/plans/` covers them.
+
+When this session left its worktree in this step, run the `/backlog` skill for each entry `/backlog` could not persist from the worktree.
+
+## Rules
+
+- The plan file is read-only during execution. If revisions are needed, the user runs `/turbo:refine-plan` or `/turbo:draft-plan` separately.
+- Never skip Step 2.
+- Never enumerate or execute the plan's Implementation Steps inline. The work runs through `/implement`. Restating steps as a turn-level narration counts as inline execution and bypasses the delegation.
+- If the plan's Implementation Steps or Verification include `git commit`, `git push`, or PR creation, halt before Step 3 and ask the user to remove them via `/turbo:refine-plan`. A Verification item that observes the result of a push without instructing one is not grounds to halt.

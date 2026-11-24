@@ -1,0 +1,277 @@
+import { createHash, randomUUID } from 'node:crypto'
+import {
+  access,
+  copyFile,
+  lstat,
+  mkdir,
+  readdir,
+  readFile,
+  readlink,
+  rename,
+  rm,
+  rmdir,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
+import { dirname, join } from 'node:path'
+
+import { TIMED_OUT_CODE, UNSTARTABLE_CODE } from '../../hooks/gh'
+import { screenText } from '../../hooks/inbox-text'
+import {
+  askOverConversation,
+  orderedKeys,
+  reconcileUpdateStatus as reconcileStatus,
+  runUpdates as runSessionUpdates,
+} from '../../hooks/session-host'
+import type { Ask } from '../../hooks/session-host'
+import { refreshStatus as refreshSessionStatus } from '../../hooks/status-records'
+import type { StatusRecords, RecordFiles } from '../../hooks/status-records'
+import { screenTabOf } from '../../hooks/tabs'
+import { isTabOpen } from './core'
+import { codexStore } from './host'
+import type { OnWrite } from './host'
+import { statePath, withLock } from './state'
+import type { SessionState } from './state'
+import type { ProcessFailure } from '../../types'
+import { CODEX } from './texts'
+import { readRollout, withCurrentRollout } from './transcript'
+import type { RunWithInput } from './run'
+import { diagnosticLines } from './diagnostics'
+
+/** The inbox model, at low reasoning effort. gpt-6-luna is faster but closed a finding the reply only mentioned. */
+export const MODEL = 'gpt-6.1-sol'
+const TIMEOUT_MS = 120_000
+/** How long a results call waits for the earlier ones: a few calls at their longest. */
+const RESULTS_WAIT_MS = 4 * TIMEOUT_MS
+/** Keeps one process's results calls in the order they arrived. The file lock orders them across processes. */
+const resultsOrder = orderedKeys()
+
+/** A release that drops one of these rejects it by name, so askModel drops any name rejected and tries again. */
+const OFF = [
+  'shell_tool',
+  'unified_exec',
+  'code_mode_host',
+  'apps',
+  'plugins',
+  'memories',
+  'multi_agent',
+  'image_generation',
+  'browser_use',
+  'computer_use',
+  'tool_suggest',
+  'skill_search',
+  'view_image',
+  'goals',
+  'sleep_tool',
+  'personality',
+]
+
+/**
+ * A Codex home for the inbox model that holds only a link to the person's `auth.json`. Codex reads the home's
+ * `AGENTS.md` even with `--ignore-user-config` and `project_doc_max_bytes=0`, so the person's own instructions would
+ * reach the inbox model. Codex's file store saves a refreshed sign-in by writing `auth.json` in place, which goes
+ * through the link, so the call names that store: a keyring store keys by the home's path, and would save the refresh
+ * where the person's own Codex never reads it. Null when the person has no `auth.json`, as with a keyring sign-in, or
+ * when the link cannot be made: the model then runs in their own home.
+ */
+async function modelHome(dir: string, personHome: string): Promise<string | null> {
+  const auth = join(personHome, 'auth.json')
+  const hasSignInFile = await access(auth).then(
+    () => true,
+    () => false,
+  )
+  if (!hasSignInFile) return null
+  const home = join(dir, 'model-home')
+  const link = join(home, 'auth.json')
+  try {
+    await mkdir(home, { recursive: true })
+    const isLinked = (await readlink(link).catch(() => null)) === auth
+    if (isLinked) return home
+    await keepNewerSignIn(link, auth)
+    const made = `${link}.${randomUUID()}`
+    await symlink(auth, made)
+    await rename(made, link)
+
+    return home
+  } catch {
+    return null
+  }
+}
+
+/**
+ * A Codex that saved a refresh by replacing the link with a file left the only fresh tokens there. Copies that file
+ * over the person's `auth.json` when it is the newer, so relinking does not discard them.
+ */
+async function keepNewerSignIn(link: string, auth: string): Promise<void> {
+  const saved = await lstat(link).catch(() => null)
+  if (!saved?.isFile()) return
+  const theirs = await stat(auth)
+  if (saved.mtimeMs > theirs.mtimeMs) await copyFile(link, auth)
+}
+
+/**
+ * Null when it fails. A failed call's report gives its process as `ProcessFailure` describes, with `cause` `process`
+ * when the command failed and `no-reply` when it exited 0 and wrote no reply. `personHome` is the person's Codex home,
+ * which holds their sign-in.
+ */
+export function codexAsk(exec: RunWithInput, cli: string, dir: string, personHome: string): Ask {
+  return async (prompt, instructions, _kind, report) => {
+    const work = join(dir, 'exec')
+    const system = join(dir, `inbox-system-${createHash('sha256').update(instructions).digest('hex').slice(0, 12)}.md`)
+    const out = join(work, `reply-${randomUUID()}.txt`)
+    await mkdir(work, { recursive: true })
+    const home = await modelHome(dir, personHome)
+    if ((await readFile(system, 'utf8').catch(() => '')) !== instructions) await writeFile(system, instructions)
+    let off = [...OFF]
+    for (let tries = 0; tries <= OFF.length; tries += 1) {
+      await rm(out, { force: true })
+      // `-` reads the prompt from stdin. No argument can hold a NUL byte, and the conversation in a prompt can.
+      const r = await exec(
+        [
+          cli,
+          'exec',
+          '--ephemeral',
+          '--ignore-user-config',
+          '--ignore-rules',
+          '--skip-git-repo-check',
+          '-s',
+          'read-only',
+          '-C',
+          work,
+          '-m',
+          MODEL,
+          '-c',
+          'model_reasoning_effort="low"',
+          '-c',
+          `model_instructions_file=${JSON.stringify(system)}`,
+          '-c',
+          'project_doc_max_bytes=0',
+          ...(home ? ['-c', 'cli_auth_credentials_store="file"'] : []),
+          ...off.flatMap(f => ['--disable', f]),
+          '-o',
+          out,
+          '-',
+        ],
+        { cwd: work, timeoutMs: TIMEOUT_MS, env: home ? { CODEX_HOME: home } : {}, input: prompt },
+      )
+      const unknown = r.stderr.match(/Unknown feature flag: (\S+)/)?.[1]
+      if (r.code !== 0 && unknown && off.includes(unknown)) {
+        off = off.filter(f => f !== unknown)
+        continue
+      }
+      const text = r.code === 0 ? await readFile(out, 'utf8').catch(() => null) : null
+      await rm(out, { force: true })
+      if (text !== null) {
+        report?.({ model: MODEL })
+        return text
+      }
+      const process: ProcessFailure = {
+        cli,
+        code: r.code,
+        stderr: diagnosticLines(r.stderr),
+        signal: r.signal ?? null,
+        errorCode: r.errorCode ?? null,
+        timeoutMs: r.code === TIMED_OUT_CODE ? TIMEOUT_MS : null,
+      }
+      const error = `codex exec ${endOf(process)}${process.stderr ? `: ${process.stderr}` : ''}`
+      report?.({ model: MODEL, error, cause: r.code === 0 ? 'no-reply' : 'process', process })
+
+      return null
+    }
+    report?.({ model: MODEL, error: 'codex exec refused every feature flag the inbox turns off', cause: 'process' })
+
+    return null
+  }
+}
+
+/** How a failed call ended, as "timed out after 120 s", "was ended by SIGTERM" or "failed with ENOENT". */
+function endOf(f: ProcessFailure): string {
+  if (f.timeoutMs !== null) return `timed out after ${f.timeoutMs / 1000} s`
+  if (f.signal) return `was ended by ${f.signal}`
+  if (f.errorCode === 'ENOENT') return `failed with ENOENT: no codex program at ${f.cli}`
+  if (f.errorCode) return `failed with ${f.errorCode}`
+  if (f.code === UNSTARTABLE_CODE) return 'could not start'
+  if (f.code === 0) return 'exited 0 and wrote no reply'
+
+  return `exited ${f.code}`
+}
+
+export const reconcileUpdateStatus = (dir: string, sessionId: string): Promise<SessionState> =>
+  reconcileStatus(codexStore(dir, sessionId, Date.now))
+
+/** Runs `fn` once the session's earlier Status calls have finished, in this process and in any other. */
+const inOrderFor =
+  (dir: string, sessionId: string) =>
+  <T>(fn: () => Promise<T>): Promise<T> =>
+    resultsOrder.run(statePath(dir, sessionId), () =>
+      withLock(`${statePath(dir, sessionId)}.results`, fn, RESULTS_WAIT_MS),
+    )
+
+const recordFiles: RecordFiles = {
+  write: async (path, text) => {
+    await mkdir(dirname(path), { recursive: true })
+    const tmp = `${path}.${process.pid}.tmp`
+    await writeFile(tmp, text)
+    await rename(tmp, path)
+  },
+  list: folder => readdir(folder).catch(() => []),
+  removeFiles: async paths => void (await Promise.all(paths.map(p => rm(p, { force: true })))),
+  removeFolder: path => rmdir(path),
+}
+
+/** A next build's Status call records for the session, in the plugin's data folder. */
+export const statusRecords = (dir: string, sessionId: string): StatusRecords => ({
+  host: 'codex',
+  folder: join(dir, 'overview-calls'),
+  session: sessionId,
+  files: recordFiles,
+})
+
+/** Runs the Status call that a hook claimed for the running turn. */
+export const refreshStatus = (
+  dir: string,
+  sessionId: string,
+  ask: Ask,
+  now: () => number,
+  onWrite?: OnWrite,
+  records?: StatusRecords,
+): Promise<void> =>
+  refreshSessionStatus({
+    ...codexStore(dir, sessionId, now, onWrite),
+    ask,
+    names: CODEX,
+    inOrder: inOrderFor(dir, sessionId),
+    records,
+  })
+
+export const runUpdates = (
+  dir: string,
+  sessionId: string,
+  ask: Ask,
+  now: () => number,
+  onWrite?: OnWrite,
+  records?: StatusRecords,
+): Promise<void> => {
+  const store = codexStore(dir, sessionId, now, onWrite)
+
+  return runSessionUpdates({
+    ...store,
+    ask,
+    names: CODEX,
+    inOrder: inOrderFor(dir, sessionId),
+    records,
+    catchUp: async s => {
+      const isMoved = (await withCurrentRollout(s)) !== s
+      const path = isMoved ? (await store.update(withCurrentRollout)).transcriptPath : s.transcriptPath
+
+      return askOverConversation(
+        { ask, now: store.now },
+        CODEX,
+        s,
+        screenText(CODEX, isTabOpen(s, now()), screenTabOf(s.shownTab)),
+        (await readRollout(path, s.root))?.conversation ?? null,
+      )
+    },
+  })
+}

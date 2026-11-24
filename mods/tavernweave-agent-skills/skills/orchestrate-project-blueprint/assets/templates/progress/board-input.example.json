@@ -1,0 +1,30 @@
+{
+  "project": { "id": "my-project", "title": "我的專案", "version": "本地候選" },
+  "baseline": { "id": "scope-1", "label": "首版範圍待確認", "confirmed": false, "reference": "" },
+  "sources": [{ "id": "next", "path": "NEXT.md" }],
+  "items": [
+    {
+      "id": "core-entry",
+      "title": "第一個真實入口",
+      "module": "核心流程",
+      "weight": 1,
+      "scope": "current",
+      "activity": "todo",
+      "summary": "按已有設計案與藍圖填入實際目標，確認範圍後再登記基線。",
+      "checkpoints": [
+        {
+          "id": "entry",
+          "title": "使用者能進入並完成一次核心操作",
+          "weight": 1,
+          "implemented": false,
+          "evidence": [],
+          "gates": [
+            { "kind": "automated", "status": "pending", "evidence": [] },
+            { "kind": "browser", "status": "pending", "evidence": [] },
+            { "kind": "driver", "status": "pending", "evidence": [] }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+# The tool and type folders have no trailing slash, so a symbolic link in their place is ignored too.
+
+# Installed tools in any folder
+node_modules
+
+# Types the engine writes beside a loaded mod
+.claude-plugin/types
+
+# Written by the maintainer's script that keeps a daily-build checkout on the next branch, into the root, codex/plugin
+# and omp, so each look's version label says "next" (NEXT_BUILD_MARK in hooks/view.ts)
+.next-build
+
+# Throwaway scripts that import the mod's code, so they live inside the repo
+.scratch/
+
+# The Codex plugin's test bundles; its plugin/dist bundles are committed
+codex/test-dist/
+
+# The Herdr app's own type files that herdr/herdr-types.ts copies in
+herdr/.herdr-types/
+# `herdr-app check` writes the app's types and an editor config into the mod folder it checks
+herdr/mod/inbox/gpui-kit.d.ts
+herdr/mod/inbox/jsconfig.json
+
+# The tab page `npm --prefix codex run dev` keeps built
+codex/.dev/
+
+# Eval results, written on every run
+evals/results/
+
+# The video project's renders, takes and cut clips, which its scripts make again
+videos/out/
+videos/takes
+videos/public/*/takes
+videos/public/*/stills
+# Music licensed for the post, not for sharing in this repo
+videos/public/music
+# App icons copied from the installed apps, which are their makers' trademarks
+videos/public/icons
+
+.derived-data/

@@ -1,0 +1,23 @@
+{
+  "name": "codex-attachment-manager",
+  "displayName": "Context Attachment Manager",
+  "version": "0.11.5",
+  "description": "面向圖片很多的 Claude Code 會話：較早的圖片以簡短佔位符傳送，不再隨每條訊息重發；模型可按 ID 取回原圖（壓縮後同樣可用），prompt 快取不受影響。",
+  "author": {
+    "name": "chipfighter"
+  },
+  "homepage": "https://github.com/chipfighter/context-attachment-manager",
+  "repository": "https://github.com/chipfighter/context-attachment-manager",
+  "license": "MIT",
+  "keywords": ["claude-code", "images", "multimodal", "context", "context-management", "attachments", "prompt-caching", "proxy"],
+  "mcpServers": {
+    "codex_attachment_manager": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/plugin/scripts/launch",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/plugin/src/plugin-server.ts"],
+      "env": {
+        "CAM_HOST": "claude"
+      }
+    }
+  },
+  "types": "./hooks/types.d.ts"
+}

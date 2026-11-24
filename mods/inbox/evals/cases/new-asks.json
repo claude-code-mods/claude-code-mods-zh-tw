@@ -1,0 +1,426 @@
+[
+  {
+    "name": "person-todo-becomes-question",
+    "about": "A todo the person mentions, which the reply does not take up, becomes a question about starting it.",
+    "ledger": {
+      "turn": 4,
+      "nextId": 5,
+      "card": {
+        "goal": "Fix the flaky checkout test",
+        "done": [],
+        "now": "Fixing the checkout test",
+        "running": []
+      },
+      "items": [],
+      "findings": [],
+      "closed": [],
+      "batchTurn": 3
+    },
+    "exchange": {
+      "person": "nice. todo: look into caching the product API responses",
+      "turn": 4,
+      "activity": ["edited tests/checkout.test.ts"],
+      "reply": "The checkout test is fixed. It waited on a fixed 200 ms timer; it now waits for the order-saved event, and it passed 50 runs in a row."
+    },
+    "checks": [
+      {
+        "new": "cach",
+        "kind": "question"
+      },
+      {
+        "added": 1
+      }
+    ]
+  },
+  {
+    "name": "person-todo-mid-task-becomes-question",
+    "about": "A todo the person sends while the agent works on something else becomes a question about starting it.",
+    "ledger": {
+      "turn": 4,
+      "nextId": 5,
+      "card": {
+        "goal": "Rename BASE to API_URL across the app",
+        "done": [],
+        "now": "Renaming the env var",
+        "running": []
+      },
+      "items": [],
+      "findings": [],
+      "closed": [],
+      "batchTurn": 3
+    },
+    "exchange": {
+      "person": "todo: investigate why the build takes 4 minutes",
+      "turn": 4,
+      "activity": ["edited src/config.ts", "edited deploy/env.yaml", "edited README.md"],
+      "reply": "The rename is done: all 9 files now use API_URL, and the tests pass."
+    },
+    "checks": [
+      {
+        "new": "build",
+        "kind": "question"
+      },
+      {
+        "added": 1
+      }
+    ]
+  },
+  {
+    "name": "person-todo-taken-up-not-new",
+    "about": "A todo the reply already took up adds nothing.",
+    "ledger": {
+      "turn": 4,
+      "nextId": 5,
+      "card": {
+        "goal": "Add flags to the greet CLI",
+        "done": [],
+        "now": "Adding flags",
+        "running": []
+      },
+      "items": [],
+      "findings": [],
+      "closed": [],
+      "batchTurn": 3
+    },
+    "exchange": {
+      "person": "todo: add a --verbose flag",
+      "turn": 4,
+      "activity": ["edited src/cli.ts", "ran: npm test"],
+      "reply": "Added --verbose: it prints each step as it runs. Tests pass."
+    },
+    "checks": [
+      {
+        "added": 0
+      }
+    ]
+  },
+  {
+    "name": "approval-gate-is-question",
+    "about": "A reply that holds an edit until the person approves it asks for that approval.",
+    "ledger": {
+      "turn": 4,
+      "nextId": 4,
+      "card": {
+        "goal": "Fix the onboarding docs",
+        "done": [],
+        "now": "Waiting on approval",
+        "running": []
+      },
+      "items": []
+    },
+    "exchange": {
+      "person": "the onboarding page is wrong about SSO, look into it",
+      "turn": 4,
+      "activity": ["ran: rg -n SSO docs/onboarding.md"],
+      "reply": "The onboarding page says SSO is set up per user. It is set up per workspace: an admin turns it on once in Settings → Security, and every member then signs in with it.\n\nThe page is shared with the support team, so I won't edit the page without your OK. The change replaces the second paragraph of the SSO section with the per-workspace steps."
+    },
+    "checks": [
+      {
+        "new": "edit|onboarding|SSO|page",
+        "kind": "question"
+      }
+    ]
+  },
+  {
+    "name": "soft-ask-is-question",
+    "about": "A soft ask at the end of a reply waits on the person.",
+    "ledger": {
+      "turn": 6,
+      "nextId": 6,
+      "card": {
+        "goal": "Clean up the billing tests",
+        "done": [],
+        "now": "Tests fixed",
+        "running": []
+      },
+      "items": []
+    },
+    "exchange": {
+      "person": "fix the three flaky billing tests",
+      "turn": 6,
+      "activity": [
+        "edited tests/billing/invoice.test.ts",
+        "edited tests/billing/refund.test.ts",
+        "edited tests/billing/tax.test.ts",
+        "ran: npm test -- billing"
+      ],
+      "reply": "Fixed all three. Each one read the clock directly, so it failed near midnight UTC. They now use the fake clock the other billing tests use. 40 runs in a row passed.\n\nThe changes are uncommitted. Say when you want those committed."
+    },
+    "checks": [
+      {
+        "new": "commit"
+      }
+    ]
+  },
+  {
+    "name": "numbered-questions-all-kept",
+    "about": "Every question in a numbered list becomes its own item.",
+    "ledger": {
+      "turn": 2,
+      "nextId": 2,
+      "card": {
+        "goal": "Plan the export feature",
+        "done": [],
+        "now": "Waiting on scope answers",
+        "running": []
+      },
+      "items": []
+    },
+    "exchange": {
+      "person": "plan the CSV export",
+      "turn": 2,
+      "activity": [],
+      "reply": "I read the reports module and the existing PDF export. Before I write the plan, five things need your call:\n\n1. Should the export include archived reports? I'd leave them out: nobody can open them in the app.\n2. Comma or semicolon as the separator? I'd use comma, the default in Sheets and Excel in the US.\n3. Should dates be ISO 8601 or the account's locale format?\n4. Is there a row limit? I'd cap it at 100,000 rows, like the PDF export.\n5. Should the export run in the background and email a link, or download right away?"
+    },
+    "checks": [
+      {
+        "new": "archived"
+      },
+      {
+        "new": "separator|comma|semicolon"
+      },
+      {
+        "new": "date|ISO|locale"
+      },
+      {
+        "new": "row limit|limit|cap|100,000"
+      },
+      {
+        "new": "background|email|download"
+      },
+      {
+        "added": 5
+      }
+    ]
+  },
+  {
+    "name": "rhetorical-question-not-new",
+    "about": "A rhetorical question in the reply adds nothing.",
+    "ledger": {
+      "turn": 6,
+      "nextId": 6,
+      "card": {
+        "goal": "Add caching to the product API",
+        "done": ["Profiled slow endpoints"],
+        "now": "Working on the cache layer",
+        "running": []
+      },
+      "items": []
+    },
+    "exchange": {
+      "person": "why did the import script fail?",
+      "turn": 6,
+      "reply": "It failed because the input file had a byte-order mark in front of the header row. The parser read it as part of the first column name.\n\nWho puts a byte-order mark in a CSV? Plenty of spreadsheet exports do. I now strip it before parsing, and the script passes."
+    },
+    "checks": [
+      {
+        "added": 0
+      }
+    ]
+  },
+  {
+    "name": "offer-to-continue-not-new",
+    "about": "An offer to continue, when continuing is the obvious default, adds nothing.",
+    "ledger": {
+      "turn": 6,
+      "nextId": 6,
+      "card": {
+        "goal": "Add caching to the product API",
+        "done": ["Profiled slow endpoints"],
+        "now": "Working on the cache layer",
+        "running": []
+      },
+      "items": []
+    },
+    "exchange": {
+      "person": "migrate the config loaders to the new schema",
+      "turn": 6,
+      "activity": ["edited src/config/auth.ts", "ran: npm test -- config"],
+      "reply": "Migrated the auth config loader to the new schema. Its tests pass.\n\nThe cache and logging loaders are next, and they follow the same pattern. Want me to start on the next file?"
+    },
+    "checks": [
+      {
+        "added": 0
+      }
+    ]
+  },
+  {
+    "name": "if-you-agree-continue-not-new",
+    "about": "An offer to go on with work the person already asked for adds nothing, even when it says \"If you agree\".",
+    "ledger": {
+      "turn": 4,
+      "nextId": 4,
+      "card": {
+        "goal": "Translate every help page to Spanish",
+        "done": [],
+        "now": "Translating the help pages",
+        "running": []
+      },
+      "items": []
+    },
+    "exchange": {
+      "person": "translate every help page in docs/help to Spanish",
+      "turn": 4,
+      "activity": ["edited docs/help/es/billing.md", "edited docs/help/es/account.md"],
+      "reply": "Translated the billing and account pages. Both keep the English headings as anchors, so the existing links still work.\n\nFour pages are left: login, export, teams and api.\n\nIf you agree, I'll go on with the next file."
+    },
+    "checks": [
+      {
+        "added": 0
+      }
+    ]
+  },
+  {
+    "name": "describe-what-you-saw-not-new",
+    "about": "A question asking the person to describe what they saw adds nothing.",
+    "ledger": {
+      "turn": 6,
+      "nextId": 6,
+      "card": {
+        "goal": "Add caching to the product API",
+        "done": ["Profiled slow endpoints"],
+        "now": "Working on the cache layer",
+        "running": []
+      },
+      "items": []
+    },
+    "exchange": {
+      "person": "the save button does nothing for me",
+      "turn": 6,
+      "reply": "I can't reproduce it: in my run the button saves and shows the toast. The handler only fires when the form is valid, so a hidden required field could block it.\n\nWhat happens when you click it? Do you see an error, or nothing at all?"
+    },
+    "checks": [
+      {
+        "added": 0
+      }
+    ]
+  },
+  {
+    "name": "look-at-finished-work-not-new",
+    "about": "An invitation to look at finished work adds nothing.",
+    "ledger": {
+      "turn": 6,
+      "nextId": 6,
+      "card": {
+        "goal": "Add caching to the product API",
+        "done": ["Profiled slow endpoints"],
+        "now": "Working on the cache layer",
+        "running": []
+      },
+      "items": []
+    },
+    "exchange": {
+      "person": "build the settings page",
+      "turn": 6,
+      "activity": ["edited src/pages/settings.tsx", "ran: npm run dev"],
+      "reply": "The settings page is done. It has the profile form and the notification toggles, and the tests pass.\n\nOpen http://localhost:3000/settings to see it."
+    },
+    "checks": [
+      {
+        "added": 0
+      }
+    ]
+  },
+  {
+    "name": "question-before-last-tool-call",
+    "about": "The reply holds everything the agent said this turn, in order. A question asked before the agent's last tool call, followed by a closing line that recommends an answer without restating it, becomes a question with that recommendation.",
+    "ledger": {
+      "turn": 3,
+      "nextId": 1,
+      "card": { "goal": "Fix the date parser", "done": [], "now": "Fixing the date parser", "running": [] },
+      "items": []
+    },
+    "exchange": {
+      "person": "fix the date parser",
+      "turn": 3,
+      "activity": ["edited src/dates/parse.ts", "ran: npm test -- dates", "ran: rg parseLegacyDate"],
+      "reply": "The date parser is fixed, and the 40 date tests pass. `parseLegacyDate` has no callers left. Should I delete it, or keep it for one more release?\n\nI'd delete it: the changelog already marks it deprecated."
+    },
+    "checks": [{ "new": "parseLegacyDate|legacy|date parser", "kind": "question", "rec": "delete" }, { "added": 1 }]
+  },
+  {
+    "name": "question-answered-later-in-turn-not-new",
+    "about": "A question the agent asks itself in a note between tool calls, and answers later in the same turn, adds nothing.",
+    "ledger": {
+      "turn": 4,
+      "nextId": 1,
+      "card": {
+        "goal": "Find why the scroll test fails",
+        "done": [],
+        "now": "Checking the scroll test",
+        "running": []
+      },
+      "items": []
+    },
+    "exchange": {
+      "person": "why does the scroll test fail since the upgrade?",
+      "turn": 4,
+      "activity": [
+        "ran: git switch --detach v2.3.0",
+        "ran: npm test -- scroll",
+        "ran: git switch main",
+        "ran: npm test -- scroll"
+      ],
+      "reply": "Checking whether the old release failed the same way. Did v2.3.0 fail the scroll test too?\n\nIt did: v2.3.0 fails the same scroll test, so the failure is older than the upgrade.\n\nThe scroll test fails on both versions because it waits a fixed 100 ms for the list to render. It is a flaky test, not a regression from the upgrade."
+    },
+    "checks": [{ "added": 0 }]
+  },
+  {
+    "name": "pr-check-news-not-asked",
+    "about": "News of a PR's failing check and conflict, and an offer to fix them, add no item: the PRs tab shows each with its own press.",
+    "ledger": {
+      "turn": 5,
+      "nextId": 4,
+      "card": {
+        "goal": "Add CSV export to the reports page",
+        "done": ["Export button added"],
+        "now": "Opened the export PR",
+        "running": []
+      },
+      "items": [],
+      "findings": [],
+      "closed": [],
+      "prs": ["acme/reports#41"]
+    },
+    "exchange": {
+      "person": "open a PR for the export work",
+      "turn": 5,
+      "activity": ["ran: gh pr create --fill", "ran: gh pr checks 41"],
+      "reply": "Opened PR #41: https://github.com/acme/reports/pull/41. The lint check failed on an unused import in export.ts, and the PR now conflicts with main in reports.ts. Want me to fix the lint failure and resolve the conflict?"
+    },
+    "checks": [{ "added": 0 }]
+  },
+  {
+    "name": "url-parameter-options-in-words",
+    "about": "A reply that offers two page versions only by their URL parameters and recommends one gives options and a rec without links or parameters.",
+    "ledger": {
+      "turn": 5,
+      "nextId": 6,
+      "card": {
+        "goal": "Redesign the shop's product and checkout pages",
+        "done": ["Export job fixed"],
+        "now": "Comparing card-layout mockups",
+        "running": []
+      },
+      "items": [],
+      "findings": [],
+      "closed": [],
+      "batchTurn": 4
+    },
+    "exchange": {
+      "person": null,
+      "trigger": "a background task finished",
+      "turn": 5,
+      "activity": ["ran: npm run reindex", "ran: npm test -- search", "ran: git status"],
+      "reply": "The background job that rebuilds the search index finished. It reindexed 4,212 products in 6 minutes, and the search tests pass against the new index.\n\nA correction to what I asked earlier: the A-or-B question about the product page no longer applies. You turned down B, so a helper agent mocked the product and checkout pages again in the card layout. Both are on the dev server at http://localhost:3000/product and http://localhost:3000/checkout. Three questions on those:\n\n- **Product page in the card layout:** `?dv=a` or `?dv=b`. The helper recommends B, because it doesn't show the price twice.\n- **Checkout page in the card layout:** A or B. The helper recommends A, because the order summary stays beside the form.\n- **Old layout styles:** should I delete them once you've picked both pages?"
+    },
+    "checks": [
+      {
+        "new": "product",
+        "kind": "question",
+        "rec": "\\bB\\b|second|price",
+        "noOption": "[?=/]|http"
+      }
+    ]
+  }
+]

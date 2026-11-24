@@ -1,0 +1,518 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  methodology-vectors:
+    name: methodology golden vectors
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # jq is preinstalled on ubuntu-latest; the runner only needs bash + jq + awk.
+      - name: Replay golden vectors against data/factors.json + data/prices.json
+        run: bash tests/run-vectors.sh
+
+  mod:
+    name: claude-carbon mod (parity and display rules)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # The mod's pure modules against the golden vectors and the display rules.
+      - name: Replay golden vectors and display rules against hooks/mod
+        run: node --experimental-strip-types tests/run-mod-tests.mjs
+
+      # The kit behind `claude plugin test` ships inside the claude binary, so the version
+      # is pinned: a new Claude Code release must not change the verdict on an unchanged
+      # mod. The kit mocks the engine: no login, no API key, no secret.
+      - name: Install Claude Code 2.1.296 for its test kit
+        run: npm install -g @anthropic-ai/claude-code@2.1.296
+
+      - name: Run the mod's own tests (hooks/mod/*.test.tsx) under claude plugin test
+        run: bash tests/run-mod-kit.sh
+
+  install-wiring:
+    name: install and update wiring
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # Runs entirely under throwaway CLAUDE_CONFIG_DIRs; the update case clones this checkout
+      # from disk, so no network is involved.
+      - name: Exercise the settings.json merge and the update repair path
+        run: bash tests/run-install-tests.sh
+
+      # A throwaway prefix laid out as a Homebrew formula leaves it; no brew, no network.
+      - name: Homebrew install, upgrade and uninstall
+        run: bash tests/run-brew-tests.sh
+
+  badge:
+    name: badge output
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # Runs against throwaway fixture DBs via CLAUDE_CARBON_DB; sqlite3 is
+      # preinstalled on ubuntu-latest.
+      - name: Assert badge URL and snippet against fixture databases
+        run: bash tests/run-badge-tests.sh
+
+  report:
+    name: carbon-report output
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # The /carbon-report skill's bash block against throwaway fixture DBs via
+      # CLAUDE_CARBON_DB: car row per locale set, budget share on the calendar year.
+      - name: Assert the car equivalent and the annual budget line
+        run: bash tests/run-report-tests.sh
+
+  pr-report:
+    name: carbon-pr pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fixture transcript through the Stop hook (git_branch capture), then the
+      # dry-run report against fixture DBs. No network, no gh.
+      - name: Assert branch capture and the dev PR report
+        run: bash tests/run-pr-tests.sh
+
+      - name: PR report a repository asks for
+        if: always()
+        run: bash tests/run-pr-hook-tests.sh
+
+      # The SubagentStop hook in a scratch repository with worktrees: an agent's branch,
+      # recorded as it ends, and the report that counts it there
+      - name: Agents counted for the branch they worked on
+        run: bash tests/run-agent-branch-tests.sh
+
+  session-end:
+    name: session end capture
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fixture transcripts with an interrupted last turn, through the SessionEnd hook
+      # (detached run) and the backfill refresh. Throwaway CLAUDE_CONFIG_DIR and TMPDIR.
+      - name: Assert the interrupted-turn tail is recorded
+        run: bash tests/run-session-end-tests.sh
+
+      # Workflow agents' transcripts (subagents/workflows/wf_*/agent-*.jsonl) count
+      - name: Workflow agents
+        run: bash tests/run-workflow-agent-tests.sh
+
+      # The history the mod's /carbon pane draws: v2 sessions only, the DB untouched,
+      # an atomic write. Throwaway DB under a temp root.
+      - name: Assert the session history export
+        run: bash tests/run-export-tests.sh
+
+      # No database yet (the plugin installed alone): the SessionStart hook creates it
+      # once. Throwaway CLAUDE_CONFIG_DIR.
+      - name: Assert the plugin-only database creation
+        run: bash tests/run-plugin-bootstrap-tests.sh
+
+  per-model:
+    name: per-model split
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fixture transcripts on four models through the Stop hook, recompute and backfill,
+      # against throwaway CLAUDE_CONFIG_DIR / CLAUDE_CARBON_DB. Asserts the session_models
+      # rows and SUM(children) = session on every column.
+      - name: Assert tokens per model and the session invariant
+        run: bash tests/run-per-model-tests.sh
+
+      # The per-agent usage cache: same lines without it, cold and warm; stale and broken
+      # caches; concurrent Stop hooks; purge. Throwaway CLAUDE_CONFIG_DIR.
+      - name: Usage cache
+        run: bash tests/run-usage-cache-tests.sh
+
+  portability:
+    name: portability contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pure string logic plus the anti-regression guards (no bc, no python3, no
+      # hardcoded /tmp, LF endings, quoted hook placeholders). No extra deps.
+      - name: Assert the cross-platform contract
+        run: bash tests/run-portability-tests.sh
+
+      # Skips with exit 0 off Windows. Running it here keeps that skip path honest,
+      # so the suite can never start failing the matrix for the wrong reason.
+      - name: Windows end-to-end (expected to skip here)
+        run: bash tests/run-windows-e2e.sh
+
+      # The jq a Mac without one is given: a wrong checksum installs nothing, and
+      # portable-lib finds the private jq only when the system has none.
+      - name: jq fetch and PATH
+        run: bash tests/run-jq-fetch-tests.sh
+
+      # The daily release check: a marketplace install lists tags and never fetches into
+      # the plugin cache, a clone fetches its origin, each writes its own flag.
+      - name: Update check
+        run: bash tests/run-update-check-tests.sh
+
+      # The status line's subscription quota: the 5-hour window, else the weekly one; the
+      # usage API only without rate_limits on stdin, at most once a minute. curl is a shim.
+      - name: Subscription quota
+        run: bash tests/run-quota-tests.sh
+
+      # release.sh refuses to release a commit twice, or a docs-only change without --force
+      - name: Release guards
+        run: bash tests/run-release-tests.sh
+
+  macos:
+    name: macos (bash 3.2)
+    runs-on: macos-latest
+    timeout-minutes: 15
+    # macOS's own /bin/bash is 3.2 and stays so: Apple ships no newer one. Every script
+    # claims to run under it, and only this job holds them to it. A runner has the
+    # developer tools a person's Mac may lack, so the bare-Mac case stays a manual test.
+    defaults:
+      run:
+        shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Report the toolchain actually available
+        run: |
+          echo "bash    : ${BASH_VERSION}"
+          echo "jq      : $(command -v jq) $(jq --version 2>/dev/null || echo MISSING)"
+          echo "sqlite3 : $(command -v sqlite3) $(sqlite3 --version 2>/dev/null | cut -d' ' -f1)"
+          sw_vers
+
+      - name: Portability contract
+        if: always()
+        run: /bin/bash tests/run-portability-tests.sh
+
+      - name: Methodology golden vectors
+        if: always()
+        run: /bin/bash tests/run-vectors.sh
+
+      - name: Install and update wiring
+        if: always()
+        run: /bin/bash tests/run-install-tests.sh
+
+      - name: Homebrew install, upgrade and uninstall
+        if: always()
+        run: /bin/bash tests/run-brew-tests.sh
+
+      - name: Badge output
+        if: always()
+        run: /bin/bash tests/run-badge-tests.sh
+
+      - name: carbon-report output
+        if: always()
+        run: /bin/bash tests/run-report-tests.sh
+
+      - name: carbon-pr pipeline
+        if: always()
+        run: /bin/bash tests/run-pr-tests.sh
+
+      - name: PR report a repository asks for
+        if: always()
+        run: /bin/bash tests/run-pr-hook-tests.sh
+
+      - name: carbon-pr agents
+        if: always()
+        run: /bin/bash tests/run-agent-branch-tests.sh
+
+      - name: Per-model split
+        if: always()
+        run: /bin/bash tests/run-per-model-tests.sh
+
+      - name: Usage cache
+        if: always()
+        run: /bin/bash tests/run-usage-cache-tests.sh
+
+      - name: Session history export
+        if: always()
+        run: /bin/bash tests/run-export-tests.sh
+
+      - name: Session end capture
+        if: always()
+        run: /bin/bash tests/run-session-end-tests.sh
+
+      - name: Plugin-only database creation
+        if: always()
+        run: /bin/bash tests/run-plugin-bootstrap-tests.sh
+
+      # Workflow agents' transcripts (subagents/workflows/wf_*/agent-*.jsonl) count
+      - name: Workflow agents
+        if: always()
+        run: /bin/bash tests/run-workflow-agent-tests.sh
+
+      # The real download of jq 1.8.1 for this Mac's architecture, checked and run
+      - name: jq fetch and PATH
+        if: always()
+        env:
+          CLAUDE_CARBON_NETWORK_TESTS: "1"
+        run: /bin/bash tests/run-jq-fetch-tests.sh
+
+      - name: Update check
+        if: always()
+        run: /bin/bash tests/run-update-check-tests.sh
+
+      - name: Subscription quota
+        if: always()
+        run: /bin/bash tests/run-quota-tests.sh
+
+      # The maintainer releases from a Mac: BSD mktemp and bash 3.2
+      - name: Release guards
+        if: always()
+        run: /bin/bash tests/run-release-tests.sh
+
+  ubuntu-2204:
+    name: ubuntu 22.04 (jq 1.6, git 2.34)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The other Linux jobs get the runner's jq 1.7 or later: jq 1.6, which Ubuntu 22.04 and
+    # Debian 11 still ship, caused two bugs none of them saw. git 2.34 and mawk come with it.
+    container: ubuntu:22.04
+    # A container job runs its steps with sh unless told otherwise
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # git before the checkout, so that it is a clone (the install suite clones it). The
+      # workspace belongs to the runner's user, not to the container's root, and the suites
+      # set HOME to a scratch folder: the folder is trusted in the system config.
+      - name: Install git, jq 1.6 and sqlite3
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends git jq sqlite3 ca-certificates
+          git config --system --add safe.directory '*'
+          git config --system --add safe.directory "$GITHUB_WORKSPACE"
+
+      - uses: actions/checkout@v4
+
+      - name: Report the toolchain actually available
+        run: |
+          echo "bash    : ${BASH_VERSION}"
+          echo "jq      : $(jq --version)"
+          echo "git     : $(git --version)"
+          echo "sqlite3 : $(sqlite3 --version | cut -d' ' -f1)"
+          echo "awk     : $(awk -W version 2>&1 | head -1)"
+
+      - name: carbon-pr agents
+        if: always()
+        run: bash tests/run-agent-branch-tests.sh
+
+      - name: carbon-pr pipeline
+        if: always()
+        run: bash tests/run-pr-tests.sh
+
+      - name: PR report a repository asks for
+        if: always()
+        run: bash tests/run-pr-hook-tests.sh
+
+      - name: Install and update wiring
+        if: always()
+        run: bash tests/run-install-tests.sh
+
+      - name: Homebrew install, upgrade and uninstall
+        if: always()
+        run: bash tests/run-brew-tests.sh
+
+      - name: Workflow agents
+        if: always()
+        run: bash tests/run-workflow-agent-tests.sh
+
+  windows:
+    name: windows (git bash)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    # Every suite reports even when an earlier one fails: a Windows-only failure costs
+    # a full push to observe, so one round-trip should surface all of them at once.
+    defaults:
+      run:
+        # The shell Claude Code itself spawns for hooks and the status line on
+        # Windows, so the suite runs in the environment users actually get.
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      # jq and sqlite3 are the two commands Git for Windows does not ship, and the
+      # two the README asks Windows users to install. Everything else the plugin
+      # touches (bash, awk, sed, grep, date, curl, git, cygpath) comes with Git.
+      # jq from Chocolatey. sqlite3 from Chocolatey too, and when its feed cannot serve the
+      # package (it could not on 2026-10-14), from the official sqlite.org zip, checked
+      # against its SHA-256. Either way the step fails loudly if a command is still missing,
+      # instead of every suite after it failing for want of it.
+      - name: Install jq and sqlite3
+        run: |
+          command -v jq      >/dev/null 2>&1 || choco install jq     --no-progress -y
+          command -v sqlite3 >/dev/null 2>&1 || choco install sqlite --no-progress -y || true
+          if ! command -v sqlite3 >/dev/null 2>&1; then
+            dir="$RUNNER_TEMP/sqlite"
+            mkdir -p "$dir"
+            curl -fsSL --retry 3 -o "$dir/sqlite.zip" https://www.sqlite.org/2026/sqlite-tools-win-x64-3540000.zip
+            echo "63cb06e952a83fd140139b008ed5b47496608161c62f8cd17bc96e8beb1de029  $dir/sqlite.zip" | sha256sum -c -
+            powershell -NoProfile -Command "Expand-Archive -Force -Path '$(cygpath -w "$dir/sqlite.zip")' -DestinationPath '$(cygpath -w "$dir")'"
+            cygpath -w "$dir" >> "$GITHUB_PATH"
+            export PATH="$dir:$PATH"
+          fi
+          for cmd in jq sqlite3; do
+            command -v "$cmd" >/dev/null 2>&1 || { echo "::error::$cmd could not be installed"; exit 1; }
+          done
+
+      - name: Report the toolchain actually available
+        run: |
+          echo "uname   : $(uname -s)"
+          echo "OSTYPE  : ${OSTYPE:-unset}"
+          echo "bash    : ${BASH_VERSION}"
+          echo "jq      : $(jq --version)"
+          echo "sqlite3 : $(sqlite3 --version)"
+          echo "awk     : $(awk --version 2>/dev/null | head -1 || echo present)"
+          echo "cygpath : $(command -v cygpath || echo MISSING)"
+          echo "TMPDIR  : ${TMPDIR:-unset}"
+
+      # cc_path's cygpath branch, which a Linux or macOS runner cannot reach, plus
+      # the same drift and dependency guards.
+      - name: Portability contract
+        if: always()
+        run: bash tests/run-portability-tests.sh
+
+      - name: Methodology golden vectors
+        if: always()
+        run: bash tests/run-vectors.sh
+
+      - name: Install and update wiring
+        if: always()
+        run: bash tests/run-install-tests.sh
+
+      - name: Badge output
+        if: always()
+        run: bash tests/run-badge-tests.sh
+
+      - name: carbon-report output
+        if: always()
+        run: bash tests/run-report-tests.sh
+
+      - name: carbon-pr pipeline
+        if: always()
+        run: bash tests/run-pr-tests.sh
+
+      - name: PR report a repository asks for
+        if: always()
+        run: bash tests/run-pr-hook-tests.sh
+
+      - name: carbon-pr agents
+        if: always()
+        run: bash tests/run-agent-branch-tests.sh
+
+      - name: Per-model split
+        if: always()
+        run: bash tests/run-per-model-tests.sh
+
+      - name: Usage cache
+        if: always()
+        run: bash tests/run-usage-cache-tests.sh
+
+      - name: Session history export
+        if: always()
+        run: bash tests/run-export-tests.sh
+
+      # The detached run goes through nohup or a bare background job under Git Bash.
+      - name: Session end capture
+        if: always()
+        run: bash tests/run-session-end-tests.sh
+
+      - name: Plugin-only database creation
+        if: always()
+        run: bash tests/run-plugin-bootstrap-tests.sh
+
+      # Workflow agents' transcripts (subagents/workflows/wf_*/agent-*.jsonl) count
+      - name: Workflow agents
+        if: always()
+        run: bash tests/run-workflow-agent-tests.sh
+
+      - name: Subscription quota
+        if: always()
+        run: bash tests/run-quota-tests.sh
+
+      # The assertions no other runner can make: a real cygpath, a native path
+      # pointing at a real file, and the hook manifests spawned the way Claude Code
+      # spawns them (placeholder substituted into the string, string handed to bash).
+      - name: Windows end-to-end
+        if: always()
+        run: bash tests/run-windows-e2e.sh
+
+      - name: Update check
+        if: always()
+        run: bash tests/run-update-check-tests.sh
+
+      # install.ps1 is the one file no POSIX machine can even parse.
+      - name: install.ps1
+        if: always()
+        shell: powershell
+        run: .\tests\run-install-ps1-tests.ps1
+
+      # npx claude-carbon on Windows goes through install.ps1, not install.sh
+      - name: npx wrapper
+        if: always()
+        shell: powershell
+        run: |
+          $out = node bin/claude-carbon.js --dry-run
+          Write-Host $out
+          if ($out -notmatch 'install\.ps1') { throw "wrapper did not pick install.ps1" }
+          $file = ($out -replace '^Downloaded installer to (.+) \(not run.*$', '$1')
+          $bytes = [System.IO.File]::ReadAllBytes($file)
+          if ($bytes[0] -ne 0xEF -or $bytes[1] -ne 0xBB -or $bytes[2] -ne 0xBF) { throw "install.ps1 written without a BOM" }
+          $tokens = $null; $errs = $null
+          $null = [System.Management.Automation.Language.Parser]::ParseFile($file, [ref]$tokens, [ref]$errs)
+          if ($errs) { throw "downloaded install.ps1 does not parse: $errs" }
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure shellcheck is available
+        run: command -v shellcheck >/dev/null || sudo apt-get install -y shellcheck
+
+      # Warnings and errors gate the build; style notes are advisory and stay out of the way.
+      - name: Lint every shell script
+        run: find . \( -name '*.sh' -o -path ./scripts/claude-carbon \) -not -path './.git/*' -print0 | sort -z | xargs -0 shellcheck --severity=warning
+
+  version-manifests:
+    name: version manifests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Full history + tags: the unreleased-changes check diffs against the last tag.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Fails on a manifest mismatch (the update notice would lie); warns, without failing,
+      # when runtime files have piled up since the last tag with no version bump.
+      - name: Check the three version manifests agree
+        run: bash scripts/check-versions.sh

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "TavernWeave X DSH",
+    "description": "把 TavernWeave 的 23 個角色卡工程 Skill、資料庫與 Host Front Door 打包成 DeepSeek Harness 外掛，並提供可選 Agent 預設。"
+  }
+}

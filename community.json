@@ -1,0 +1,621 @@
+[
+ {
+  "name": "fm",
+  "repo": "kunchenguid/firstmate",
+  "path": ".claude/mods/firstmate-calm",
+  "sha": "427056c4181c41074ad24f051f79919330df0fa5",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "git",
+  "description": "The sailboat working animation and a conversation-only transcript, sharing a calm-mode preference across sessions.",
+  "access": [
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "terminal-browser",
+  "repo": "zenbu-labs/terminal-browser",
+  "path": "claude-code-plugin",
+  "sha": "fa9e5eb053d2a1da11f7ccba720a0d3d389c05a6",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "rendering",
+  "description": "A browser inside Claude Code: preview sites and HTML, and let the agent drive the built-in browser.",
+  "access": [
+   "http",
+   "process",
+   "model",
+   "fs",
+   "ui"
+  ]
+ },
+ {
+  "name": "pebrel-prompt-suggestions",
+  "repo": "Kuddev/pebrel",
+  "path": "pebrel_app/res/prompt-suggestions/claude",
+  "sha": "ed9b2331340877ba3d775e38c4df6bd1a2abb1fe",
+  "version": "0.0.0",
+  "license": "GPL-3.0",
+  "category": "productivity",
+  "description": "Native empty-composer prompt predictions through the Pebrel session bridge.",
+  "access": [
+   "http",
+   "ui"
+  ]
+ },
+ {
+  "name": "token-optimizer",
+  "repo": "alexgreensh/token-optimizer",
+  "path": "desktop/token-optimizer-desktop",
+  "sha": "e3f1a2dcad8d8999096b8a881c4d98cdba4ef1a5",
+  "version": "0.0.0",
+  "license": "NOASSERTION",
+  "category": "dashboards",
+  "description": "A token-optimizer status bar that shows where tokens go and how to spend less.",
+  "access": [
+   "process",
+   "model",
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "lcu-approve",
+  "repo": "amontlabs/lcu",
+  "path": "adapters/claude-mod/lcu-approve",
+  "sha": "1bd45b304295c7665b559fcc32f7b3a8f1b1d859",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "safety",
+  "description": "Per-app approval for computer use: allow this conversation, always allow, or deny, plus a panel of approved apps.",
+  "access": [
+   "process",
+   "mcp",
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "fast-jev-compaction",
+  "repo": "tamaratran/fast-jev-compaction",
+  "path": "",
+  "sha": "e3f262a7f4d42bd8dd32ced30d26176f7cb545b0",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "productivity",
+  "description": "Verbatim Jev-guided compaction for Claude Code sessions.",
+  "access": [
+   "http",
+   "model",
+   "ui"
+  ]
+ },
+ {
+  "name": "lot-map",
+  "repo": "alexeyw/lot-map",
+  "path": "",
+  "sha": "ad60f057902765d778eedde770d337be45fac3af",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "productivity",
+  "description": "A live map beside the chat: memory, files, shell, web, model, agents, skills and hooks light up as they are used.",
+  "access": [
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "council",
+  "repo": "hex/claude-council",
+  "path": "",
+  "sha": "f2f7f42122b288599cef8cea97dcc490acea98a5",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "dashboards",
+  "description": "Consult several AI agents at once for diverse perspectives, with a streaming pane and an optional heads-up side check.",
+  "access": [
+   "process",
+   "model",
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "codex-attachment-manager",
+  "repo": "chipfighter/context-attachment-manager",
+  "path": "",
+  "sha": "d68a721b7432059c9056d546ff2a26b11b3c0e0c",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "dashboards",
+  "description": "Sends earlier images as short placeholders and fetches originals back by ID, so long image sessions keep the prompt cache.",
+  "access": [
+   "http",
+   "mcp",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "storybloq",
+  "repo": "Storybloq/storybloq",
+  "path": "plugins/storybloq",
+  "sha": "f0b4c08e3a15ffb9841e5a3058c6b1ca57607154",
+  "version": "0.0.0",
+  "license": "NOASSERTION",
+  "category": "productivity",
+  "description": "Project memory: tickets, issues, handovers and lessons kept in a .story/ folder in your repo.",
+  "access": [
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "shared-session",
+  "repo": "Paradigm-Study/claude-share",
+  "path": "plugin",
+  "sha": "9d88f996ac4245c756a89b34e98cfde375028950",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "agents",
+  "description": "Share a session with a link or your team; teammates join from their own Claude Code and watch every turn live.",
+  "access": []
+ },
+ {
+  "name": "just-do-it",
+  "repo": "Lifecycle-Innovations-Limited/claude-ops",
+  "path": "claude-ops/skills/ops-jdi/plugin",
+  "sha": "e434ef7e612f2ff5769def6101fc9d984888d377",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "productivity",
+  "description": "Continues authorized work through verification and delivery, and surfaces setup issues to repair.",
+  "access": [
+   "process",
+   "model",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "prismantis",
+  "repo": "NahumLitvin/prismantis",
+  "path": "plugin",
+  "sha": "3718a40abc57b836108a65bd9f01d06d3237e52d",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "rendering",
+  "description": "Colorful, themeable rendering for replies: tables, headings, code, numbers, paths and links.",
+  "access": [
+   "process",
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "filetree",
+  "repo": "data-goblin/claude-code-filetree",
+  "path": "",
+  "sha": "1fdc3a963f2dc22a939f661ff0ff5a76646c9112",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "productivity",
+  "description": "An IDE-style file tree that shows what Claude is doing and where in your files.",
+  "access": [
+   "process",
+   "model",
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "jev-auto-compact",
+  "repo": "notque/vexjoy-agent",
+  "path": "plugins/jev-auto-compact",
+  "sha": "c68ac1fea2a03e437ccc95112d1e56e467a9bd00",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "productivity",
+  "description": "At 60% context, prunes stale tool calls with zero generation; skips instead of falling back to an LLM summary.",
+  "access": [
+   "http",
+   "model",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "cache-tax",
+  "repo": "karanb192/cache-tax",
+  "path": "",
+  "sha": "535ff33225e666e605e731d78f5ac5efe243c7c3",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "dashboards",
+  "description": "Keeps the one-hour prompt cache warm during breaks, asking before a cold send and showing the rewrite cost.",
+  "access": [
+   "model",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "turbo",
+  "repo": "tobihagemann/turbo",
+  "path": "claude",
+  "sha": "3bc6b4436d96be22497109e16e68fe4dfa323531",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "git",
+  "description": "A human-gated agentic software factory: you decide what to build and judge the result, skills build and ship it.",
+  "access": [
+   "model",
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "agent-standup-band",
+  "repo": "Atoll92/agent-standup",
+  "path": "plugin-band",
+  "sha": "846d5324f7c00f06d598c86e87ed8b51d774b3ac",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "dashboards",
+  "description": "A line above the prompt when another local session needs you, and a toast when one finishes.",
+  "access": [
+   "process",
+   "fs",
+   "ui"
+  ]
+ },
+ {
+  "name": "flightdeck",
+  "repo": "scasella/claude-flightdeck",
+  "path": "",
+  "sha": "626cc0b46d417f81bbff9f5ba3b49abaf8912a85",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "agents",
+  "description": "A live agent dashboard: model vitals, an on-call architect, permission checks, subagent cards and a session log.",
+  "access": [
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "caliber-jev-compaction",
+  "repo": "caliber-ai-org/ai-setup",
+  "path": "plugin/caliber-jev-compaction",
+  "sha": "f5dbc002022a8a10acad25c1cce23ddefdc19d0d",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "productivity",
+  "description": "Verbatim Jev-guided compaction for Claude Code sessions.",
+  "access": [
+   "http",
+   "model",
+   "ui"
+  ]
+ },
+ {
+  "name": "mazyos",
+  "repo": "Mazzeo-Marketing/MazyOS",
+  "path": "",
+  "sha": "d2b65b392f1ee230afb088d155fc734def5f105d",
+  "version": "0.0.0",
+  "license": "NOASSERTION",
+  "category": "git",
+  "description": "A Portuguese business OS plugin: your company memory in every session, brand identity on outputs, and 17 marketing/SEO skills.",
+  "access": [
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "start",
+  "repo": "rsmdt/the-startup",
+  "path": "plugins/start",
+  "sha": "e803d51fdb423271d3dde189f5416f3ec51386a9",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "agents",
+  "description": "Workflow orchestration commands for agentic software development.",
+  "access": [
+   "fs",
+   "ui"
+  ]
+ },
+ {
+  "name": "shunt",
+  "repo": "pleaseai/shunt",
+  "path": "plugins/shunt",
+  "sha": "57182b328e92d3c70bc9ca5a1fd1ee9104cfbabb",
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "category": "dashboards",
+  "description": "A usage band for the shunt gateway: each window's spend and reset time, plus a full /shunt:usage breakdown.",
+  "access": [
+   "http",
+   "process",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "operator",
+  "repo": "aerovato/operator-memory",
+  "path": "packages/claude-code",
+  "sha": "93c3fce64f0a72adeb89fa868600eb418548ec07",
+  "version": "0.0.0",
+  "license": "BSD-3-Clause",
+  "category": "productivity",
+  "description": "Durable project and user memory for agent-driven development.",
+  "access": []
+ },
+ {
+  "name": "carbon",
+  "repo": "gwittebolle/claude-carbon",
+  "path": "",
+  "sha": "9ad53f1dd07fb0e11fcdb94d294ed794d660cf4b",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "productivity",
+  "description": "Tracks the carbon footprint of your Claude Code sessions in the terminal and desktop app.",
+  "access": [
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "agentctl",
+  "repo": "sd0xdev/sd0x-harness",
+  "path": "mods/agentctl",
+  "sha": "b0206637edd2e44c993da12b6b30858f96bc3cdc",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "safety",
+  "description": "An agent control plane for a session: task scope, evidence and hand-over.",
+  "access": [
+   "process",
+   "model",
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "multi-core",
+  "repo": "greenpolo/cc-multi-cli-plugin",
+  "path": "plugins/multi-core",
+  "sha": "66d9b0a6b06b25fd648ecd53311a647bb57e2fb4",
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "category": "safety",
+  "description": "Use ChatGPT, Cursor, OpenCode and Antigravity models inside one session, switching with /model.",
+  "access": [
+   "http",
+   "model",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "work-mode",
+  "repo": "danyuchn/claude-work-mode",
+  "path": "plugins/work-mode",
+  "sha": "e19eda1e8465308bd79a74fad295cf9b6d9cdf71",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "productivity",
+  "description": "Session modes: auto (no mid-task questions), out (delegate batch work) and wrap (converge and finish).",
+  "access": [
+   "process",
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "tokendoctor",
+  "repo": "localixai/tokendoctor",
+  "path": "",
+  "sha": "051fa9598f0a50ed30974b618f2911381b7dcf90",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "dashboards",
+  "description": "Replays your past sessions to show what each change would have saved, then applies only what you pick.",
+  "access": [
+   "process",
+   "model",
+   "ui"
+  ]
+ },
+ {
+  "name": "engineer",
+  "repo": "swingerman/engineer",
+  "path": "engineer",
+  "sha": "ae4cb5fe32007dd6a3d717c9998dcfb12b1f348e",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "git",
+  "description": "A disciplined agentic-engineering methodology kit: intake, AC discovery, spec, planning, implementation, verification, hardening.",
+  "access": [
+   "process",
+   "model",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "skins",
+  "repo": "hellosverre/claude-skins",
+  "path": "",
+  "sha": "cf0d39f3785d5c5a4b6189ecc487b1ac479efea0",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "dashboards",
+  "description": "Skins and fifteen themes for the transcript, with rich cards and a usage band; /skin swaps them live.",
+  "access": [
+   "http",
+   "process",
+   "model",
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "show-your-work",
+  "repo": "iamumeransari/claude-show-your-work",
+  "path": "",
+  "sha": "71e546044e3ba61b98a6938a03270da791f9ca2e",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "productivity",
+  "description": "Shows finished work in the terminal: screenshots, click-through videos and synced before/after QA.",
+  "access": [
+   "http",
+   "process",
+   "model",
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "jevmem-pane",
+  "repo": "Avinash-jetwani/jevmem",
+  "path": "pane",
+  "sha": "c29753ccb2c9706e417fda25efa422682358955b",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "safety",
+  "description": "A side pane showing what jevmem recalled, what its guard decided and what the last turn saved.",
+  "access": [
+   "process",
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "ctx-handoff",
+  "repo": "cablate/ctx-handoff-mod",
+  "path": "",
+  "sha": "a416713a0495be799a31f3650e18458e242270c7",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "dashboards",
+  "description": "Turns what you teach Claude into project notes, catches common slips, keeps the cache warm and resumes long sessions.",
+  "access": [
+   "model",
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "inbox",
+  "repo": "petekp/inbox",
+  "path": "",
+  "sha": "02e441cd447edf86fc30fbd03e9117a8ead9da7a",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "productivity",
+  "description": "Gathers the questions, tasks, findings and PRs waiting on you in a session.",
+  "access": []
+ },
+ {
+  "name": "lane-stack",
+  "repo": "VKirill/claude-lane-stack",
+  "path": "plugins/lane-stack",
+  "sha": "8bac2b876b72053aa445bb9d1c7c6079bfc4ba8c",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "agents",
+  "description": "A solo PM conveyor: orchestrator agents, lane playbooks, onboard and resume commands.",
+  "access": [
+   "http",
+   "model",
+   "ui"
+  ]
+ },
+ {
+  "name": "compact-adviser",
+  "repo": "kunchenguid/compact-adviser",
+  "path": "packages/claude-mod",
+  "sha": "37fa1a665b8933de68c90014312060e862cf121a",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "productivity",
+  "description": "Suggests or runs /compact at a completed checkpoint, judged by TypeSafe Jev.",
+  "access": [
+   "http",
+   "model",
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "ripple",
+  "repo": "PBJ-2/clauderipple",
+  "path": "packages/mod",
+  "sha": "c1c6b76a9e4e7a51df2ec5907d6e41d6bf8591e3",
+  "version": "0.0.0",
+  "license": "GPL-3.0",
+  "category": "dashboards",
+  "description": "Picks reasoning effort per prompt and a worker per delegated task, keeps the cache warm and shows where each request went.",
+  "access": [
+   "http",
+   "process",
+   "model",
+   "mcp",
+   "fs",
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "tavernweave-agent-skills",
+  "repo": "LiarMTTT/TavernWeave",
+  "path": "",
+  "sha": "f9863d2b05305457fe9ed8b0c5688d52aca400a5",
+  "version": "0.0.0",
+  "license": "NOASSERTION",
+  "category": "dashboards",
+  "description": "23 shared skills for rolecards, software work and bounded cloud tasks, plus a Soul mode switch above the prompt.",
+  "access": [
+   "state",
+   "ui"
+  ]
+ },
+ {
+  "name": "agent-usage-guard",
+  "repo": "rbartoli/agent-usage-guard",
+  "path": "",
+  "sha": "02594c2620be9eb60c32e2f77d9d512d9f61b205",
+  "version": "0.0.0",
+  "license": "MIT",
+  "category": "dashboards",
+  "description": "Holds subagent fan-out, heavy-context prompts and retry loops before they spend your usage window.",
+  "access": [
+   "model",
+   "fs",
+   "state",
+   "ui"
+  ]
+ }
+]

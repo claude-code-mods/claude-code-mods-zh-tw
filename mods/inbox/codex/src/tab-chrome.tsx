@@ -1,0 +1,198 @@
+import { HOOKS_TRUST_TEXT } from './hook-trust-text'
+import { ago } from '../../hooks/text'
+import { HELP_COPY, helpKeys, MARK_LEGEND } from '../../hooks/help'
+import { bannerOf, tabBarBanners } from '../../hooks/banners'
+import { DOT, ROW_COPY } from '../../hooks/rows'
+import { isRowTab, shownTabs, tabBadge } from '../../hooks/tabs'
+import { footerError } from '../../hooks/view'
+import { SETTLED_MS } from '../../hooks/timing'
+import type { ShownTab } from '../../hooks/tabs'
+import type { Tab } from '../../types'
+import type { TabView as View } from './core'
+import { tabState, selection, drawnRows } from './tab-state'
+import { switchTab, drawnTab } from './tab-selection'
+import { swapPage } from './tab-swap'
+import { read } from './tab-read'
+import { pulseInStep, MarkGlyph, markClassOf, GroupTitle, Banner } from './tab-parts'
+import { HerdrAskBanner } from './tab-herdr-ask'
+import { bannerMotion, lineMotion } from './tab-line-steps'
+import type { BannerLine } from './tab-line-steps'
+
+/** The Help tab's icon: a question mark in a circle, in the tab's text color. */
+function HelpIcon() {
+  return (
+    <svg class="help-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.8" fill="none" stroke="currentColor" stroke-width="1.2" />
+      <text x="8" y="8.4" text-anchor="middle" dominant-baseline="central" fill="currentColor">
+        {HELP_COPY.icon}
+      </text>
+    </svg>
+  )
+}
+
+/** Help in place of the tab's body: the keys this tab takes, then what each mark means. Which inbox build this is sits at the right end of the Keys title. */
+export function HelpPage({ version }: { version: string }) {
+  const keys = helpKeys('codex')
+
+  return (
+    <main class="status-page help">
+      <section>
+        <GroupTitle title={HELP_COPY.keys} count={0} aside={version} />
+        <div class="help-keys">
+          {keys.flatMap(k => [
+            <b key={`${k.keys}-keys`}>{k.keys}</b>,
+            <span key={`${k.keys}-does`} class="muted">
+              {k.does}
+            </span>,
+          ])}
+        </div>
+      </section>
+      <section>
+        <GroupTitle title={HELP_COPY.indicators} count={0} />
+        <div class="help-marks">
+          {MARK_LEGEND.flatMap(m => [
+            <span
+              key={`${m.mark}-mark`}
+              class={markClassOf(m.tone, m.isRunning)}
+              ref={m.isRunning ? pulseInStep : undefined}
+            >
+              <MarkGlyph text={m.mark} />
+            </span>,
+            <span key={`${m.mark}-words`} class="muted">
+              {m.words}
+            </span>,
+          ])}
+        </div>
+      </section>
+    </main>
+  )
+}
+
+const LATE_READ_MS = 60_000
+
+/** The banners under the tab bar, each keyed by its kind. */
+export function tabBanners(v: View): BannerLine[] {
+  return tabBarBanners(
+    [
+      ...(tabState.serverNote ? [bannerOf(tabState.serverNote.kind, tabState.serverNote.text)] : []),
+      ...(v.hooksTrust ? [bannerOf('hooks-trust', HOOKS_TRUST_TEXT[v.hooksTrust])] : []),
+      ...(tabState.updateError ? [bannerOf('tab-update-failed', tabState.updateError.text)] : []),
+      ...(tabState.herdrFailure ? [bannerOf('herdr-mod-failed', tabState.herdrFailure)] : []),
+    ],
+    footerErrorOf(v),
+    tabState.lineNote && Date.now() - tabState.lineNote.at < SETTLED_MS
+      ? { text: tabState.lineNote.text, isError: tabState.lineNote.isError === true }
+      : null,
+  ).map(banner => ({ id: banner.kind, banner }))
+}
+
+function footerErrorOf(v: View) {
+  return footerError(drawnTab(), v.status, v.statusPage ?? null)
+}
+
+export function Status() {
+  const sinceRead = Date.now() - tabState.readAt
+  if (tabState.pollFailures < 2) return <div class="status" />
+
+  return (
+    <div class="status">
+      <span class={sinceRead > LATE_READ_MS ? 'tone-error' : undefined}>
+        Last read {ago(sinceRead)}
+        {DOT}retrying
+      </span>
+    </div>
+  )
+}
+
+export function TabBar({ v }: { v: View }) {
+  const counts: Record<Tab, number> = { needsYou: v.needsYou.count, findings: v.findings.count, prs: v.prs.count }
+  const badgeOf = (id: ShownTab) => tabBadge(id, counts)
+  const shown = drawnTab()
+
+  return (
+    <nav>
+      <div class="tabs">
+        {shownTabs().map(t => (
+          <button
+            type="button"
+            class={`tab ${shown === t.id && !tabState.isHelpShown ? 'shown' : ''}`}
+            title={t.label}
+            data-tab={t.id}
+            onClick={() => {
+              switchTab(t.id)
+              tabState.draw()
+            }}
+          >
+            <span class="tab-symbol" aria-hidden="true">
+              {t.symbol}
+            </span>
+            <span class="tab-word" data-label={t.label}>
+              {t.label}
+            </span>
+            {badgeOf(t.id) === null ? null : (
+              <span class={isRowTab(t.id) ? `count tone-${t.id}` : 'count'}>{badgeOf(t.id)}</span>
+            )}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        class={`tab help-tab ${tabState.isHelpShown ? 'shown' : ''}`}
+        title={`${HELP_COPY.name} (?)`}
+        aria-label={HELP_COPY.name}
+        aria-pressed={tabState.isHelpShown}
+        onClick={() => {
+          tabState.isHelpShown = !tabState.isHelpShown
+          tabState.draw()
+        }}
+      >
+        <HelpIcon />
+      </button>
+      <div class="banner-stack" data-motion="banners">
+        {(tabState.lastBanners ?? []).map(({ id, banner: b }) => (
+          <div key={id} {...lineMotion(bannerMotion(id))}>
+            {b.kind === 'server-builds-differ' ? (
+              <Banner banner={b} label="Reload" press={() => location.reload()} />
+            ) : b.kind === 'tab-update-failed' ? (
+              <Banner
+                banner={b}
+                label={ROW_COPY.retry}
+                press={() => {
+                  const page = tabState.updateError?.page
+                  tabState.updateError = null
+                  tabState.draw()
+                  if (page) void swapPage(page)
+                }}
+              />
+            ) : (
+              <Banner banner={b} />
+            )}
+          </div>
+        ))}
+        <HerdrAskBanner v={v} />
+      </div>
+    </nav>
+  )
+}
+
+export async function toggleDemo() {
+  tabState.viewGeneration++
+  tabState.isDemo = !tabState.isDemo
+  // A new showing. The server makes the sample at its first read after this, so the row it closes as it starts stays.
+  tabState.shownSince = Date.now()
+  tabState.readError = null
+  tabState.pollFailures = 0
+  tabState.view = null
+  tabState.seen = new Map()
+  tabState.rowsSeen = {}
+  tabState.newRows = new Map()
+  tabState.closedSeen = new Map()
+  drawnRows.clear()
+  tabState.lastLists = null
+  selection.needsYou = null
+  selection.findings = null
+  selection.prs = null
+  tabState.typing = null
+  tabState.draw()
+  await read()
+}

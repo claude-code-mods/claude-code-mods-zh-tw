@@ -1,0 +1,67 @@
+main {
+  display: flex;
+  flex-direction: column;
+  padding: var(--control-gap) 0 var(--unit);
+}
+section {
+  position: relative;
+  padding: calc(var(--section-gap) / 2) 0;
+}
+section + section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: var(--text-x);
+  right: 0;
+  height: 1px;
+  background: var(--soft);
+}
+/* A title sits `list-margin` over its first row's box. */
+.group-title {
+  position: relative;
+  padding: 0 var(--edge) var(--list-margin) var(--text-x);
+}
+.group-title.unmarked {
+  padding-left: var(--mark-x);
+}
+.group-title b {
+  font-weight: 600;
+}
+.group-mark {
+  position: absolute;
+  left: var(--mark-x);
+  width: calc(var(--text-x) - var(--mark-x) - var(--control-gap));
+  text-align: center;
+}
+.group-mark.opportunity {
+  color: var(--opportunity);
+}
+.group-mark.tone-needsYou {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  margin-top: 2px;
+}
+.group-mark.tasks {
+  color: var(--tasks);
+}
+.group-shape {
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+  overflow: visible;
+}
+.group-mark.issue {
+  color: var(--issue);
+}
+.group-title .group-aside {
+  position: absolute;
+  right: var(--edge);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.group-title .count {
+  color: var(--muted);
+  white-space: pre;
+}

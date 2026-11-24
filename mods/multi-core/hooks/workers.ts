@@ -1,0 +1,268 @@
+import type { AgentSpawnInput, EngineInterface, Register } from 'claude-code';
+import { atom, read, update } from 'claude-code';
+import type { MultiCoreDisplayTools } from '../types/multi-core.d.ts';
+import { type GatewayResponse, isActive, postJson, type Wire } from './gateway.ts';
+import { isHarnessModel, isMultiModel, isProviderWorker } from './provider.ts';
+import { type RowsClient, syncDisplayTools } from './rows.ts';
+import { withBounded, withItem } from './state.ts';
+import { register as registerWorkerRows } from './worker-rows.ts';
+
+// State values are named where they are read: the engine's scan reads an atom's plugin and key
+// from this file's own source, not across an import.
+const agentModels = atom(
+  { plugin: 'multi-core', key: 'agentModels' } as const,
+  {} as Record<string, string>,
+);
+const spawnModels = atom(
+  { plugin: 'multi-core', key: 'spawnModels' } as const,
+  {} as Record<string, string>,
+);
+const claudeTypes = atom({ plugin: 'multi-core', key: 'claudeTypes' } as const, [] as string[]);
+const offeredProviders = atom(
+  { plugin: 'multi-core', key: 'offeredProviders' } as const,
+  [] as string[],
+);
+const displayTools = atom(
+  { plugin: 'multi-core', key: 'displayTools' } as const,
+  { registered: [] } as MultiCoreDisplayTools,
+);
+
+const rowsClient = ($: EngineInterface): RowsClient => ({
+  wire: wire($),
+  sessionId: () => $.session.id(),
+  held: () => read($, displayTools),
+  save: (change) => update($, displayTools, change),
+  register: (tool) => $.tool.register(tool),
+});
+
+const modKeys = atom(
+  { plugin: 'multi-core', key: 'modKeys' } as const,
+  {} as Record<string, string>,
+);
+
+const wire = ($: EngineInterface): Wire => ({
+  url: () => $.env.get('MULTI_MOD_GATEWAY_URL'),
+  token: () => $.env.get('MULTI_GATEWAY_TOKEN'),
+  fetch: (url, init) => $.http.fetch(url, init),
+  sleep: (ms, signal) => $.clock.sleep(ms, { signal }),
+  keys: { read: () => read($, modKeys), save: (change) => update($, modKeys, change) },
+});
+
+const issues =
+  'https://github.com/greenpolo/cc-multi-cli-plugin/issues/new?template=bug_report.yml';
+
+/**
+ * A refusal the agent reads, with the invitation to report it.
+ *
+ * Most refusals are the plugin working: a mode the user chose, a worker their
+ * settings do not offer. The invitation is conditional so an ordinary denial
+ * does not become an issue, and it never files anything on the user's behalf.
+ */
+function reportable(reason: string) {
+  return `${reason}\n\nIf this reads like a defect in the multi-cli plugin rather than a permission the user chose, tell them so and offer to open an issue at ${issues}, quoting the reason above.`;
+}
+
+type SpawnEvent = AgentSpawnInput;
+
+const providerGuidance =
+  "\n\nFor a provider worker type (Cursor, OpenAI, ...), `model` names one of that provider's models from the type's description, not a Claude alias; omit it for the provider's default.";
+
+export const register = (on: Parameters<Register>[0], _options: Parameters<Register>[1]) => {
+  registerWorkerRows(on);
+  on('tool.describe', { tool: 'Agent' }, async ($, event, next) => {
+    const described = await next(event);
+    // The paragraph is for the provider types the model is offered; none, no paragraph.
+    if (!(await isActive(wire($))) || !(await read($, offeredProviders)).length) {
+      return described;
+    }
+    return { ...described, description: `${described.description}${providerGuidance}` };
+  });
+  on('agent.offer', async ($, event, next) => {
+    if (!(await isActive(wire($)))) {
+      return next(event);
+    }
+    const parentModel = await $.session.model();
+    // A built-in agent on a Claude session is Claude's own: no gateway call, ever.
+    if (
+      event.source === 'built-in' &&
+      !isMultiModel(parentModel) &&
+      !isProviderWorker(event.agent)
+    ) {
+      await classify($, event.agent, true);
+      return next(event);
+    }
+    const response = await postJson(wire($), '/multi/mod/offer', {
+      sessionId: await $.session.id(),
+      cwd: await $.session.cwd(),
+      agent: event.agent,
+      parentModel,
+    });
+    await classify($, event.agent, nativeClaude(response));
+    // Claude owns its own catalog. Only a positively identified harness worker
+    // is subject to Multi's settings-translation compatibility filter.
+    const hidden = response?.execution === 'harness' && response.isOffered === false;
+    const result = hidden ? { isOffered: false } : await next(event);
+    await markOffered($, event.agent, result.isOffered);
+    return result;
+  });
+  on('classic.SubagentStart', async ($, event, next) => {
+    if (!(await isActive(wire($)))) {
+      return next(event);
+    }
+    // A native Claude subagent in a Claude session needs no gateway record. The
+    // subagent's own model and its parent's are not on this event, so any loop known to
+    // run a Multi model (an inheriting child of a provider worker) keeps the record.
+    if (
+      (await read($, claudeTypes)).includes(event.agent_type) &&
+      !isProviderWorker(event.agent_type) &&
+      !isMultiModel(await $.session.model()) &&
+      !Object.values(await read($, agentModels)).some(isMultiModel)
+    ) {
+      return next(event);
+    }
+    const response = await postJson(wire($), '/multi/mod/worker', {
+      sessionId: event.session_id,
+      agentId: event.agent_id,
+      subagentType: event.agent_type,
+      cwd: event.cwd,
+    });
+    const model = response?.accepted ? response.model : undefined;
+    if (model) {
+      await update($, agentModels, (held) => withBounded(held, event.agent_id, model));
+    }
+    // Registration is observational: an unregistered worker inherits the session's record.
+    return next(event);
+  });
+  on('agent.spawn', async ($, event, next) => {
+    if (!(await isActive(wire($)))) {
+      return next(event);
+    }
+    // A native Claude subagent runs on Claude Code's own path: no gateway call.
+    if (nativeClaudeSpawn(event, await read($, claudeTypes))) {
+      return next(event);
+    }
+    const resolved = await providerSpawn($, event);
+    if ('deny' in resolved) {
+      return { deny: resolved.deny };
+    }
+    const spawn = resolved.event;
+    const resolvedModel = spawn.model;
+    if (resolvedModel && spawn !== event) {
+      // Written to state, so the Agent row and the task notification draw the model.
+      await update($, spawnModels, (held) => withBounded(held, event.tool_use_id, resolvedModel));
+    }
+    await announce($, spawn, resolved.selection);
+    const result = await next(spawn);
+    const { agentId, model } = result;
+    if (agentId && model) {
+      await update($, agentModels, (held) => withBounded(held, agentId, model));
+    }
+    return result;
+  });
+};
+
+/** Truly native: the gateway classifies the type as Claude-loop and its model is not a Multi one. */
+function nativeClaude(response: GatewayResponse | undefined): boolean {
+  return response?.execution === 'claude' && !isMultiModel(response.model);
+}
+
+/** Remembers whether an agent type is a native Claude subagent, changing state only on a change. */
+async function classify($: EngineInterface, agent: string, isNative: boolean) {
+  if ((await read($, claudeTypes)).includes(agent) === isNative) {
+    return;
+  }
+  await update($, claudeTypes, (held) =>
+    isNative ? withItem(held, agent) : held.filter((type) => type !== agent),
+  );
+}
+
+/** Tracks the provider worker types the model is offered, for the Agent tool's description. */
+async function markOffered($: EngineInterface, agent: string, isOffered: boolean) {
+  if (!isProviderWorker(agent) || (await read($, offeredProviders)).includes(agent) === isOffered) {
+    return;
+  }
+  await update($, offeredProviders, (held) =>
+    isOffered ? withItem(held, agent) : held.filter((type) => type !== agent),
+  );
+  $.ui.invalidate('tool.describe');
+}
+
+async function spawnPayload($: EngineInterface, event: SpawnEvent) {
+  return {
+    sessionId: await $.session.id(),
+    toolUseId: event.tool_use_id,
+    parentAgentId: event.parentAgentId,
+    permissionMode: event.permissionMode,
+    subagentType: event.subagentType,
+    cwd: event.cwd ?? (await $.session.cwd()),
+    model: event.model,
+    parentModel: event.parentModel,
+    fork: event.fork,
+    background: event.background,
+  };
+}
+
+/**
+ * Resolve a provider worker's model: the one its Agent call named, else the provider's
+ * default. An unknown or other provider's model refuses the spawn with the gateway's
+ * reason, which names the provider's models. Every other spawn keeps its own model.
+ */
+async function providerSpawn(
+  $: EngineInterface,
+  event: SpawnEvent,
+): Promise<{ deny: string } | { event: SpawnEvent; selection: GatewayResponse | undefined }> {
+  const provider = isProviderWorker(event.subagentType) && !event.fork;
+  const payload = await spawnPayload($, event);
+  const selection = await postJson(wire($), '/multi/mod/worker-model', payload);
+  if (!provider) {
+    return { event, selection };
+  }
+  if (!selection) {
+    return {
+      deny: reportable(`The Multi gateway did not resolve the ${event.subagentType} model.`),
+    };
+  }
+  if (selection.refused || !selection.model) {
+    return { deny: selection.error ?? `The ${event.subagentType} model was not resolved.` };
+  }
+  // The task keeps the model's own description: the agent list names the CLI itself.
+  return { event: { ...event, model: selection.model }, selection };
+}
+
+/**
+ * Tell the gateway about the worker this Agent call starts. It only records what the
+ * worker inherits; nothing here can refuse the spawn.
+ */
+async function announce(
+  $: EngineInterface,
+  event: SpawnEvent,
+  selection: GatewayResponse | undefined,
+) {
+  await postJson(wire($), '/multi/mod/worker', await spawnPayload($, event));
+  if (harnessSpawn(event, selection)) {
+    // The worker's rows anchor in its own transcript only once their tools exist.
+    await syncDisplayTools(rowsClient($));
+  }
+}
+
+/**
+ * A Claude subagent: not a provider worker type, classified as native Claude (a Claude
+ * model, not a provider model its definition pins), and neither its model nor its
+ * parent's (which a fork or an inheriting subagent runs on) is a Multi model.
+ */
+function nativeClaudeSpawn(event: SpawnEvent, claudeTypeNames: readonly string[]): boolean {
+  return (
+    claudeTypeNames.includes(event.subagentType) &&
+    !isProviderWorker(event.subagentType) &&
+    !isMultiModel(event.model) &&
+    !isMultiModel(event.parentModel)
+  );
+}
+
+function harnessSpawn(
+  event: { fork?: boolean; model?: string; parentModel?: string },
+  selection: GatewayResponse | undefined,
+): boolean {
+  const inferred = event.fork ? event.parentModel : (event.model ?? event.parentModel);
+  return selection?.execution === 'harness' || (!selection?.known && isHarnessModel(inferred));
+}

@@ -1,0 +1,1203 @@
+import type { EngineInterface, Register } from 'claude-code'
+import { statusIcons } from './status-icons'
+import type { CacheTaxStatus } from '../types'
+
+const TTL_MS = 60 * 60 * 1000
+const PING_AFTER_MS = 50 * 60 * 1000
+const MIN_PING_MS = 60 * 1000
+const STATUS_REFRESH_MS = 60 * 1000
+const MAX_RETRIES = 3
+const AUTO_WARM_MS = 3 * 60 * 60 * 1000
+const DEFAULT_WINDOW_MS = 6 * 60 * 60 * 1000
+const MAX_WINDOW_MS = 168 * 60 * 60 * 1000
+const BIG_TOKENS = 50000
+/** A warm ping reads the prefix and writes only its own message: a write of this share of the read or more means the prefix broke. */
+const WARM_WRITE_SHARE = 0.1
+const DEFAULT_PING_FLOOR = 2
+const PING_PROMPT = 'Reply with the single word: warm'
+const KEY_DEADLINE = 'deadline'
+const KEY_EVERY = 'every'
+const KEY_GUARD = 'guard'
+const KEY_ACKED = 'acked'
+// The stored refusal names the last response, which a resumed process rebuilds from whole seconds and the running one
+// stamps at turn.complete: the same moment, matched within this. Request times differ by the response's own length.
+const ACK_SLACK_MS = 60 * 1000
+const KEY_ALWAYS = 'always'
+const KEEP_LABEL = "不傳送"
+const MOVED_TEXT = 'cache-tax：詢問期間對話已變化，因此此訊息未傳送。請重新發送。'
+const SEND_LABEL = '仍要傳送'
+
+// Prompts no person sent, so nobody could send them again after a refusal. Every
+// other origin, including sdk, unclassified and the owner's own Slack or channel
+// messages, may carry a person's words and keeps the guard.
+const UNATTENDED = new Set(['task-notification', 'scheduled-trigger', 'peer', 'peer-send-message', 'projects-relay', 'coordinator', 'observer', 'observer-activity'])
+
+const LONG_PROMPT_TOKENS = 100000
+
+type Price = [number, number, number]
+
+// $ per million tokens, [cache read, 1h cache write, output], list prices November 2026.
+// A model is priced only when its id, less the spellings familyOf() strips, is one of these keys: a version this
+// table does not list gets no price, never the row of an older one.
+const OPUS_4_5: Price = [0.5, 10, 25]
+const OPUS_4: Price = [1.5, 30, 75]
+const SONNET_4: Price = [0.3, 6, 15]
+const HAIKU_3_5: Price = [0.08, 1.6, 4]
+const PRICES: Record<string, Price> = {
+  'fable-5-2': [0.2, 16, 40],
+  'mythos-5-2': [0.2, 16, 40],
+  'fable-5-1': [0.25, 20, 50],
+  'mythos-5-1': [0.25, 20, 50],
+  'fable-5': [1, 20, 50],
+  'mythos-5': [1, 20, 50],
+  'opus-5-5': [0.2, 8, 20],
+  'opus-5': [0.5, 10, 25],
+  'opus-4-8': OPUS_4_5,
+  'opus-4-7': OPUS_4_5,
+  'opus-4-6': OPUS_4_5,
+  'opus-4-5': OPUS_4_5,
+  'opus-4-1': OPUS_4,
+  'opus-4-0': OPUS_4,
+  'opus-4': OPUS_4,
+  'sonnet-5-5': [0.1, 4, 10],
+  'sonnet-5': [0.2, 4, 10],
+  'sonnet-4-6': SONNET_4,
+  'sonnet-4-5': SONNET_4,
+  'sonnet-4-0': SONNET_4,
+  'sonnet-4': SONNET_4,
+  'haiku-5-5': [0.01, 0.2, 0.5],
+  'haiku-4-5': [0.1, 2, 5],
+  '3-5-haiku': HAIKU_3_5,
+  '3-5-haiku-latest': HAIKU_3_5,
+  'haiku-3-5': HAIKU_3_5,
+}
+
+// A request whose prompt, cache reads and writes included, is over 100k tokens pays these instead.
+const LONG_PRICES: Record<string, Price> = {
+  'haiku-5-5': [0.05, 1, 2.5],
+}
+
+type PingRecord = { at: number; read: number; write: number; input: number; output: number; usd: number | null; warm: boolean }
+type Miss = { at: number; tokens: number; usd: number | null }
+/** warn, or refuse once when the cold-write estimate is at least this many dollars; 0 refuses any. */
+type GuardMode = 'warn' | number
+/** Where the state shows: the band above the prompt or the status entry. There is no hidden mode: pings cost tokens, so the screen always says when they run. */
+export type Display = 'band' | 'status'
+
+export const displayOf = (options: Readonly<Record<string, unknown>>): Display =>
+  options.display === 'status' ? 'status' : 'band'
+
+export type State = {
+  display: Display
+  hasBand: boolean
+  sid: string
+  deadline: number
+  every: number
+  always: boolean
+  alwaysMs: number
+  /** Bumped by each /keepwarm always: a store read of the setting from before it is stale. */
+  alwaysGen: number
+  lastRequestAt: number
+  /** When the last main turn's response ended: what a resumed process's seconds_since_last_response counts from. */
+  lastResponseAt: number
+  lastModel: string | null
+  ctx: number
+  compacted: boolean
+  prefixReady: boolean
+  preCompactCtx: number
+  resumedAt: number
+  transcript: number
+  guard: GuardMode
+  ackedAt: number
+  coldWritePending: boolean
+  misses: Miss[]
+  pending: { cancel: () => void } | null
+  statusRefresh: { cancel: () => void } | null
+  last: PingRecord | null
+  warmReceipts: PingRecord[]
+  idleSpentUsd: number | null
+  idleGen: number
+  /** This break reached its budget; the window waits for the cold mark or the next turn. */
+  skipping: boolean
+  skipSaid: boolean
+  stopped: string | null
+  /** `/cache-tax guard test`: the next prompt a person sends asks as if the cache were cold. The test itself scores nothing. */
+  testOnce: boolean
+  waitForTurn: boolean
+  retries: number
+  retryReason: string
+  gen: number
+  tick: number
+  offs: number
+  turnOffs: number | null
+  inFlight: boolean
+  stepWrites: StepWrites | null
+  endingSid: string
+  /** The model already named in the no-price notice, so it is said once per model. */
+  unpricedTold: string
+}
+
+/** Rewrites of the preceding turn's context before compaction, priced per request, and the largest one. */
+type StepWrites = { tokens: number; usd: number; priced: boolean; largest: number }
+
+function rewrittenTokens(previous: number, read: number, written: number): number {
+  const rewritten = Math.min(written, Math.max(0, previous - read))
+  // Context counts can include an uncached tail. As with pings, a small write beside a large read is a hit.
+  return rewritten < WARM_WRITE_SHARE * read ? 0 : rewritten
+}
+
+/**
+ * The table key for a model id or display name: provider wrappers (anthropic., us.anthropic., -v1:0), the [1m]
+ * context option, the claude- prefix and a snapshot date (-20250805, @20250514) come off; the version stays.
+ */
+function familyOf(model: string | null): string {
+  let m = (model ?? '').trim().toLowerCase().replace(/\[1m\]$/, '')
+  const wrapper = /^(?:(?:us|eu|apac|global)\.)?anthropic\./
+  if (wrapper.test(m)) m = m.replace(wrapper, '').replace(/-v\d+(?::\d+)?$/, '')
+  return m.replace(/[\s.]+/g, '-').replace(/^claude-/, '').replace(/[-@]20\d{6}$/, '')
+}
+
+function priceOf(model: string | null, promptTokens: number): Price | null {
+  const family = familyOf(model)
+  if (promptTokens > LONG_PROMPT_TOKENS && Object.hasOwn(LONG_PRICES, family)) return LONG_PRICES[family] ?? null
+  return Object.hasOwn(PRICES, family) ? (PRICES[family] ?? null) : null
+}
+
+export function parseDuration(text: string): number | null {
+  const m = /^(?:(\d+)h)?(?:(\d+)m)?$/.exec(text.trim())
+  if (!m || (m[1] === undefined && m[2] === undefined)) return null
+  const ms = (Number(m[1] ?? 0) * 60 + Number(m[2] ?? 0)) * 60 * 1000
+  return Number.isSafeInteger(ms) ? ms : null
+}
+
+/** The always switch as stored: true is the default window (all a store written by 2.3 or earlier holds), a number the window /keepwarm always <window> set. Anything else is off. */
+export function alwaysWindow(value: unknown): number {
+  if (value === true) return DEFAULT_WINDOW_MS
+  return typeof value === 'number' && value >= TTL_MS && value <= MAX_WINDOW_MS ? value : 0
+}
+
+export function fmtDuration(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 60000))
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  if (h >= 48) return `${Math.floor(h / 24)}d ${h % 24}h`
+  return h > 0 ? `${h}h${String(m).padStart(2, '0')}m` : `${m}m`
+}
+
+function fmtUsd(usd: number | null): string {
+  return usd == null ? 'n/a' : '$' + (usd >= 100 ? usd.toFixed(0) : usd.toFixed(2))
+}
+
+function fmtTok(n: number): string {
+  return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1000 ? Math.round(n / 1000) + 'k' : String(n)
+}
+
+/** Says once per model that it has no price row, so n/a on screen reads as a missing row and not as zero. */
+function tellUnpriced($: EngineInterface, s: State) {
+  if (!s.lastModel || s.unpricedTold === s.lastModel || priceOf(s.lastModel, s.ctx)) return
+  s.unpricedTold = s.lastModel
+  $.ui.log(`cache-tax：目前沒有 ${s.lastModel} 的價格資料，因此金額顯示為 n/a。token 計數不受影響。`)
+}
+
+function coldUsd(s: State): number | null {
+  const price = priceOf(s.lastModel, s.ctx)
+  return price ? s.ctx * price[1] / 1e6 : null
+}
+
+function warmUsd(s: State): number | null {
+  const price = priceOf(s.lastModel, s.ctx)
+  return price ? s.ctx * price[0] / 1e6 : null
+}
+
+/** Everything a fork bills: the cache read, any cache write, uncached input at the base rate (half the 1h write rate), and the output. */
+function pingUsd(u: { input_tokens: number; output_tokens: number; cache_read_input_tokens: number; cache_creation_input_tokens: number }, price: [number, number, number]): number {
+  return (u.cache_read_input_tokens * price[0] + u.cache_creation_input_tokens * price[1] + u.input_tokens * price[1] / 2 + u.output_tokens * price[2]) / 1e6
+}
+
+/** The read-only upper bound: pings at the cache-read rate that cost as much as one cold write of the same context. */
+function breakEvenPings(s: State): number | null {
+  const price = priceOf(s.lastModel, s.ctx)
+  if (!price || s.ctx <= 0) return null
+  return Math.floor(price[1] / price[0])
+}
+
+function awaitingPrefix(s: State): boolean {
+  return s.compacted && !s.prefixReady
+}
+
+function isCold(s: State, now: number): boolean {
+  return s.lastRequestAt > 0 && !awaitingPrefix(s) && now - s.lastRequestAt >= TTL_MS
+}
+
+function costText(s: State): string {
+  const price = priceOf(s.lastModel, s.ctx)
+  const rate = price ? `$${price[1]}/MTok` : '快取寫入費率'
+  const warm = warmUsd(s)
+  return `傳送此訊息最多會重寫 ${s.ctx.toLocaleString('en-US')} 個 token，按 ${rate} 計算 = ${fmtUsd(coldUsd(s))}` +
+    (warm == null ? '' : `（熱快取時本應花費 ${fmtUsd(warm)}）`) + '.'
+}
+
+function guardText(s: State, now: number): string {
+  return `提示詞快取在 ${fmtDuration(now - s.lastRequestAt - TTL_MS)} 前已失效。${costText(s)}`
+}
+
+/** What each answer saves. The dialog's options are bare labels, so the question carries it. */
+function saveText(s: State, now: number): string {
+  const cold = coldUsd(s)
+  const warm = warmUsd(s)
+  if (!holds(s, now)) return `${KEEP_LABEL} ${cold == null ? '不產生費用' : `節省 ${fmtUsd(cold)}`}；選擇 ${SEND_LABEL} 後，保溫保持關閉（用 /keepwarm 啟用）。`
+  if (pingFloor > 0) return `${KEEP_LABEL} ${cold == null ? '不產生費用' : `節省 ${fmtUsd(cold)}`}；選擇 ${SEND_LABEL} 後，保溫將啟用最多 ${fmtDuration(holdMs(s, now))}。` +
+    (warm == null ? '' : ` 僅快取讀取每次約 ${fmtUsd(warm)}。`) + (cold == null ? '' : ' 達到空閒花費上限時，ping 可能提前停止，導致快取失效。')
+  if (cold == null || warm == null) return `${KEEP_LABEL} pays nothing; after ${SEND_LABEL}, keepwarm holds the cache for ${fmtDuration(holdMs(s, now))}.`
+  return `${KEEP_LABEL} saves ${fmtUsd(cold)}; after ${SEND_LABEL}, keepwarm holds the cache for ${fmtDuration(holdMs(s, now))} ` +
+    `at about ${fmtUsd(warm)} a ping, so the next break does not cost ${fmtUsd(cold)} again.`
+}
+
+function sendLabel(s: State): string {
+  const cold = coldUsd(s)
+  return cold == null ? SEND_LABEL : `${SEND_LABEL}（${fmtUsd(cold)}）`
+}
+
+/** Asks in the engine's own dialog, Send anyway first; null when it is dismissed or no one can be asked. */
+async function ask($: EngineInterface, question: string, send: string): Promise<string | null> {
+  try {
+    return await $.ui.ask(question, { header: '快取稅', options: [send, KEEP_LABEL] })
+  } catch {
+    return null
+  }
+}
+
+export type ResumeFields = {
+  source: string
+  model?: string
+  context_tokens?: number
+  seconds_since_last_response?: number
+  prompt_cache_likely_expired?: boolean
+  estimated_cache_write_usd?: number
+}
+
+/** /clear starts a new conversation in the same process; nothing priced before it still exists. */
+export function resetForClear(s: State) {
+  s.ctx = 0
+  s.lastRequestAt = 0
+  s.lastResponseAt = 0
+  s.compacted = false
+  s.prefixReady = false
+  s.preCompactCtx = 0
+  s.resumedAt = 0
+  s.transcript = 0
+  s.ackedAt = 0
+  s.coldWritePending = false
+  s.misses = []
+  s.waitForTurn = false
+  s.stepWrites = null
+  s.testOnce = false
+  // The last receipt priced the old conversation's context; the next one's first ping makes its own.
+  s.last = null
+  s.warmReceipts = []
+  s.idleSpentUsd = 0
+  s.idleGen++
+  s.skipping = false
+  s.skipSaid = false
+  outdate(s)
+  disarm(s)
+}
+
+/** Applies a resumed session's fields to the state; returns the line to log, if any. */
+export function seedFromResume(s: State, e: ResumeFields, now: number): string | null {
+  if (e.source !== 'resume' && e.source !== 'fork') return null
+  if (typeof e.context_tokens === 'number' && e.context_tokens > 0) s.ctx = e.context_tokens
+  if (typeof e.seconds_since_last_response === 'number') {
+    s.lastRequestAt = now - e.seconds_since_last_response * 1000
+    s.lastResponseAt = s.lastRequestAt
+    s.resumedAt = 0
+  }
+  if (typeof e.model === 'string') s.lastModel = e.model
+  s.compacted = false
+  s.prefixReady = false
+  s.preCompactCtx = 0
+  if (e.prompt_cache_likely_expired !== true || s.ctx < BIG_TOKENS) return null
+  const usd = typeof e.estimated_cache_write_usd === 'number' ? fmtUsd(e.estimated_cache_write_usd) : fmtUsd(coldUsd(s))
+  return `以冷快取恢復。第一條訊息會重寫 ${s.ctx.toLocaleString('en-US')} 個 token，約 ${usd}。如果只需要結論，請使用 /clear 並貼上摘要。`
+}
+
+/** A transcript resumed without the time of its last response: that response came after its first launch, so an hour after that launch the cache may be cold. */
+function mayBeCold(s: State, now: number): boolean {
+  return s.resumedAt > 0 && !s.lastRequestAt && now - s.resumedAt >= TTL_MS
+}
+
+/** The line for a resumed session whose last response time never arrived: the cache may be cold, and this is what that would cost. */
+function unknownText(s: State): string {
+  const price = priceOf(s.lastModel, s.ctx)
+  const rate = price ? `$${price[1]}/MTok` : '快取寫入費率'
+  return `已從包含最多 ${s.ctx.toLocaleString('en-US')} 個 token 的上下文恢復，但沒有上次回覆的時間，因此快取可能已失效。 ` +
+    `如果已失效，此訊息會按 ${rate} 重寫它們 = ${fmtUsd(coldUsd(s))}。`
+}
+
+/** The conversation was summarized: the next request is the first over the new prefix, and a ping out for the old one is dropped. */
+function markCompacted(s: State) {
+  if (!s.compacted) s.preCompactCtx = s.ctx
+  s.compacted = true
+  s.prefixReady = false
+  s.transcript = 0
+  s.ackedAt = 0
+  outdate(s)
+}
+
+function statusText(s: State, now: number): string | undefined {
+  if (s.stopped) return `保溫已停止：${s.stopped}`
+  if (!s.deadline) return undefined
+  const pingText = s.last ? ` · 上次 ping 讀取 ${fmtTok(s.last.read)} ${fmtUsd(s.last.usd)}` : ''
+  const nextText = !s.lastRequestAt ? ' · 等待第一個回合'
+    : awaitingPrefix(s) ? ' · 等待壓縮後的第一個回合'
+    : isCold(s, now) ? ` · 當前快取已失效，首次 ping 在下一回合後 ${fmtDuration(s.every)}`
+    : s.waitForTurn ? ' · 暫無可分叉的內容，首次 ping 在下一回合後'
+    : s.skipping ? ` · 已跳過 ping，空閒預算達到 ${fmtUsd(coldUsd(s) == null ? null : coldUsd(s)! / pingFloor)}`
+    : s.retries ? ` · API 繁忙，ping 重試第 ${s.retries} / ${MAX_RETRIES} 次`
+    : ` · ping 將於 ${fmtDuration(s.lastRequestAt + s.every - now)} 傳送`
+  return `保溫剩餘 ${fmtDuration(s.deadline - now)}${nextText}${pingText}`
+}
+
+/** The read-only view `$.cacheTax.status()` gives other mods. */
+export function statusOf(s: State, now: number): CacheTaxStatus {
+  const open = !s.stopped && s.deadline > now
+  const known = Boolean(s.lastRequestAt) && !awaitingPrefix(s)
+  return {
+    keepwarm: s.stopped ? 'stopped' : open ? 'on' : 'off',
+    leftMs: open ? s.deadline - now : 0,
+    always: s.always,
+    alwaysMs: s.always ? s.alwaysMs : null,
+    autoWarm,
+    guard: s.guard === 'warn' ? 'warn' : 'refuse',
+    guardFloorUsd: s.guard === 'warn' || !s.guard ? null : s.guard,
+    cold: known ? isCold(s, now) : null,
+    stopped: s.stopped,
+    coldWrites: s.misses.length,
+    pingSkipped: open && s.skipping,
+    idlePingUsd: s.idleSpentUsd,
+  }
+}
+
+function cacheState(s: State, now: number) {
+  return s.stopped ? 'stopped' : !s.lastRequestAt || awaitingPrefix(s) ? 'unknown' : isCold(s, now) ? 'cold' : 'warm'
+}
+
+function updateStatus($: EngineInterface, s: State, now: number) {
+  if (s.hasBand) $.ui.invalidate('ui.render')
+  else {
+    const text = statusText(s, now)
+    $.ui.status(text && s.display === 'status' ? `cache-tax · ${cacheState(s, now)} · ${text}` : text)
+  }
+  if (s.deadline > now && !s.statusRefresh) {
+    // Repaint the countdown independently of the model-request and retry timers.
+    const refresh = $.clock.every(STATUS_REFRESH_MS, () => {
+      void $.clock.now().then(at => {
+        if (s.statusRefresh === refresh) updateStatus($, s, at)
+      })
+    })
+    s.statusRefresh = refresh
+  } else if (s.deadline <= now && s.statusRefresh) {
+    s.statusRefresh.cancel()
+    s.statusRefresh = null
+  }
+}
+
+/** Cancels the ping and display timers. Every new ping timer is set right after this, so the tick also says the schedule changed. */
+function disarm(s: State) {
+  if (s.pending) s.pending.cancel()
+  s.pending = null
+  if (s.statusRefresh) s.statusRefresh.cancel()
+  s.statusRefresh = null
+  s.tick++
+}
+
+/** Outdates any ping in flight: /clear, a resume, compaction or stop replaced the state it was sent for. Re-arming or extending the window does not, so a ping out at that moment still counts; a main request outdates it through the request clock. */
+function outdate(s: State) {
+  s.gen++
+}
+
+// The window and its ping period belong to the session that armed them, so a
+// second session, or one resumed from another transcript, never inherits them
+// and cannot turn them off. The always switch and the guard mode stay global.
+function deadlineKey(s: State): string {
+  return `${KEY_DEADLINE}:${s.sid}`
+}
+
+function everyKey(s: State): string {
+  return `${KEY_EVERY}:${s.sid}`
+}
+
+function ackedKey(s: State): string {
+  return `${KEY_ACKED}:${s.sid}`
+}
+
+function validDeadline(value: unknown, now: number): value is number {
+  return typeof value === 'number' && value > now && value <= now + MAX_WINDOW_MS
+}
+
+/** Clears this session's own dead window and the bare keys a store written before 2.1.1 still holds. Other sessions' keys are never touched: a read followed by a delete cannot be made atomic against their renewal. */
+async function prune($: EngineInterface, s: State, now: number) {
+  for (const key of [KEY_DEADLINE, deadlineKey(s)]) {
+    const deadline = await $.store.get(key)
+    if (deadline === undefined) continue
+    if (validDeadline(deadline, now)) continue
+    await $.store.delete(key)
+    await $.store.delete(KEY_EVERY + key.slice(KEY_DEADLINE.length))
+  }
+}
+
+async function stop($: EngineInterface, s: State, why: string | null, forgetAlways = false) {
+  // Set before any await, so a window being opened at the same moment sees the off and does not write itself back.
+  if (forgetAlways) {
+    s.always = false
+    s.offs++
+  }
+  s.deadline = 0
+  s.every = PING_AFTER_MS
+  s.stopped = why
+  s.retries = 0
+  s.skipping = false
+  s.skipSaid = false
+  outdate(s)
+  disarm(s)
+  await $.store.delete(deadlineKey(s))
+  await $.store.delete(everyKey(s))
+  if (forgetAlways) await $.store.delete(KEY_ALWAYS)
+  updateStatus($, s, await $.clock.now())
+}
+
+/** The conversation ended under /clear or an in-process resume. The next one's id cannot be read until the engine has switched, so the state is left unseated. */
+async function endConversation($: EngineInterface, s: State, reason: 'clear' | 'resume') {
+  // Claimed before any await: a second end or a classic start for the same conversation finds it already gone, and an
+  // end cut short by its budget leaves no timer and no old id behind, only the keys below.
+  const keys = [deadlineKey(s), everyKey(s), ackedKey(s)]
+  const ending = s.sid
+  resetForClear(s)
+  s.sid = ''
+  s.endingSid = ending
+  // /clear ends the conversation the window was armed for. A resume carries the window on to the next one, under its
+  // id: the old id's keys go here, or a /keepwarm off there could never find them and the old session would re-arm them.
+  if (reason === 'clear') {
+    s.deadline = 0
+    s.every = PING_AFTER_MS
+    s.stopped = null
+    s.retries = 0
+  }
+  for (const key of keys) await $.store.delete(key)
+  if (reason === 'clear') updateStatus($, s, await $.clock.now())
+}
+
+/** Reads the session the process runs now: its id, its model and the engine's figures for its context. Returns the time read with them. */
+async function seat($: EngineInterface, s: State, id?: string): Promise<number> {
+  s.sid = id ?? await $.session.id()
+  s.endingSid = ''
+  s.lastModel = await $.session.model()
+  const usage = await $.session.usage()
+  const now = await $.clock.now()
+  if (usage.context.tokens) s.ctx = usage.context.tokens
+  // A resumed transcript's last response came somewhere between its first launch and now; only the resume fields say where.
+  s.resumedAt = !s.lastRequestAt && usage.context.tokens ? usage.startedAt : 0
+  return now
+}
+
+/** Seats the state in the conversation that followed a /clear or a resume, once, and arms what always or a window opened meanwhile asks for. */
+async function reseat($: EngineInterface, s: State) {
+  if (s.sid) return
+  const id = await $.session.id()
+  // The host still answers with the conversation being ended: the next one is not there to seat yet, so nothing is
+  // seated under the old id, and a window opened meanwhile waits in memory for the id it belongs to.
+  if (id === s.endingSid) return
+  const now = await seat($, s, id)
+  if (s.always) await startWindow($, s, s.alwaysMs, PING_AFTER_MS)
+  // A window carried over, or armed while the conversation was ending, is written under this id.
+  else if (s.deadline) await startWindow($, s, s.deadline - now, s.every)
+  else updateStatus($, s, now)
+}
+
+async function arm($: EngineInterface, s: State) {
+  disarm(s)
+  s.retries = 0
+  if (!s.deadline) return
+  const now = await $.clock.now()
+  // A timer set while the clock was read, such as a retry, is replaced here, never left running beside this one;
+  // from this line to the assignment below nothing awaits.
+  disarm(s)
+  s.retries = 0
+  if (now >= s.deadline) return stop($, s, null)
+  // A cold window still needs expiry cleanup, but must not send a model request.
+  if (s.lastRequestAt && !awaitingPrefix(s) && !isCold(s, now)) {
+    const untilCold = s.lastRequestAt + TTL_MS - now
+    // Waiting for a turn, or past a skipped ping, sends nothing, but wakes when the cache goes cold so the row says so.
+    if (s.waitForTurn || s.skipping) s.pending = $.clock.after(Math.min(s.deadline - now, untilCold), () => { void arm($, s) })
+    else {
+      const delay = Math.min(s.deadline - now, untilCold, Math.max(1000, s.lastRequestAt + s.every - now))
+      s.pending = $.clock.after(delay, () => { void ping($, s) })
+    }
+  } else {
+    s.pending = $.clock.after(s.deadline - now, () => { void arm($, s) })
+  }
+  updateStatus($, s, now)
+}
+
+async function ping($: EngineInterface, s: State) {
+  s.pending = null
+  if (!s.deadline) return
+  const tick = s.tick
+  const model = await $.session.model()
+  const now = await $.clock.now()
+  // A timer set or cancelled while the clock was read (an extension, a retry, a turn) owns the window now;
+  // if that left no timer, a window still open is armed again rather than left without one.
+  if (s.tick !== tick) return s.pending || s.inFlight ? undefined : arm($, s)
+  if (model) s.lastModel = model
+  // One fork at a time: the one already out re-arms when it settles. Checked after the await, and set
+  // below with no await in between, so two timers can never both send.
+  if (s.inFlight) return
+  if (now >= s.deadline) return arm($, s)
+  if (isCold(s, now)) return arm($, s)
+  if (awaitingPrefix(s) || s.waitForTurn || !s.lastRequestAt) return arm($, s)
+  // A request since this timer was set moved the clock; schedule from it.
+  if (now - s.lastRequestAt < s.every - 1000) return arm($, s)
+  // A host that slept past a retry's slot must not send it inside the last minute.
+  if (s.retries && now >= s.lastRequestAt + TTL_MS - MIN_PING_MS) return stop($, s, s.retryReason + afterRetries(s.retries))
+  if (underFloor(s)) {
+    if (!s.skipSaid) $.ui.log(skipText(s))
+    s.skipSaid = true
+    s.skipping = true
+    return arm($, s)
+  }
+  const gen = s.gen
+  const sentAt = s.lastRequestAt
+  const sid = s.sid
+  const idleGen = s.idleGen
+  s.inFlight = true
+  const sent = await $.model.fork({ prompt: PING_PROMPT }).then(reply => ({ reply }), (err: unknown) => ({ err }))
+  const at = await $.clock.now()
+  s.inFlight = false
+  // Stopping a timer cannot refund an already-sent request. Only a new break or conversation drops its spend.
+  if (s.sid === sid && s.idleGen === idleGen && 'reply' in sent && sent.reply && 'usage' in sent.reply) {
+    const u = sent.reply.usage
+    const price = priceOf(model, u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens)
+    const usd = price ? pingUsd(u, price) : null
+    s.idleSpentUsd = s.idleSpentUsd == null || usd == null ? null : s.idleSpentUsd + usd
+    const warm = u.cache_read_input_tokens > 0 && u.cache_creation_input_tokens < WARM_WRITE_SHARE * u.cache_read_input_tokens
+    if (sent.reply.isAnswered && warm) s.warmReceipts = [...s.warmReceipts, { at: now, read: u.cache_read_input_tokens, write: u.cache_creation_input_tokens, input: u.input_tokens, output: u.output_tokens, usd, warm }].slice(-5)
+  }
+  // Checked after the last await. A stop, /clear, resume or compaction, or a main request that moved the
+  // cache clock, replaced what this fork was sent for: its reply is dropped and the window armed afresh.
+  if (gen !== s.gen || s.lastRequestAt !== sentAt) return s.pending ? undefined : arm($, s)
+  if ('err' in sent) return stop($, s, `the ping failed, ${sent.err instanceof Error ? sent.err.message : String(sent.err)}`)
+  const reply = sent.reply
+  if (reply === null) return stop($, s, 'the engine did not send the ping, either the snapshot was cold or the API call failed')
+  if (reply.isAnswered === false) {
+    // A restarted process has no conversation to fork until its first turn; the window waits for one instead of ending.
+    if (reply.reason === 'nothing-to-fork') {
+      // Said once per wait: /keepwarm already answered "on", and the status row alone does not tell anyone to act.
+      if (!s.waitForTurn) $.ui.log('保溫已開啟，但暫無可分叉的內容，因此在你下一條訊息前不會發送 ping。再發一條訊息即可開始 ping。')
+      s.waitForTurn = true
+      return arm($, s)
+    }
+    const reason = reply.reason === 'api-error' ? `API 呼叫失敗${reply.status === null ? '' : `（${reply.status}）`}`
+      : reply.reason === 'aborted' ? 'ping 被中斷'
+      : 'ping 未返回文字'
+    // A busy or failing API is usually brief; retry while a ping can still land a minute before the cache goes cold.
+    if (reply.reason === 'api-error' && (reply.status === null || reply.status === 429 || reply.status >= 500)) {
+      const wait = MIN_PING_MS * 2 ** s.retries
+      if (s.retries < MAX_RETRIES && at + wait < Math.min(s.deadline, s.lastRequestAt + TTL_MS - MIN_PING_MS)) {
+        s.retries++
+        s.retryReason = reason
+        // Replaces any timer set while the fork was out, such as a window extension's, so only the retry fires.
+        disarm(s)
+        s.pending = $.clock.after(wait, () => { void ping($, s) })
+        updateStatus($, s, at)
+        return
+      }
+    }
+    return stop($, s, reason + afterRetries(s.retries))
+  }
+  const u = reply.usage
+  const price = priceOf(model, u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens)
+  const warm = u.cache_read_input_tokens > 0 && u.cache_creation_input_tokens < WARM_WRITE_SHARE * u.cache_read_input_tokens
+  const usd = price ? pingUsd(u, price) : null
+  s.last = { at: now, read: u.cache_read_input_tokens, write: u.cache_creation_input_tokens, input: u.input_tokens, output: u.output_tokens, usd, warm }
+  if (!warm) return stop($, s, `the ping read ${fmtTok(u.cache_read_input_tokens)} and wrote ${fmtTok(u.cache_creation_input_tokens)} tokens (${fmtUsd(usd)}), the cache was already gone`)
+  s.skipSaid = false
+  s.lastRequestAt = now
+  await arm($, s)
+}
+
+function nextPingUsd(s: State): number | null {
+  const estimates = s.warmReceipts.map(last => {
+    const write = Math.min(last.write, WARM_WRITE_SHARE * s.ctx)
+    const price = priceOf(s.lastModel, s.ctx + write + last.input)
+    return price ? pingUsd({ cache_read_input_tokens: s.ctx, cache_creation_input_tokens: write, input_tokens: last.input, output_tokens: last.output }, price) : null
+  }).filter((price): price is number => price != null)
+  return estimates.length ? Math.min(...estimates) : null
+}
+
+function underFloor(s: State): boolean {
+  const rewrite = coldUsd(s)
+  const ping = nextPingUsd(s)
+  return pingFloor > 0 && s.ctx > 0 && rewrite != null && ping != null && s.idleSpentUsd != null &&
+    s.idleSpentUsd + ping >= rewrite / pingFloor
+}
+
+function skipText(s: State): string {
+  return `保溫跳過了一次 ping：本次空閒已花費 ${fmtUsd(s.idleSpentUsd)}；下次 ping 預計花費 ${fmtUsd(nextPingUsd(s))}，將達到重寫成本（${fmtUsd(coldUsd(s))}）除以 ${pingFloor} 的上限。` +
+    '快取將任其失效；下一回合會開啟新的預算。ping 下限為 0 時停用此限制。'
+}
+
+function afterRetries(n: number): string {
+  return n ? `（${n} 次重試）` : ''
+}
+
+/** The reply to an arming command; on a cold cache it says when the first ping can come. */
+/** How long keepwarm holds the cache after a paid cold write: the rolling window when always is on. */
+function holdMs(s: State, now: number): number {
+  if (s.always) return s.alwaysMs
+  // With Auto keepwarm off, only a window armed by hand holds the cache, until its own deadline.
+  return autoWarm ? AUTO_WARM_MS : Math.max(0, s.deadline - now)
+}
+
+/** The "Auto keepwarm" option: whether a paid cold write arms keepwarm for three hours by itself. Set in register. */
+let autoWarm = true
+
+/** Reads the "autoWarm" option: anything but "off" keeps the default, on. */
+export const autoWarmFrom = (options: Record<string, unknown> | undefined): boolean => options?.autoWarm !== 'off'
+
+/** Divides a rewrite into the idle-break budget; 0 disables the comparison. */
+let pingFloor = DEFAULT_PING_FLOOR
+
+/** Reads the "pingFloor" option: a number of 0 or more, else the default. */
+export const pingFloorFrom = (options: Record<string, unknown> | undefined): number => {
+  const value = options?.pingFloor
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : DEFAULT_PING_FLOOR
+}
+
+/** Whether a paid cold write leaves keepwarm holding the cache: always on, the Auto keepwarm option, or a window armed by hand. */
+function holds(s: State, now: number): boolean {
+  return autoWarm || s.always || s.deadline > now
+}
+
+/** What the guard says about keepwarm after a paid cold write; `then` is the wording of the refusal. */
+function holdNote(s: State, now: number, then: boolean): string {
+  if (!holds(s, now)) return '保溫保持關閉（用 /keepwarm 啟用）'
+  if (pingFloor > 0) return `保溫將啟用最多 ${fmtDuration(holdMs(s, now))}` + (coldUsd(s) == null ? '' : ', but may stop sooner at the idle spending limit')
+  return then ? `保溫隨後會保持快取 ${fmtDuration(holdMs(s, now))}` : `一旦生效，保溫會保持快取 ${fmtDuration(holdMs(s, now))}`
+}
+
+function noRewriteText(s: State, now: number): string {
+  const outcome = s.deadline > now && !s.stopped
+    ? s.always ? `always 會讓保溫持續啟用最多 ${fmtDuration(s.deadline - now)}。`
+      : `現有保溫視窗仍啟用最多 ${fmtDuration(s.deadline - now)}；冷寫入未延長該視窗。`
+    : s.stopped ? `保溫仍處於停止狀態：${s.stopped}。未開啟自動保溫視窗。`
+      : !autoWarm ? '自動保溫已關閉；保溫保持關閉。'
+        : '未開啟自動保溫視窗；可用 /keepwarm 手動啟用。'
+  return `上報的用量中未檢測到冷快取重寫。${outcome}`
+}
+
+function armedText(s: State, now: number, windowMs: number): string {
+  const delay = s.lastRequestAt && !awaitingPrefix(s) && !isCold(s, now) ? Math.max(1000, s.lastRequestAt + s.every - now) : s.every
+  if (windowMs <= delay) return `保溫已開啟 ${fmtDuration(windowMs)}。按當前節奏，視窗將在 ping 到期前結束；請使用更長的視窗或更短的 ping 間隔`
+  if (isCold(s, now)) return `保溫已開啟 ${fmtDuration(windowMs)}。當前快取已失效，首次 ping 將在下一回合後 ${fmtDuration(s.every)} 傳送` + (pingFloor > 0 && coldUsd(s) != null ? '；達到空閒花費上限時，ping 可能提前停止' : '')
+  return `保溫已開啟 ${fmtDuration(windowMs)}，每次空閒後 ${fmtDuration(s.every)} 傳送一次 ping，使快取保持讀取而非重寫` +
+    (pingFloor > 0 && coldUsd(s) != null ? '；達到空閒花費上限時，ping 可能提前停止' : '')
+}
+
+// A /keepwarm off after `offs` was read wins: the window it cancelled is not written back. A caller that awaited
+// before deciding to open a window passes the count it read first. An always renewal also passes the always
+// generation it read, so a /keepwarm always meanwhile wins the same way.
+async function startWindow($: EngineInterface, s: State, windowMs: number, every: number, offs = s.offs, gen = s.alwaysGen, expectedSid?: string) {
+  const moved = () => expectedSid !== undefined && s.sid !== expectedSid
+  const stale = () => moved() || s.offs !== offs || s.alwaysGen !== gen
+  if (stale()) return
+  const now = await $.clock.now()
+  if (stale()) return
+  const deadline = now + windowMs
+  s.every = every
+  s.deadline = deadline
+  s.stopped = null
+  // Unseated, between a conversation's end and the host reporting the next, the window has no id to be written under; the seat writes it.
+  if (!s.sid) return arm($, s)
+  if (every === PING_AFTER_MS) await $.store.delete(everyKey(s))
+  else await $.store.set(everyKey(s), every)
+  if (moved()) return
+  await $.store.set(deadlineKey(s), deadline)
+  if (moved()) return
+  if (stale()) {
+    // Remove only what this call wrote; a window armed after the off or the always change is left alone.
+    if ((await $.store.get(deadlineKey(s))) === deadline) {
+      await $.store.delete(deadlineKey(s))
+      if (!s.deadline) await $.store.delete(everyKey(s))
+    }
+    return
+  }
+  await arm($, s)
+}
+
+function card(s: State, now: number): string {
+  const lines: string[] = []
+  lines.push(`${s.lastModel ?? '尚未識別模型'}`)
+  if (awaitingPrefix(s)) lines.push('狀態       已因壓縮重置，等待第一個回合')
+  else if (s.resumedAt) lines.push(mayBeCold(s, now) ? '狀態       未知，恢復時沒有上次回覆的時間' : `狀態       恢復時沒有上次回覆的時間，保溫最多剩餘 ${fmtDuration(s.resumedAt + TTL_MS - now)}`)
+  else if (!s.lastRequestAt) lines.push('狀態       本次會話尚無請求')
+  else if (isCold(s, now)) lines.push(`狀態       冷快取，上次請求在 ${fmtDuration(now - s.lastRequestAt)} 前`)
+  else lines.push(`狀態       溫快取，剩餘 ${fmtDuration(s.lastRequestAt + TTL_MS - now)}`)
+  lines.push(`上下文     ${s.ctx.toLocaleString('en-US')} 個 token`)
+  lines.push(`冷寫入成本 ${fmtUsd(coldUsd(s))} 用於重寫（熱快取 ${fmtUsd(warmUsd(s))}）`)
+  const always = s.always ? '（always）' : ''
+  const idle = s.always ? `關閉，下一回合啟用 ${fmtDuration(s.alwaysMs)}（always）` : '關閉（用 /keepwarm 啟用 6h00m）'
+  lines.push(`保溫       ${s.deadline ? (statusText(s, now) ?? '').replace(/^保溫剩餘 /, '開啟，') + always : s.stopped ? `已停止，${s.stopped}${always}` : idle}`)
+  const pings = breakEvenPings(s)
+  if (pings != null) lines.push(`收支平衡  按讀取費率最多 ${pings} 次 ping 相當於一次冷寫入，約 ${fmtDuration(pings * s.every)} 空閒時間（每 ${fmtDuration(s.every)} 一次 ping）`)
+  lines.push(`守衛       ${s.guard === 'warn' ? '僅警告（用 /cache-tax guard refuse 改為先詢問）'
+    : s.guard ? `${fmtUsd(s.guard)} 及以上先詢問，以下僅警告（用 /cache-tax guard refuse 改為任何價格都詢問）`
+    : '先詢問（用 /cache-tax guard warn 改為僅顯示價格）'}`)
+  const priced = s.misses.filter(m => m.usd != null)
+  const unpriced = s.misses.length - priced.length
+  const paid = priced.reduce((a, m) => a + (m.usd ?? 0), 0)
+  const total = !unpriced ? fmtUsd(paid) : priced.length ? `${fmtUsd(paid)}，另有 ${unpriced} 條沒有價格資料` : '沒有價格資料'
+  lines.push(`會話       已支付 ${s.misses.length} 次冷寫入，${total}`)
+  return lines.join('\n')
+}
+
+export function freshState(): State {
+  return {
+    display: 'band', hasBand: false, sid: '', deadline: 0, every: PING_AFTER_MS, always: false, alwaysMs: DEFAULT_WINDOW_MS, alwaysGen: 0, lastRequestAt: 0, lastResponseAt: 0, lastModel: null, ctx: 0, compacted: false, prefixReady: false, preCompactCtx: 0,
+    resumedAt: 0, transcript: 0, guard: 0, ackedAt: 0, coldWritePending: false, misses: [], pending: null, statusRefresh: null, last: null, warmReceipts: [], idleSpentUsd: 0, idleGen: 0, skipping: false, skipSaid: false, stopped: null,
+    waitForTurn: false, retries: 0, retryReason: '', gen: 0, tick: 0, offs: 0, turnOffs: null, inFlight: false, stepWrites: null, endingSid: '', unpricedTold: '', testOnce: false,
+  }
+}
+
+export const register: Register = (on, options) => {
+  autoWarm = autoWarmFrom(options)
+  pingFloor = pingFloorFrom(options)
+  const s = freshState()
+  s.display = displayOf(options)
+  let headless = false
+  let explicitRefuse = false
+  let guardLoaded = false
+  const sendHeadless = options.headless === 'send'
+  let light = false
+  let noColor = false
+
+  on('engine.create', async (_$, e, next) => {
+    const beneath = await next(e)
+    return { ...beneath, cacheTax: { status: async () => statusOf(s, await beneath.clock.now()) } }
+  })
+
+  on('config.set', { key: 'theme' }, async ($, e, next) => {
+    const result = await next(e)
+    if (result.deny === undefined) {
+      light = typeof result.value === 'string' && result.value.startsWith('light')
+      if (s.hasBand) $.ui.invalidate('ui.render')
+    }
+    return result
+  })
+
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const rest = await next(e)
+    if (!s.hasBand || e.props.hasSurvey) return rest
+    const now = await $.clock.now()
+    const text = statusText(s, now)
+    if (!text || (s.deadline && now >= s.deadline)) return rest
+    const state = cacheState(s, now)
+    const color = noColor ? undefined : state === 'warm' ? 'success' : state === 'cold' ? (light ? '#c15f3c' : '#d97757') : undefined
+    const { Box, Text } = $.ui.resolve(e)
+    const icon = e.surface === 'desktop' && !noColor
+      ? $.ui.resolve(e).Svg({ source: statusIcons[light ? 'light' : 'dark'][state === 'warm' || state === 'cold' ? state : 'neutral'].svg, width: 18, height: 18, alt: 'Cache Tax' })
+      : Text({ color, bold: true, children: ['[>]'] })
+    return Box({ flexDirection: 'column', children: [
+      rest,
+      Box({ flexDirection: 'row', alignItems: 'center', children: [
+        Box({ flexShrink: 0, children: [icon] }),
+        Text({ children: [
+          ' cache-tax · ',
+          Text({ color, bold: true, children: [state] }),
+          ` · ${text}`,
+        ] }),
+      ] }),
+    ] })
+  })
+
+  on('session.start', async ($, e, next) => {
+    guardLoaded = false
+    const r = await next(e)
+    headless = !e.isInteractive
+    // `display: status` leaves the row above the prompt to others and shows the state as a status entry.
+    s.hasBand = s.display === 'band' && (e.surface === 'terminal' || e.surface === 'desktop')
+    if (s.hasBand) {
+      const theme = (await $.config.list()).find(row => row.key === 'theme')?.value
+      light = typeof theme === 'string' && theme.startsWith('light')
+      noColor = Boolean(await $.env.get('NO_COLOR'))
+      $.ui.status(undefined)
+    }
+    const now = await seat($, s)
+    await prune($, s, now)
+    const saved = await $.store.get(deadlineKey(s))
+    const savedEvery = await $.store.get(everyKey(s))
+    const savedGuard = await $.store.get(KEY_GUARD)
+    s.deadline = validDeadline(saved, now) ? saved : 0
+    s.every = typeof savedEvery === 'number' && savedEvery >= MIN_PING_MS && savedEvery < TTL_MS ? savedEvery : PING_AFTER_MS
+    // A number is refuse with a dollar floor; a release before 2.4.0 reads it as plain refuse.
+    s.guard = savedGuard === 'warn' ? 'warn' : typeof savedGuard === 'number' && savedGuard > 0 ? savedGuard : 0
+    explicitRefuse = savedGuard === 'refuse'
+    guardLoaded = true
+    const stored = alwaysWindow(await $.store.get(KEY_ALWAYS))
+    s.always = stored > 0
+    if (stored) s.alwaysMs = stored
+    // Always means a fresh window of its length every session, whatever the last one left behind.
+    if (s.always) await startWindow($, s, s.alwaysMs, PING_AFTER_MS)
+    // The classic start arms a restored window too, but a managed plugin above this tier may continue beneath it; arming twice leaves one timer.
+    else if (s.deadline) await arm($, s)
+    await $.command.register({
+      name: 'keepwarm',
+      description: '保持提示詞快取溫熱：裸寫為 6h，可指定如 90m 的視窗，always（或 always 24h），off，或 status（cache-tax）',
+      argumentHint: '[6h | always [24h] | off | status]',
+      immediate: true,
+    })
+    await $.command.register({
+      name: 'cache-tax',
+      description: '提示詞快取狀態、冷啟動價格及本會話冷寫入；guard default|warn|refuse|test（cache-tax，the Mod）',
+      argumentHint: '[status | guard default | guard warn | guard refuse [dollars] | guard test]',
+      immediate: true,
+    })
+    // The hook form of cache-tax ships a /cache-tax:status skill; both installed means two guards.
+    const commands = await $.command.list()
+    if (commands.some(c => c.name === 'cache-tax:status')) {
+      $.ui.log('同時安裝了 hook 版本（cache-tax@claude-code-hooks），因此冷傳送會被警告或拒絕兩次。請解除安裝它，或在此使用 /cache-tax guard warn。')
+    }
+    updateStatus($, s, now)
+    return r
+  })
+
+  // On Team and Enterprise accounts a managed plugin seated above this tier handles classic.* and continues beneath it, so
+  // nothing here is relied on alone: session.end carries the /clear, turn.step the compaction, and the engine's own figures
+  // the resumed context. What arrives here refines that, once: a clear already ended is only seated, a seat is never redone.
+  on('session.end', async ($, e, next) => {
+    // Only the conversation this state sits in: after the classic start of the next one, the old id is history.
+    if ((e.reason === 'clear' || e.reason === 'resume') && e.sessionId === s.sid) await endConversation($, s, e.reason)
+    return next(e)
+  })
+
+  // Resume fields seed the guard before any turn of the resumed session has run.
+  on('classic.SessionStart', async ($, e, next) => {
+    const r = await next(e)
+    // A resumed or cleared conversation is not the one a ping in flight was sent for.
+    outdate(s)
+    // The conversation moved under this state without session.end reaching it: the payload names another id, or a
+    // clear names none. One that already seated the new id (a command ran first) is left as it is.
+    if (s.sid && (e.session_id === undefined ? e.source === 'clear' : e.session_id !== s.sid)) await endConversation($, s, e.source === 'clear' ? 'clear' : 'resume')
+    // No session.start fires after /clear, so this is where always arms the new conversation.
+    await reseat($, s)
+    if (e.source === 'clear') return r
+    const line = seedFromResume(s, e, await $.clock.now())
+    if (line) $.ui.log(line)
+    // The seeded clock decides whether a restored or always window pings before the first turn: never when it is cold.
+    await arm($, s)
+    return r
+  })
+
+  on('command.run', { command: 'keepwarm' }, async ($, e) => {
+    const words = String(e.args ?? '').trim().split(/\s+/).filter(Boolean)
+    const mode = words[0]
+    const window = (mode === 'always'
+      ? words.length === 1 ? DEFAULT_WINDOW_MS : words.length === 2 ? parseDuration(words[1]!) : null
+      : !words.length ? DEFAULT_WINDOW_MS : parseDuration(mode!)) ?? 0
+    let every = PING_AFTER_MS
+    const usage = 'keepwarm 接受 1m 到 168h 的視窗，例如 6h 或 90m，或 always、off、status；當前保溫設定未更改'
+    if (mode === 'off' || mode === 'status') {
+      if (words.length !== 1) return { text: `${mode} 不接受其他引數；當前保溫設定未更改` }
+    } else if (mode === 'always') {
+      if (window < TTL_MS || window > MAX_WINDOW_MS) return { text: 'always 接受 1h 到 168h 的一個視窗，例如 always 24h' }
+    } else {
+      if (window < MIN_PING_MS || window > MAX_WINDOW_MS ||
+        (words.length > 1 && (words.length !== 3 || words[1] !== 'every'))) return { text: usage }
+      if (words[1] === 'every') {
+        const period = parseDuration(words[2]!)
+        if (period == null || period < MIN_PING_MS || period >= TTL_MS) return { text: 'every 接受 1m 到 59m 的間隔' }
+        every = period
+      }
+    }
+    await reseat($, s)
+    const now = await $.clock.now()
+    if (words[0] === 'off') {
+      const wasAlways = s.always
+      await stop($, s, null, true)
+      return { text: wasAlways ? '保溫已關閉，並且從下一回合起，所有會話的 always 也已關閉' : '保溫已關閉' }
+    }
+    if (words[0] === 'always') {
+      const windowMs = window
+      s.always = true
+      s.alwaysMs = windowMs
+      // Before any await: a turn finishing meanwhile may have read the old setting, and must renew with this one instead.
+      s.alwaysGen++
+      // The default window is still stored as true, which every version reads.
+      await $.store.set(KEY_ALWAYS, windowMs === DEFAULT_WINDOW_MS ? true : windowMs)
+      await startWindow($, s, windowMs, PING_AFTER_MS)
+      const cold = isCold(s, now) ? `。當前快取已失效，首次 ping 將在下一回合後 ${fmtDuration(s.every)} 傳送` : ''
+      return { text: `always 保溫已開啟：每個會話在其最後回合後啟用最多 ${fmtDuration(windowMs)}；/keepwarm off 可永久關閉${cold}` + (pingFloor > 0 && coldUsd(s) != null ? '；達到空閒花費上限時，ping 可能提前停止' : '') }
+    }
+    if (!words.length) {
+      await startWindow($, s, DEFAULT_WINDOW_MS, PING_AFTER_MS)
+      return { text: armedText(s, now, DEFAULT_WINDOW_MS) }
+    }
+    if (words[0] !== 'status') {
+      await startWindow($, s, window, every)
+      const rolls = s.always && (window < s.alwaysMs || every !== PING_AFTER_MS)
+      return { text: armedText(s, now, window) + (rolls ? `. Always is on, so your next turn makes it at least ${fmtDuration(s.alwaysMs)} at one ping per ${fmtDuration(PING_AFTER_MS)}` : '') }
+    }
+    return { text: statusText(s, now) ?? '保溫已關閉' }
+  })
+
+  on('command.run', { command: 'cache-tax' }, async ($, e) => {
+    await reseat($, s)
+    const words = String(e.args ?? '').trim().split(/\s+/).filter(Boolean)
+    const now = await $.clock.now()
+    if (words[0] === 'guard') {
+      if (words[1] === 'default' && !words[2]) {
+        s.guard = 0
+        explicitRefuse = false
+        await $.store.delete(KEY_GUARD)
+        return { text: '守衛已重置為預設：冷傳送前詢問；無介面提示詞控制非互動式 SDK 傳送' }
+      }
+      if (words[1] === 'test' && !words[2]) {
+        s.testOnce = true
+        return { text: '你傳送的下一條提示詞會按快取已失效的情況詢問，並按本會話的上下文計價；測試本身不計入統計，但確實發入冷快取的訊息會照常計費' }
+      }
+      const floor = words[1] === 'refuse' && words[2] ? Number(words[2].replace(/^\$/, '')) : 0
+      const valid = words[1] === 'warn' ? !words[2] : words[1] === 'refuse' && words.length <= 3 && (!words[2] || (floor > 0 && Number.isFinite(floor)))
+      if (!valid) return { text: '/cache-tax guard 接受 default、warn、refuse、帶金額下限的 refuse（例如 refuse 5）或 test' }
+      s.guard = words[1] === 'warn' ? 'warn' : floor
+      explicitRefuse = words[1] === 'refuse' && floor === 0
+      await $.store.set(KEY_GUARD, s.guard || 'refuse')
+      return { text: s.guard === 'warn' ? '守衛已設為 warn：冷傳送會照常進行，並顯示費用'
+        : s.guard ? `守衛已設為 ${fmtUsd(s.guard)} 及以上時詢問：冷傳送會等待 ${SEND_LABEL} 或 ${KEEP_LABEL}，費用更低時直接傳送並顯示價格`
+        : `守衛已設為詢問：冷傳送會等待 ${SEND_LABEL} 或 ${KEEP_LABEL}` }
+    }
+    return { text: card(s, now) }
+  })
+
+  // The message that pays. Only its first character is read.
+  on('prompt.submit', async ($, e, next) => {
+    if (e.origin.kind === 'plugin') return next(e)
+    await reseat($, s)
+    if (typeof e.text !== 'string' || e.text.trimStart().startsWith('/')) return next(e)
+    const now = await $.clock.now()
+    // A prompt no person sent would be dropped by the question nobody answers, so the test waits for one a person sent.
+    if (s.testOnce && !UNATTENDED.has(e.origin.kind)) {
+      s.testOnce = false
+      const model = await $.session.model()
+      if (model) s.lastModel = model
+      tellUnpriced($, s)
+      const sid = s.sid
+      const send = sendLabel(s)
+      const answer = await ask($, `cache-tax 測試（按快取已失效處理）：${costText(s)} ${saveText(s, now)} 是否仍要傳送？`, send)
+      // The answer can take minutes, and the cache may have gone cold while the question was open. The clock is read
+      // before the conversation check, so nothing awaits between that check and the send.
+      const answeredAt = await $.clock.now()
+      if (s.sid !== sid) return { drop: MOVED_TEXT }
+      if (answer !== send) return { drop: 'cache-tax 測試：未傳送。' }
+      // A test that lands on a cache that really is cold pays like any cold send, so it is scored like one.
+      if (isCold(s, answeredAt) && s.ctx >= BIG_TOKENS) s.coldWritePending = true
+      return next(e)
+    }
+    // Without the time of the last response nothing says whether the cache is cold: the price is shown once and the message goes through.
+    if (s.resumedAt) {
+      const cold = mayBeCold(s, now)
+      s.resumedAt = 0
+      if (cold && s.ctx >= BIG_TOKENS) $.ui.log(unknownText(s))
+      return next(e)
+    }
+    if (!isCold(s, now) || s.ctx < BIG_TOKENS) return next(e)
+    // The last turn's model is stale after /model, and the dollar floor decides on this price, so it is read again.
+    const model = await $.session.model()
+    if (model) s.lastModel = model
+    tellUnpriced($, s)
+    const unattended = UNATTENDED.has(e.origin.kind)
+    // A model with no price row has no estimate to compare, so the floor never lets it through.
+    const usd = coldUsd(s)
+    const guard = s.guard
+    const optedIn = guardLoaded && headless && sendHeadless && !explicitRefuse && e.origin.kind === 'sdk' && guard === 0
+    const under = guard !== 'warn' && usd != null && usd < guard
+    if (guard === 'warn' || unattended || under || optedIn) {
+      const why = optedIn ? '，因為無介面提示詞設定為傳送' : unattended ? '，因為此 ${e.origin.kind} 提示詞無法重新發送' : under ? '，因為低於你設定的 ${fmtUsd(guard)} 下限' : ''
+      $.ui.log(`${guardText(s, now)} 仍要傳送${why}；${holdNote(s, now, false)}。`)
+      s.coldWritePending = true
+      return next(e)
+    }
+    // Hosts that start a process per turn (claude -p) lose the in-memory ack, so the refusal is also kept in the store.
+    const acked = await $.store.get(ackedKey(s))
+    if (s.ackedAt === s.lastRequestAt || (typeof acked === 'number' && s.lastResponseAt > 0 && Math.abs(acked - s.lastResponseAt) < ACK_SLACK_MS)) {
+      s.ackedAt = 0
+      await $.store.delete(ackedKey(s))
+      s.coldWritePending = true
+      return next(e)
+    }
+    // Ask before the turn starts: the button lets this very prompt through, still the user's own.
+    const sid = s.sid
+    const send = sendLabel(s)
+    const answer = await ask($, `cache-tax：${guardText(s, now)} ${saveText(s, now)} 是否仍要傳送？`, send)
+    // A person can take minutes to answer. If /clear or a resume moved the process to another conversation meanwhile, the
+    // answer belongs to the old one: nothing is sent, scored or stored under the new id.
+    if (s.sid !== sid) return { drop: MOVED_TEXT }
+    if (answer === send) {
+      s.coldWritePending = true
+      return next(e)
+    }
+    if (answer !== null) return { drop: `cache-tax：未傳送，未產生費用${usd == null ? '' : `（節省 ${fmtUsd(usd)}）`}。重新發送會再次詢問，或使用 /clear 後從摘要開始。` }
+    // No dialog to answer (dismissed, or a run with no one to ask): refuse once, the resend pays.
+    s.ackedAt = s.lastRequestAt
+    if (s.lastResponseAt) await $.store.set(ackedKey(s), s.lastResponseAt)
+    const override = headless && sendHeadless && explicitRefuse && e.origin.kind === 'sdk' ? ' 無介面提示詞：send 被 guard refuse 覆蓋。請使用 /cache-tax guard default 恢復預設。' : ''
+    const reason = `cache-tax：${guardText(s, now)} 重新發送將支付該費用，並且${holdNote(s, now, true)}。或者使用 /clear 後從摘要開始。${override}`
+    if (headless) $.ui.log(reason)
+    return { drop: reason }
+  })
+
+  on('turn.step', async function* ($, e, next) {
+    let sid = s.sid
+    let gen = s.gen
+    if (!e.agentId) {
+      await reseat($, s)
+      sid = s.sid
+      gen = s.gen
+      // Capture the off count before the clock read; an off during that read must still defeat automatic arming.
+      if (e.index === 0) s.turnOffs = s.offs
+      const now = await $.clock.now()
+      if (s.sid !== sid) return yield* next(e)
+      // A compaction leaves a summary where tens of messages were; a rewind takes a few off. A request over fewer than half the
+      // last one's messages is read as a compaction, whether or not session.compact arrived. The context stays as it was, so
+      // turn.complete still scores a cold write this turn paid against it before the live figure replaces it.
+      if (s.gen === gen) {
+        if (e.messageCount * 2 < s.transcript) markCompacted(s)
+        s.transcript = e.messageCount
+        gen = s.gen
+      }
+      s.lastRequestAt = now
+    }
+    const previous = s.ctx
+    const r = yield* next(e)
+    if (s.sid !== sid) return r
+    // Each request's write is priced at its own prompt length's tier (Haiku 5.5 changes price at 100k), not the turn's sum.
+    const u = r.usage
+    if (!e.agentId && u && !s.compacted) {
+      const price = priceOf(u.model || e.model, u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens)
+      const rewritten = rewrittenTokens(previous, u.cache_read_input_tokens, u.cache_creation_input_tokens)
+      const was = s.stepWrites ?? { tokens: 0, usd: 0, priced: true, largest: 0 }
+      s.stepWrites = { tokens: was.tokens + rewritten, usd: was.usd + (price ? rewritten * price[1] / 1e6 : 0), priced: was.priced && (rewritten === 0 || price != null), largest: Math.max(was.largest, rewritten) }
+    }
+    if (!e.agentId && u && s.gen === gen && awaitingPrefix(s) && u.cache_read_input_tokens + u.cache_creation_input_tokens > 0) {
+      // A response over the new prefix can wait on a tool before turn.complete. Its summary write still scores nothing.
+      s.prefixReady = true
+      s.ctx = u.input_tokens + u.cache_read_input_tokens + u.cache_creation_input_tokens
+      s.lastModel = u.model || e.model
+      s.waitForTurn = false
+      s.skipping = false
+      s.skipSaid = false
+      s.idleSpentUsd = 0
+      s.idleGen++
+      await arm($, s)
+    }
+    return r
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    const sid = s.sid
+    const r = await next(e)
+    if (e.agentId || s.sid !== sid) return r
+    // An off at any point in this turn wins over every window the turn would open; a host that raised no
+    // step falls back to the count at completion.
+    const offs = s.turnOffs ?? s.offs
+    s.turnOffs = null
+    const now = await $.clock.now()
+    if (s.sid !== sid) return r
+    // A sleeping host may deliver this turn before the expired window's timer.
+    if (s.deadline && now >= s.deadline) await stop($, s, null)
+    if (s.sid !== sid) return r
+    // turn.step stamps the exact request time; when no step of this turn did, the turn's end is the floor.
+    // A turn aborted before it sent anything touched no cache, so it leaves the clock alone.
+    if ((e.usage || !e.isAborted) && now - s.lastRequestAt > e.durationMs) s.lastRequestAt = now
+    if (e.usage || (!e.isAborted && e.reason !== 'error')) s.lastResponseAt = now
+    const compacted = s.compacted
+    const prevContext = compacted ? s.preCompactCtx : s.ctx
+    if (s.prefixReady || e.usage || (!e.isAborted && e.reason !== 'error')) {
+      s.compacted = false
+      s.prefixReady = false
+      s.preCompactCtx = 0
+    }
+    if (s.lastRequestAt) s.resumedAt = 0
+    s.waitForTurn = false
+    if (e.usage || (!e.isAborted && e.reason !== 'error')) {
+      s.skipping = false
+      s.skipSaid = false
+      s.idleSpentUsd = 0
+      s.idleGen++
+    }
+    s.ackedAt = 0
+    // Always covers a break within the idle budget and its window (six hours unless set otherwise) after a turn
+    // that reached the cache (a turn that failed before any response touched nothing, and its cache may be cold): a
+    // window of at least that length at the default period, which brings back a stopped window and replaces a shorter
+    // one or a testing period. Another session's /keepwarm off or /keepwarm always changes the shared switch and its
+    // window, so every such turn reads them.
+    if (e.usage) {
+      const gen = s.alwaysGen
+      const shared = alwaysWindow(await $.store.get(KEY_ALWAYS))
+      if (s.sid !== sid) return r
+      // A /keepwarm always during the read set the switch and window itself; the read is older, so it is dropped.
+      if (s.offs === offs && s.alwaysGen === gen) {
+        s.always = shared > 0
+        if (shared) s.alwaysMs = shared
+      }
+      if (s.always) await startWindow($, s, Math.max(s.alwaysMs, s.deadline - now), PING_AFTER_MS, offs, gen)
+      if (s.sid !== sid) return r
+    }
+    const u = e.usage
+    if (u) {
+      if (u.model) s.lastModel = u.model
+      tellUnpriced($, s)
+      const prev = prevContext
+      // A turn's usage is its responses summed, so a ten-step turn reports ten
+      // reads of the context. The live window is the engine's figure; the sum
+      // is only the fallback for a host that reports no tokens.
+      const written = u.cache_creation_input_tokens
+      const live = (await $.session.usage()).context.tokens
+      if (s.sid !== sid) return r
+      s.ctx = live && live > 0 ? live : u.input_tokens + u.cache_read_input_tokens + written
+      // After compaction, only the preceding requests can prove a rewrite. Summed usage cannot separate the summary.
+      const writes = s.stepWrites
+      const write = writes ? writes.tokens : compacted ? 0 : rewrittenTokens(prev, u.cache_read_input_tokens, written)
+      // With no per-request receipts this is a conservative estimate: later reads can hide an earlier rewrite.
+      const rewrote = writes ? writes.largest : write
+      const full = prev > 20000 && rewrote >= 0.5 * prev
+      if (full || (s.coldWritePending && write > 0)) {
+        // Priced per request when the steps reported usage; otherwise at the tier of the context the comeback re-sent.
+        const price = priceOf(s.lastModel, prev || s.ctx)
+        const usd = writes ? writes.priced ? writes.usd : null : price ? write * price[1] / 1e6 : null
+        s.misses.push({ at: now, tokens: write, usd })
+        // With always on, its own window governs renewal, shorter than three hours or not; the guard promised that one.
+        const extend = autoWarm && !s.always && s.deadline < now + AUTO_WARM_MS && s.offs === offs
+        if (extend) await startWindow($, s, AUTO_WARM_MS, s.every, offs, s.alwaysGen, sid)
+        if (s.sid !== sid) return r
+        $.ui.log(`已支付 ${fmtTok(write)} 個 token 的冷寫入費用（${fmtUsd(usd)}）。` +
+          (extend ? pingFloor > 0 ? ` 保溫已啟用最多 ${fmtDuration(AUTO_WARM_MS)}` + (coldUsd(s) == null ? '' : '；達到空閒花費上限時，ping 可能提前停止') + '。使用 /keepwarm off 停止。' : ` 保持快取溫熱 ${fmtDuration(AUTO_WARM_MS)}，避免今天再次支付；使用 /keepwarm off 停止。` : ''))
+      } else if (s.coldWritePending && write === 0) $.ui.log(noRewriteText(s, now))
+    }
+    s.coldWritePending = false
+    s.stepWrites = null
+    await arm($, s)
+    return r
+  })
+
+  on('session.compact', async ($, e, next) => {
+    const sid = s.sid
+    const r = await next(e)
+    if (!e.agentId && e.trigger !== 'precompute' && r.skip === undefined && s.sid === sid) {
+      markCompacted(s)
+      // Between turns nothing is left to score, and the next turn's summary write is not a cold write.
+      s.ctx = 0
+      disarm(s)
+      await arm($, s)
+    }
+    return r
+  })
+}

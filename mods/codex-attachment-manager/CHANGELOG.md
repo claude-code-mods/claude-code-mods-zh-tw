@@ -1,0 +1,485 @@
+# Changelog
+
+When a version is released, its section here becomes the GitHub release notes.
+
+## [0.11.5] - 2026-11-20
+
+CAM reads Windows proxy settings without opening a terminal window.
+
+### Fixed
+
+- On Windows, reading proxy settings in the background could open a black terminal window or show error `0x800700e8`. CAM now hides the window when reading both system proxy settings and saved proxy environment variables. Thanks to [@ryanye981006-sudo](https://github.com/ryanye981006-sudo) for reporting [#20](https://github.com/chipfighter/context-attachment-manager/issues/20) and verifying the proposed fix.
+
+### After updating
+
+- Rerun the Codex installer and restart Codex. In Claude Desktop, update the plugin and start a new Code session. See the [update instructions](https://github.com/chipfighter/context-attachment-manager/blob/v0.11.5/INSTALL.md#update).
+
+### How we tested
+
+- On Windows, we checked that both background commands stop opening a console window and that the registry queries return the same results. The release checks cover plugin startup, installation, upgrade, and removal on Windows, macOS, and Linux.
+
+<details>
+<summary>Technical details</summary>
+
+- The two Windows `reg query` calls now pass `windowsHide: true` to `execFileSync`.
+
+</details>
+
+## [0.11.4] - 2026-11-20
+
+Codex keeps its existing connection settings if the installer cannot start the local proxy.
+
+### Fixed
+
+- If a local port is unavailable, setup reports the affected port and stops before switching Codex to the proxy. Previously, the installer could report success and leave Codex unable to send messages. Thanks to [@IbukiFuko](https://github.com/IbukiFuko) for reporting [#19](https://github.com/chipfighter/context-attachment-manager/issues/19).
+
+### After updating
+
+- Rerun the [Codex installer](https://github.com/chipfighter/context-attachment-manager/blob/v0.11.4/INSTALL.md#update). If it reports a port conflict, free the reported port and rerun it. Restart Codex after setup succeeds.
+
+### How we tested
+
+- The install test holds the second local port open, verifies that the installer reports the conflict and preserves the connection settings, then releases the port and retries in the same test profile.
+- The release checks cover plugin startup, installation, upgrade, and removal on Windows, macOS, and Linux.
+
+<details>
+<summary>Technical details</summary>
+
+- `cam setup` and `cam install` wait for the engine health check before writing `openai_base_url` or `.env`. Startup readiness requires all supported loopback listeners. Port binding errors propagate to the installer as a nonzero exit.
+- The engine waits for its listeners before reapplying a previously enabled route after a provider change.
+
+</details>
+
+## [0.11.3] - 2026-11-17
+
+This update fixes a bug that could send deselected images in conversations with very large images.
+
+### Fixed
+
+- **Image selection in large requests.** A very large image could interrupt request processing, causing the plugin to send the original request with images you had deselected. The plugin now handles these requests and applies your selections. Thanks to [@inhm112](https://github.com/inhm112) for the fix in [#18](https://github.com/chipfighter/context-attachment-manager/pull/18).
+
+### Documentation
+
+- The README now has answers about installation, image handling, and prompt caching in all eight languages.
+
+### After updating
+
+- In Codex, rerun the install command and restart Codex. In Claude Desktop, update the plugin and start a new Code session. See the [update instructions](https://github.com/chipfighter/context-attachment-manager/blob/v0.11.3/INSTALL.md#update).
+
+### How we tested
+
+- The unit tests, plugin startup checks, and install script checks passed on Windows, macOS, and Linux.
+- In an offline Codex test with two large synthetic images, both deselected originals were removed from the outgoing request.
+
+<details>
+<summary>Technical details</summary>
+
+- The shared request engine scans JSON strings incrementally and preserves the existing check for integers that JavaScript cannot represent exactly.
+- The regression test covers a 20-million-character inline image, escaped quotes, and an unsafe integer after the image.
+
+</details>
+
+## [0.11.2] - 2026-11-14
+
+This update keeps the cache working in Codex after you comment on an earlier image, and the README now explains how the plugin is designed around the cache.
+
+### Fixed
+
+- **Comments on earlier images in Codex.** When you commented on an image from a few turns back, the plugin added your comment to the short text that stands in for that image. That changed an earlier part of the chat, so with your next message Codex processed everything after that image again instead of reading it from its cache. The text now stays as it first went out. Your comment is still kept: it is in the model's reply, the panel shows and finds it, and it goes with the image again after the next compaction.
+
+### Documentation
+
+- **How the plugin is designed.** A new README section, in all eight languages, shows with two figures why earlier images are replaced only once, why fetching an image back leaves the rest of the chat untouched, and what this costs compared with shrinking images or dropping early history.
+
+### After updating
+
+- Update the plugin in Codex and restart Codex.
+- Nothing changes in Claude Code, which has worked this way since 0.10.
+
+### How we tested
+
+- All 345 local unit tests passed, two of them new for this fix, and GitHub CI passed on Windows, macOS, and Linux.
+- On five real Codex tasks, we compared what the plugin changed in each request with how much Codex reported reading from its cache. Every time, the cache was read up to the place that changed.
+- The feature-line test with a real model (`gpt-6-sol`, Chinese) passed all 15 checks. The compaction test passed 7 of 8: the model named the right image from the list without fetching the original, as it also did before this change.
+
+<details>
+<summary>Technical details</summary>
+
+- The Codex adapter now shows, in a placeholder, only the ratings noted by the image's own turn, as the Claude Code adapter has since 0.10. For images from before Codex's latest compaction, placeholders and the list after the compaction item use the notes as they stood at that compaction.
+- Measured with ChatGPT login and `gpt-6.1-sol`: the backend reads the prompt cache up to the first changed item, in steps of 128 tokens, with no cache breakpoints from the engine. The engine therefore places none for Codex. Codex logged in with an API key was not measured.
+
+</details>
+
+## [0.11.1] - 2026-11-13
+
+This update brings missing images back to the Claude Code sidebar so you can open them and select them again after compaction.
+
+### Fixed
+
+- **Missing images in the Claude Code sidebar.** When Claude opened several images at once, some could be left out of the sidebar. The plugin now picks up those images from the session history. You can preview them and select which originals to send again after the conversation is compacted.
+- **Notes and ratings on earlier images.** When restored images change the numbering in an existing session, the plugin matches earlier notes and ratings to the images they describe.
+
+### After updating
+
+- Reopen your Claude Code sessions to load the updated plugin.
+- If you also use the plugin in Codex, update it there and restart Codex.
+
+### How we tested
+
+- Replayed 44 Claude Code sessions that had been compacted. The fix restored 14 images across 7 sessions.
+- All 343 local unit tests passed, and GitHub CI passed on Windows, macOS, and Linux.
+
+<details>
+<summary>Technical details</summary>
+
+- The Claude Code adapter now recovers parallel tool calls recorded after another call’s result or after Claude Code’s image-resize note.
+- The adapter translates earlier image references using the numbering in effect when they were written. A regression test covers transcript updates that change which tool results belong to the active conversation.
+
+</details>
+
+## [0.11.0] - 2026-11-02
+
+The plugin now works beyond Codex and Claude. Ten more agents leave earlier images out of each message and fetch back the one they need, your agent can install the plugin by itself, and switching models in Codex with a tool such as cc-switch no longer turns it off.
+
+### What's new
+
+- **Ten more agents.** WorkBuddy, OpenCode, Gemini CLI, pi, DeepSeek Harness, Qwen Code, Cline, Kilo Code, goose and Cherry Studio. Images from earlier turns stay out of your messages, and the model pulls back the one it needs by its number. There is no panel on these agents: it works on its own. They are new and were not tested on the agents themselves yet, so please [tell us](https://github.com/chipfighter/context-attachment-manager/issues) how it goes.
+- **Your agent installs it for you.** Paste the sentence from the README to the agent you use. It finds out which agent it is running in from that agent's own signs, not from which model it is, sets the plugin up for that one, and keeps a record so it can be undone.
+- **Switch models freely in Codex.** When a tool such as cc-switch points Codex at another provider, the plugin connects again within a moment, to the provider you picked, so your images keep being managed. Turn the plugin off in the panel to stop this.
+
+### Fixed
+
+- **File names for images Codex opens.** When Codex opened an image through a path it built in code (a folder plus the file name, for example), the image got no name in the panel or in the list after a compaction, so you could not refer to it by its file name. It now gets its name whenever the file name is written in the code.
+- **No more names on the wrong image.** When Codex opened several images in one step and the name of one could not be told, the next one's name could land on it, and images the model fetched back in the same step could take a name too. A name now goes only to the image it belongs to; when that is unclear, the image gets none.
+
+### After updating
+
+- Restart Codex, and reopen Claude sessions that were open, so they use the new version.
+- On another agent, paste the install sentence from the README to it, or follow [INSTALL.md](https://github.com/chipfighter/context-attachment-manager/blob/main/INSTALL.md#other-agents).
+
+### How we tested
+
+- Unit tests (338), including every request format the new agents use and what installing writes to each agent's settings and puts back.
+- Model tests in Codex: Auto-select passed all 20 checks in Chinese and in English, and the feature notes all 18. In the compaction test the model opened two images in a loop, and their file names were not known; 0.10.0 misses them the same way.
+- A live test in Claude Desktop: earlier images were left out, and the model fetched one back by its number.
+- The image names in this machine's 163 Codex tasks, read with the old and the new version: 20 images got their name, none got a different one, and the 10 that lost theirs had a wrong one (mostly a folder name).
+- The ten new agents were not run: their adapters follow each agent's code and docs.
+
+<details>
+<summary>Technical details</summary>
+
+- The code is now in three layers (docs/v0.11/plan.md): a core that knows no platform, the panel (Codex desktop and Claude Desktop only), and a thin adapter per platform. A layer test keeps them apart; 668 rewrite cases stay byte for byte what they were; one contract test checks each request-format translator: OpenAI Responses, OpenAI Chat Completions (new), Anthropic Messages and Gemini (new).
+- On the new agents the engine reads the images from the requests themselves, gives them ids by content, and keeps them in the data folder for `cam_view_image`. Automatic selection is always on; feature lines are off (a terminal would show them). A session is the one the agent's header names, else `x-cam-session` from our pi extension, else the first prompt.
+- `cam detect` reads the variables each agent sets for its shell commands (`CODEX_THREAD_ID`, `CLAUDECODE`, `CODEBUDDY`, `OPENCODE`, `GEMINI_CLI`, `PI_SESSION_ID`, `DSH_SHELL`, `QWEN_CODE`, `CLINE_ACTIVE`, `KILO`, `GOOSE_TERMINAL`); `cam connect <agent> --apply` writes the base URL and the MCP server into the agent's settings and records each changed value for `cam disconnect`. It never copies a settings file, since those often hold API keys. goose (YAML) and Cherry Studio (settings in the app) get printed steps.
+- DeepSeek Harness gets a dsh bundle that turns dsh's own `image-offload` row off and offloads earlier turns' images at each new turn, keeping dsh's over-budget offload as a fallback.
+- The engine stays running while a plugin service of any agent checks in, not only while Codex or Claude runs. Session ids no longer have to be UUIDs.
+- Codex: when config.toml no longer routes through the engine but the user enabled it, the engine routes it again to the provider now set (watched file, and a check every 15 s; three times in ten minutes stops it).
+- The engine reads the `path` of each `view_image` call in code-mode source without running it, and takes its last string when that is an image file name: `p + "a.png"`, `` `${dir}/a.png` `` and `join(dir, "a.png")` give `a.png`; `p + name`, a bare `".png"`, `?:` and `||` give none.
+- Images that `cam_view_image` returned in the same code are copies, known by the line before them, and take no name; the other images follow the calls in order only when their count matches the number of calls.
+
+</details>
+
+## [0.10.0] - 2026-11-01
+
+Long conversations keep their images. When Codex or Claude Code compacts a long conversation, or when you go back to an earlier Claude session, the images from earlier turns are no longer lost: they keep their numbers, and the model can still tell which is which and open the right one again.
+
+### What's new
+
+- **Images survive compaction in Codex too.** Until now, when Codex compacted a long task, every image a tool had opened or generated disappeared from the model's view; only the images you uploaded stayed. Now they come back as a short list, each with what the model noted about it and what you said about it, and the model can open the original again when it needs to. The panel marks these images as from before the compaction.
+- **A shorter list after a compaction.** Earlier images now take one line each, in Codex and in Claude Code. In a real session with 127 earlier images, that is about half the space they took before.
+- **Better notes.** The model can correct a note it got wrong, an image you send twice is listed once, and if you stop a reply before the model has noted its new images, it notes them in the next one.
+
+### Fixed
+
+- **The plugin works in Claude Code again.** Since 0.9.0, Claude Code 2.1.309 and later skipped part of the plugin, so Claude sessions did not use it at all, even though the image tool still showed. If you use Claude Code, this is the main reason to update.
+- **Claude sessions keep their images when you come back to them.** When you edit an earlier message in Claude Desktop, it carries on in a new session file. Before, the image numbers started over there and the model's notes could end up on the wrong image. Now numbers, notes and your checked images carry over, and notes already put on the wrong image in older sessions go back to the right one.
+- **Compactions in Claude Code are no longer missed.** With Claude Code 2.1.304 and later, some compactions were not recognized, and none of the earlier images came back.
+- **Lower cost in Claude Code.** Leaving earlier images out kept breaking Claude's prompt cache, so in our test a session with the plugin cost about twice as much as one without (since 0.4). It now costs about 1.3 times as much.
+- **Smaller fixes:** images read several at once, or just as a request went out, could miss their number; long notes and your ratings were cut short; after a compaction, a small model sometimes stopped looking at the new images you named.
+
+### After updating
+
+- Reopen Claude sessions that were open, so they use the new version.
+
+### How we tested
+
+- A [long task in Claude Code](https://github.com/chipfighter/context-attachment-manager/blob/main/eval/long-task/README.md), with 51 images, two compactions and a fork: the model answered 19 of 20 questions about earlier images with the plugin. Without it, it answered all 20, because these images were files on disk it could read again; images pasted into the chat have no such copy.
+- A real long session with 152 images, replayed turn by turn with two compactions: the model picked the right image for all 12 questions asked after them.
+- Unit tests, replays of real Codex and Claude sessions, a live test in Claude Desktop, and model tests in Codex (three checks failed, none because of this version's changes).
+
+<details>
+<summary>Technical details</summary>
+
+- After Codex compacts a task, the images that tools viewed, generated or returned before the compaction go back into the request right after it: pinned images as originals, the others one line each (ID, name, source, turn, feature line, ratings). The same one-line list replaces one placeholder per image after a compaction on both platforms: for 127 earlier images an estimated 7–9K tokens per request instead of 17–20K.
+- Claude Code 2.1.309 refused the plugin's Claude mod because it named environment variables through a variable; the mod now names each one directly.
+- Claude Code 2.1.304 and later keep the last messages through a compaction; the plugin now links them the way Claude Code does.
+- When Claude Desktop continues a session in a new transcript, the plugin follows it back to the earlier transcripts, also across several forks, and matches feature lines written under the renumbered IDs back to the right images. Resumed and forked sessions start with the previous session's checked, pinned and Auto-select settings.
+- Feature lines and ratings are cut by width rather than by character count, whatever the language setting; ratings keep as much as feature lines (30 Chinese characters or 100 letters, up from 15 characters).
+- When parallel Reads returned out of order, an image could get no ID (since 0.4); every such image now gets its ID in the order it was read. When a request went out before Claude Code had written the turn's newest images to its transcript (about 1 request in 75 on the development machine), the engine now reads the transcript again for up to 1.5 seconds.
+- The note to the model now says only the omitted images are not to be read with other tools, and that new ones are looked at as usual.
+- Prompt cache: the engine places the message cache marks itself (where an earlier request had one before the first change, and just before the first image that will be left out later). Placeholders show only the ratings noted by the image's own turn, and the list after a compaction the notes as they stood then, so neither changes after it goes out.
+- Earlier transcripts are read only up to the compaction, and their image data stays on disk until needed: for the longest real session tested (9 transcripts, 210 images), about 60 MB more memory and under 2 seconds for the first index.
+- The three Codex self-test checks that failed (gpt-6-sol, low effort): the model misread a faint digit, the model said it could not see an image that was sent, and an image viewed through a path built in code gets no name, as before.
+
+</details>
+
+## [0.9.1] - 2026-10-29
+
+Japanese panel support and smoother image previews.
+
+### Features
+
+- The panel now supports English, Simplified Chinese and Japanese. Codex follows its app language; Claude Desktop's Code panel reads Claude's own language setting independently. Changing the language keeps the original session title. Model instructions and command-line messages are unchanged.
+- Added a Japanese README with installation, opening the panel and image-selection guidance. Detailed installation instructions remain in the shared English INSTALL.md. Addresses #16.
+
+### Fixes
+
+- Hold Ctrl and scroll the mouse wheel to zoom images in the preview. Fixes #15.
+- Keyboard focus stays inside the image preview dialog while it is open, including when navigating with Tab and Shift+Tab. Fixes #14.
+
+### Notes
+
+- Verified on Windows with 267 unit tests, synthetic host-language changes and an isolated plugin installation/startup test. Claude's saved language was checked against the installed desktop app; live switching in Claude Desktop has not been tested.
+
+## [0.9.0] - 2026-10-23
+
+Separate provider routes and image management through compatible gateways.
+
+### Features
+
+- Image management now works through compatible custom endpoints in Codex and Claude Desktop's Code tab. Codex's configured provider endpoints and Claude Code's original endpoint are preserved behind separate local routes, including their port, base path and query parameters. Model names and authentication remain with the client.
+- Disabling Codex restores the original endpoint lines while preserving addresses the user changed afterwards. Claude Code only restores process variables it still manages.
+
+### Fixes
+
+- Claude requests outside `/v1/` no longer fall through to ChatGPT with their credentials. Unknown or conflicting requests are rejected locally. Fixes #10.
+- Custom Claude endpoints use the Claude image rewrite rules regardless of their domain. HTTP and WebSocket forwarding follow the same provider binding and credential isolation.
+- Registered routes use a separate loopback listener, so an older plugin copy cannot accept their requests after only one platform has been updated. Route bindings survive engine replacement.
+- Upgrades preserve earlier runtime files that Codex's cache cleanup can partially remove while a Windows process is still using them. Installation no longer removes the working plugin before adding its replacement, and uses the install result to select the new version.
+
+### Notes
+
+- Supports Responses-compatible Codex endpoints and Anthropic-compatible Claude Code endpoints. This does not translate API protocols or add Bedrock, Vertex or Foundry transports.
+- Codex reads endpoint settings in its user `config.toml`. Unsupported endpoint syntax stops setup before changing configuration. If another tool changes provider endpoints later, enable the plugin again and restart Codex to bind the new addresses. External profile files and environment overrides are not automatically rewritten.
+- Verified on Windows with synthetic conversations, images, credentials and local upstreams. Live model calls through third-party gateways have not been tested.
+- The real Windows install scripts were tested through installation, an upgrade with the old runtime directory held open, and uninstall. The old runtime remained intact and the user's configuration was restored.
+
+## [0.8.3] - 2026-10-22
+
+A fix for Codex logged in with an API key.
+
+### Fixes
+
+- Codex logged in with an API key now connects with the plugin installed. Its requests went to ChatGPT's backend, which takes ChatGPT logins, not API keys. They now go to the OpenAI API, where Codex sends them without the plugin, and images are managed there as well.
+
+### Notes
+
+- Checked with the Codex command line and a fake API key: through a test engine, the request reached the OpenAI API, which answered "Incorrect API key provided". Managing images with a real API key has not been tried yet.
+- Codex set up with its own model provider, such as cc-switch or a third-party relay, still does not go through the plugin.
+
+## [0.8.2] - 2026-10-21
+
+The model notes where each image is set, not its "scene".
+
+### Changes
+
+- A feature line now starts with the place the picture is set in, such as "study" or "outside the café", instead of the scene. In a film project the model had read "scene" as a scene number and named each image after it and what the image was for, such as "scene 04 café exterior sketch" or "scene 04 café exterior detail check": one task got 28 scene filters for 52 images. Scene numbers, versions and purposes now stay out of the place, and time of day and weather go in the features. An image of several places, such as a storyboard, is noted as "several places"; one set nowhere as what it is: character, object, document or web page.
+- Feature lines already written stay as they are, so a task from before keeps its old scene filters next to the new places.
+
+### Notes
+
+- Tested on Windows with GPT-6 Sol at low effort, in Chinese and English. A new case in the notes self-test uploads images named like `03場_書房_首幀_v2.png` and describes them with the scene number, version and purpose: the places came out as "書房" / "study" and "咖啡店外" / "outside the café", with none of those, and the same place for both images of the study. GPT-6 Luna and Astra gave the same places.
+- With Sol, the placeholder and `need IMG-xxx` self-tests passed in both languages, and so did the notes self-test in Chinese. In English, Sol answered a bare rating with "keep your feedback about the first in mind", which the test counts as mentioning the notes; it said such things now and then in 0.8.0 too. GPT-6 Luna was run but no longer holds a release back: as in 0.8.0, it twice answered a bare rating with the notes only and missed a rating once, and once asked again for an image the user had just checked back.
+
+## [0.8.1] - 2026-10-21
+
+A fix for the panel's filters.
+
+### Fixes
+
+- The filters take at most two rows. In a long task where the model named many scenes, the filter buttons filled most of the panel and left a small strip for the thumbnails. The ones that don't fit now fold into *N more* at the end of the second row, which shows them all. The filter you picked always stays in view, and picking one from the full list folds them again.
+
+### Notes
+
+- Checked in the panel's development page with a synthetic task of 28 scenes, in Chinese and English, light and dark, and down to a 260-pixel-wide panel. Not yet checked in Codex or Claude Desktop with a real task.
+
+## [0.8.0] - 2026-10-20
+
+The model keeps notes on your images, and the panel finds them by what you remember.
+
+### Features
+
+- The model notes what each new image shows: the scene first, then what can be seen, such as "rainy blue night | close-up, facing the camera, neon reflections". When you rate an image ("the first one is too dark", even turns later), it notes your words under that image. It writes these notes at the start of its reply as Markdown link definitions, which Codex and Claude Desktop don't display, and doesn't mention them in its answer.
+- Placeholders carry the notes, with the latest three ratings and the turns they came from, so after a compaction, or many turns later, the model can still tell the images apart. In the case that started this release, a face close-up the user had called the best and a half-length shot from the start of the task, the model picked the close-up after the task was compacted, without fetching.
+- New images carry their ID from the turn they appear in, so the model can match your words to the right image at once. The placeholder's second line is shorter, to make room for the notes.
+- The panel is redone as one screen:
+  - A card at the top with the next request's estimated size, the savings and what the next message sends. *Show details* adds the last request, the images the model fetched in the latest turn, and what subagents and side chats saved.
+  - A search box that finds images by what they show, by scene, or by what you or the model said in that turn, and filters for uploads, generated images and each scene.
+  - Thumbnails grouped by turn, newest first, with small marks. Images that won't be sent are gray, and the box at the end of a turn's line covers the whole turn.
+  - Click a thumbnail to preview it across the panel, with a *Send every turn* checkbox (Auto-select) or a *Send* checkbox (manual). Click outside the image or press Esc to go back.
+  - An ID in the *Model needs* bar or among the fetched images scrolls to that image and flashes it, clearing a search or filter that hides it.
+
+### Changes
+
+- Subagents and side chats in Codex always follow Auto-select. The *Auto-select too* switch is gone; where it was off in 0.7, it is on again.
+- The search and filters replace the source filter of 0.2. Pinned images are now called *Send every turn*.
+- In Claude Code, requests are rewritten as soon as a session has images, to add the note for the model and the IDs, not only once you uncheck one. On Claude accounts created on or after August 31, 2026, this leaves out the earlier thinking of the turn in which the first image came in, once.
+- In Codex, a task with Auto-select off is left alone until you uncheck an image, as before: its requests go out as they are, over WebSocket, and the model keeps no notes there until then.
+
+### Fixes
+
+- The engine no longer exits when Codex resets a WebSocket connection the engine has declined, which Codex does when the engine moves a task to HTTP. In 0.7.1 the engine process exited then, and requests failed until it was started again.
+
+### Notes
+
+- Tested on Windows with the app-server of Codex 0.163 (the one Codex desktop 26.1013 ships) and GPT-6 Sol, Luna and Astra at low effort, in Chinese and English. New images got a note, ratings were noted on the right image, and the replies didn't mention them. After `thread/compact/start`, all four images of the user's case were placeholders with notes; asked which one to use as a face reference, all six runs chose the close-up rated the best, without fetching.
+- The release self-tests (placeholders, `need IMG-xxx`, Auto-select, subagents and side chats, and the new notes test) passed with GPT-6 Sol and Astra in both languages. GPT-6 Luna failed five of its ten runs: it misread a fetched corner digit (5 as 3), as in 0.3 and 0.6; once asked for images to be attached instead of fetching them; once said it couldn't see an unchecked image without asking for it by ID; once missed a rating; and once its subagent didn't fetch the image of its first turn. Since the model often notes small details in the upload turn, the Auto-select test now also accepts an answer taken from the model's own notes.
+- In Claude Desktop with Claude Code 2.1.299 and Claude Haiku 5.5, in Chinese and English, the notes were written at the start of replies and stayed hidden, and ratings were noted on the right image. Those ratings were relayed from another session, worded as the user's own. Ratings typed in the session itself, whether a note shows for a moment while a reply streams in, and the notes after `/compact` are not tested yet.
+- GPT-6 Luna at low effort sometimes missed a rating, more often in English, and twice gave no visible reply in a turn where the user only rated images. Claude Haiku 5.5 in English opened its reply to a rating with "Noted:".
+- Claude Desktop shows a link definition that ends the latest reply, which is why the notes go at the start. A place that shows the raw reply may show them; Claude Code in a terminal is not checked yet.
+
+## [0.7.1] - 2026-10-16
+
+Bug fixes for child tracking and interrupted HTTP requests.
+
+### Fixes
+
+- Codex composer prediction requests no longer appear as side chats in the task's panel. [#7](https://github.com/chipfighter/context-attachment-manager/pull/7), fixes [#3](https://github.com/chipfighter/context-attachment-manager/issues/3).
+- Tracking a subagent or side chat now retries after a temporary write failure, so a failed first write does not keep it out of the task's panel. [#9](https://github.com/chipfighter/context-attachment-manager/pull/9), fixes [#6](https://github.com/chipfighter/context-attachment-manager/issues/6).
+- Cancelling an HTTP request now closes its pending or active upstream connection. If an upstream response breaks partway through, the client is notified instead of being left waiting, so it can report or retry the failure. [#8](https://github.com/chipfighter/context-attachment-manager/pull/8), fixes [#4](https://github.com/chipfighter/context-attachment-manager/issues/4) and [#5](https://github.com/chipfighter/context-attachment-manager/issues/5).
+
+### Notes
+
+- Tested on Windows with GPT-6 Sol at low effort: automatic image selection, fetching images when needed, cancelling a response, and recovery after an interrupted upstream response. Codex retried the interrupted response successfully and continued the conversation.
+- CI checks unit tests, plugin installation and startup, and install/uninstall scripts on Windows, macOS and Linux. Claude Code was not live-tested for this patch.
+
+## [0.7.0] - 2026-10-14
+
+Subagents and side chats in Codex follow Auto-select too.
+
+### Features
+
+- Side chats no longer resend the task's images. A side chat you open in a Codex task carries the task's whole history, images included; it now goes out with those images as placeholders, except the ones you pinned, and when an answer needs one, the model fetches it from the task by ID. Reported in [#2](https://github.com/chipfighter/context-attachment-manager/issues/2), where a text-only question in a side chat carried 39 images (48.75 MB) and failed with `Broken pipe`.
+- Subagents the model starts without the task's history leave out the images of their own earlier turns and fetch the ones they need by ID. The same goes for subagents they start.
+- The task's panel lists its subagents and side chats once they have sent a request: folded to one line with how many there are, what their last requests saved, and an *Auto-select too* switch, on by default, also in tasks from before 0.7. Unfold it to see each one's name, rule and last request. Switched off, their requests go out as they are.
+- Subagents started with the task's history follow the task's checks, as before. Claude Code works as in 0.6.0.
+
+### Fixes
+
+- A task forked in Codex could lose the checks it takes over from the original task when its first request came while Codex was still writing the task's record.
+
+### Notes
+
+- Tested on Windows with the app-server of Codex 0.162 (the one Codex Desktop ships) and GPT-6 Sol, Luna and Astra at low effort. A side chat left out the task's two images, answered a text-only question without them, and fetched one back from the task to read a digit in its corner. A subagent's second turn left out the image of its first turn and fetched it back. With the switch off, both went out as they were. The panel listed each side chat and subagent with the right numbers. GPT-6 Luna's subagent once couldn't find the image file it was told about, and once Luna didn't start a subagent at all; that is the model, and the next try worked.
+- Codex doesn't document side chats and subagents for plugins: the plugin recognizes them from what Codex sends with each request. If that changes, they go out as they did before 0.7, and the task itself is not affected.
+- Images a subagent reads during one long turn all stay in that turn, as Auto-select keeps the current turn's images; they are left out from its next turn on.
+
+## [0.6.0] - 2026-10-13
+
+Auto-select on by default, and the panel opens by itself in Claude Desktop.
+
+### Features
+
+- New tasks in Codex and new sessions in Claude Code start with Auto-select on: images from earlier turns are left out, and the model fetches the ones it needs by ID, so long conversations stay small even if you never open the panel. Tasks and sessions you had before keep their setting, and switching Auto-select off in the panel sticks.
+- In Claude Desktop the panel opens by itself in the built-in browser once a session has images: when the model read an image, as that turn ends; when you paste one, as your message goes out. You no longer need to type `/cam`.
+- When you have been away from a session for about 30 minutes, Claude Desktop closes its built-in browser; the panel then opens again with your next message. If you close it yourself, it stays closed in that session until you type `/cam`, which also leaves just one panel tab.
+- In Codex, tasks you had before work as in 0.5.0.
+
+### Notes
+
+- Tested on Windows in Claude Desktop with Claude Code 2.1.295 and Claude Haiku 5.5: new sessions started with Auto-select on; the panel opened by itself once the model had read images; closed in the session, it stayed closed; closed by Claude Desktop after the session had been left for 30 minutes, it opened again with the next message. In Codex, new tasks started with Auto-select on with GPT-6 Sol, Luna and Astra.
+- With Auto-select on, the model can fetch several images at once. Asked about two images it had not described, GPT-6 Sol, Luna and Astra in Codex and Claude Haiku 5.5 in Claude Desktop each fetched both in one call. GPT-6 Luna then misread a small digit in one of them, as in 0.3; pin images whose details matter, or use a larger model.
+- The plugin tells your close from Claude Desktop's by time: a panel gone within 30 minutes of the session's last turn was closed by you. If you close it more than 25 minutes into a pause, it may open again with your next message.
+
+## [0.5.0] - 2026-10-13
+
+Your choice survives compaction in Claude Code.
+
+### Features
+
+- When Claude Code compacts a conversation (`/compact`, or on its own when the context fills up), it replaces the history with a summary and stops sending the images from before it. The plugin now keeps your selection: the images you checked still go to the model, right after the summary and marked with their IDs, and the ones you unchecked stay out, with a placeholder there. With Auto-select on, pinned images go out and the model fetches the others by ID when it needs them. Change the selection any time; it applies from the next message.
+- The model is told which images came before the compaction and how to get one back (`need IMG-xxx`, or `cam_view_image` with Auto-select on), and that what it said about them while it could see them still stands.
+- The panel marks these images *Before compaction*, counts the checked ones in the request estimate, and the last-request line says how many it sent again.
+- The images come from Claude Code's own session record on your machine; nothing is copied.
+- In Codex, the panel and the requests it sends work as in 0.4.0.
+
+### Notes
+
+- Tested on Windows in Claude Desktop with Claude Code 2.1.295 and Claude Haiku 5.5, in Chinese and English, in sessions compacted with `/compact`: after the compaction the model answered from the images sent again; with one unchecked, it said it could not see it now, kept its earlier answers and asked with `need IMG-xxx`; checked again, it answered from the image. With Auto-select on, images from before the compaction can be fetched; in our test session, which had asked with `need IMG-xxx` many times before, the model kept asking that way until told it could fetch. A newer account was simulated as in 0.4, and the conversation went on.
+- Images sent again take up context like any other, and Claude Code's own context meter doesn't count them. If requests get large, uncheck some or switch on Auto-select: the plugin doesn't decide this for you. Anthropic limits each request to 100 images for models with a 200k-token context window (600 for others), each up to 8000 px (stricter with more than 20 images; under 2000 px is safe), and 32 MB in all.
+- After an image is checked again, the model sometimes says that its earlier "I can't see it" was a mistake. Its answer is right; the remark isn't, since the image really was left out then.
+
+## [0.4.0] - 2026-10-11
+
+Now in Claude Desktop too, under a new name: Context Attachment Manager.
+
+### Features
+
+- Works with Claude Code in the Code tab of Claude Desktop. Install the plugin from this repository's marketplace and type `/cam` in a session: the same panel as in Codex opens in Claude Desktop's built-in browser, next to the conversation. The image list, previews, unchecking single images or whole turns, filters, the request estimate, `need IMG-xxx`, Auto-select and both languages work as in Codex.
+- Nothing to configure: the plugin points each Claude Code session at the local engine when the session starts and puts it back when the session ends. Your Claude subscription sign-in is passed through unchanged, and no settings files are edited.
+- Claude accounts created on or after August 31, 2026 check the model's earlier thinking against the conversation before it. On such accounts the engine leaves out the earlier thinking that no longer matches the conversation as sent, so unchecking still takes effect. Thinking from after the change is kept, and checking an image again brings back the thinking from before. The panel says how many thinking records the last request left out.
+- With Auto-select on in Claude Code, the model's `cam_view_image` calls don't ask for permission; your own settings and hooks still apply.
+- The project is renamed from Codex Attachment Manager to Context Attachment Manager, and the repository to `chipfighter/context-attachment-manager`; old links redirect. The install ID (`codex-attachment-manager`) and the data folder stay the same, so upgrading works as before.
+- In Codex, the panel and the requests it sends work as in 0.3.0.
+
+### Notes
+
+- Tested on Windows in Claude Desktop with Claude Code 2.1.295 and Claude Haiku 5.5, in Chinese and English: after images were left out, the model kept its earlier descriptions, asked for images by ID when it needed them, and fetched them itself with Auto-select on. Newer accounts were simulated with Anthropic's own switch for this check.
+- Leaving out earlier thinking has a cost: without its earlier reasoning, the model may think again and use more tokens. In one test, the same follow-up question took 2,422 thinking tokens instead of 29. This happens only on newer accounts, and only to thinking that came after an image you left out.
+- Not tried yet in Claude Desktop: forking, `/compact` and `/rewind`, subagents, uninstalling and reinstalling, restarting the app, a sign-in refresh, and macOS and Linux. Feedback in the issues is welcome.
+- Claude Desktop can't add a plugin marketplace from GitHub by itself yet, so adding this one takes the `claude` command once; see the README. Without Codex installed, the plugin needs Node 24 or later.
+- If `/cam` is the first message of a new session, the prompt box may say the command doesn't exist. Send it anyway: Claude Desktop starts the session with your first message, and the plugin adds `/cam` then.
+
+## [0.3.0] - 2026-10-06
+
+Let the model pick the images it needs.
+
+### Features
+
+- An *Auto-select* switch at the bottom of the panel, for each task. With it on, images from earlier turns are left out by default, even one generated a turn ago, and the model fetches the ones it needs by ID with the plugin's `cam_view_image` tool, for that turn only. The placeholders before a fetched image stay as they were, so the cached part of the request isn't broken.
+- Check an image to pin it: pinned images go every turn. Pins are kept apart from your own checks, which come back as they were when you switch Auto-select off.
+- The panel lists what the model fetched in the latest turn and marks those rows; click an ID to jump to one. The request estimate becomes a minimum, since what the model will fetch isn't known beforehand.
+- With Auto-select off, everything works as in 0.2.0, and the requests sent are byte-identical. Codex doesn't list plugin tools to the model, so the model only learns about the tool from the note it gets with Auto-select on.
+
+### Notes
+
+- Tested with three GPT-6 models at low effort, in Chinese and English. GPT-6 Sol and Astra fetched the images they needed, left the rest alone, and read what they fetched correctly. GPT-6 Luna mostly decided right but sometimes misread small details in a fetched image, as it does with images opened with Codex's own image viewer. Pin an image whose details matter, or use a larger model.
+- Each image the model fetches adds a request to that turn.
+- Platforms are the same as in 0.2.0. On Windows, the self-tests ran on the Codex runtime of the desktop app 26.930, and the plugin runs in that app; automatic selection hasn't been tried by hand in the desktop app yet, so feedback in the issues is welcome. CI checks that the plugin installs and starts on macOS and Linux.
+
+## [0.2.0] - 2026-09-29
+
+Filter the panel's list by where each image came from.
+
+### Features
+
+- A filter button next to refresh unfolds the task's sources, each with its count: uploads, PDF pages, web page screenshots, and images the model viewed, got from a tool or generated. Pick one or several to show only their images; *All* shows everything again. The button shows only when a task has images from two sources or more, and it keeps a dot while a filter is on and the bar is folded away.
+- The screenshots Codex attaches when you comment on a PDF page or a web page are told apart from your uploads. A PDF page shows its page number and the PDF's name.
+- Filtering changes what you see, never what is sent: the request estimate still counts every image, a turn's checkbox covers only the images shown, and jumping to an image the model asked for shows it even when the filter hides it.
+- The text sent to the model is the same as in 0.1.0.
+
+### Notes
+
+- Only images are managed, because Codex sends the model text and images only. PDFs and videos reach the model as text or images the model makes of them, and those images are listed like any other. The models in Codex don't accept audio yet, so Codex replaces audio with a short note before sending; audio support waits for a model that accepts it.
+- Platforms are the same as in 0.1.0: tested on Windows with the Codex desktop app 26.924; CI checks that the plugin installs and starts on macOS and Linux.
+
+## [0.1.0] - 2026-09-28
+
+The first public release (MVP): in the same Codex task, decide turn by turn which past images go to the model with your next message.
+
+### Features
+
+- A *Context Assets* tab in the side panel of the Codex desktop app lists every image in the task's history by turn: the ones you uploaded and the ones the model viewed or generated, with thumbnails, IDs, source, dimensions and size. Click one to preview it.
+- Checked images are sent as usual; unchecked ones become placeholders from the next message on, and one click applies the change. When an identical image is still being sent, the placeholder points to it. The task and the conversation stay the same.
+- When images are left out, the model gets a context management note: you left the originals out to save context, and the answers it gave while looking at them still stand. The model doesn't take back earlier answers or make up details it can't see, and replies "need IMG-xxx" when it needs an original. A checked image goes back to its place in the conversation, marked with its ID, so the model recognizes it and answers from the image.
+- The panel estimates the size of the next request and how much you save compared with sending every image, and warns you when a request could not be rewritten or a WebSocket turn still carries the originals.
+- For tasks with many images: the images the model asked for but you haven't checked are listed at the top of the panel, and clicking an ID jumps to the image. Each turn can be checked or unchecked as a whole.
+- The panel, its tab name and the note for the model follow Codex's language (English or Simplified Chinese).
+- Install without a terminal: add the plugin marketplace on Codex's Plugins page, install the plugin, and click "Enable plugin" in the panel. One-line install and uninstall commands are available too.
+- Before uninstalling, click "Disable plugin" in the panel so Codex connects directly again. The uninstall command needs no plugin files and restores the connection even when Codex can't connect.
+- After an upgrade, the new engine takes over from the old one, and requests already in flight finish normally.
+
+### Platforms
+
+- Windows: tested with the Codex desktop app 26.924.
+- macOS and Linux: CI verifies that Codex installs the plugin and starts the plugin server and the engine, and that the install and uninstall scripts work. Nobody has tried the desktop app on these platforms yet; feedback in the issues is welcome.

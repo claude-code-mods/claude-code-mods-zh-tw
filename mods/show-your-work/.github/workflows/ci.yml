@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main, releases, latest]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Lint, validate and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Lint
+        run: npx --yes @biomejs/biome@1.9.4 lint hooks tests types
+
+      - name: Bundle is up to date
+        run: node tools/bundle.mjs --check
+
+      - name: Test the bundle step
+        run: node --test tools/bundle.test.mjs tools/trim.test.mjs
+
+      # 2.1.286 is the oldest Claude Code the plugin supports (README, Install).
+      - name: Validate and test on the oldest supported Claude Code
+        run: |
+          npx --yes @anthropic-ai/claude-code@2.1.286 plugin validate .
+          npx --yes @anthropic-ai/claude-code@2.1.286 plugin test .
+
+      - name: Install Claude Code
+        run: npm install --global @anthropic-ai/claude-code@2.1.299
+
+      - name: Validate the plugin
+        run: claude plugin validate .
+
+      - name: Run the tests
+        run: claude plugin test .

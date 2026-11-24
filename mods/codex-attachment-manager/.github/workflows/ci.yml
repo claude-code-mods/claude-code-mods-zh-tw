@@ -1,0 +1,46 @@
+# Unit tests and an install-and-start smoke test on the three platforms Codex runs on. Only Windows is tested by hand,
+# so these runs are the first check that the plugin still starts on macOS and Linux.
+name: CI
+
+on:
+  # Branches only: a release tag runs this workflow through release.yml.
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          # The version Codex ships; the plugin runs TypeScript directly (type stripping).
+          node-version: 24
+      - name: Unit tests
+        working-directory: spike
+        run: node --test
+      # The plugin as a user gets it: Codex's own command line installs it, a Codex thread starts its MCP server
+      # through .mcp.json and the launcher, and the MCP server starts the engine. No login needed.
+      - name: Install the Codex command line
+        run: npm install --global @openai/codex
+      - name: Plugin smoke test
+        run: node spike/src/plugin-smoke.ts
+      # The one-line install and uninstall scripts of this platform, against a throwaway Codex home.
+      - name: Install script smoke test
+        run: node spike/src/scripts-smoke.ts --upgrade

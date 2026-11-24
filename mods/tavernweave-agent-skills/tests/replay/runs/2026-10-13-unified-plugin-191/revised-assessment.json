@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "reviewType": "independent-written-response-review",
+  "source": "revised-response.json",
+  "scope": "Written answer checked against plugin-runtime.md and communication-and-guidance.md; no dots host execution, model replay, preference write, or next-task loading observed.",
+  "cases": [
+    {
+      "id": "guidance-inferred-tier",
+      "pass": true,
+      "rationale": "新版答覆保留使用者直接選擇的新人檔用於當前任務，明確三次成功、沉默和材料建議都不構成升到熟練檔的授權。它把長期儲存及跨任務沿用限定在當前宿主確有正式持久目標並能回讀的證據上；沒有該能力時只確認本任務生效。以後換檔仍要求使用者直接提出，並在真實可用、已獲授權的目標上預覽受控改動與回讀，符合兩份來源規則。",
+      "unmet": []
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { findCli } from './cli'
+import { dataDir } from './data-dir'
+import { herdrOnWrite } from './host'
+import { readState, useQuestionHistory } from './state'
+import { questionHistoryPlace } from './question-history'
+import { run } from './run'
+import { NEXT_BUILD_MARK } from '../../hooks/banners'
+import { codexAsk, statusRecords, refreshStatus, runUpdates } from './update'
+import { STATUS_REFRESH } from './detached-update'
+
+async function main() {
+  const sessionId = process.argv[2] ?? ''
+  const isStatusRefresh = process.argv[3] === STATUS_REFRESH
+  const pluginRoot = dirname(dirname(fileURLToPath(import.meta.url)))
+  const dir = dataDir(process.env, pluginRoot)
+  useQuestionHistory(questionHistoryPlace(process.env, dir))
+  const { cliPath } = await readState(dir, sessionId)
+  const cli = cliPath ?? (await findCli(process.env, run, process.ppid))
+  const personHome = process.env.CODEX_HOME || join(homedir(), '.codex')
+  const ask = codexAsk(run, cli, dir, personHome)
+  const onWrite = herdrOnWrite(process.env, run, dir, Date.now)
+  const records = existsSync(join(pluginRoot, NEXT_BUILD_MARK)) ? statusRecords(dir, sessionId) : undefined
+  if (isStatusRefresh) await refreshStatus(dir, sessionId, ask, Date.now, onWrite, records)
+  else await runUpdates(dir, sessionId, ask, Date.now, onWrite, records)
+}
+
+main().catch(() => process.exit(0))

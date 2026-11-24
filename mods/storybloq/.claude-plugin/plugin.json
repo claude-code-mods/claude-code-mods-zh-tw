@@ -1,0 +1,51 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "storybloq",
+  "displayName": "Storybloq",
+  "version": "1.16.0",
+  "description": "Claude Code 與 Codex 的專案記憶。Storybloq 把工單、issue、交接和教訓存進倉庫內的 .story/ 目錄。",
+  "author": {
+    "name": "Amir Shayegh",
+    "url": "https://storybloq.com"
+  },
+  "homepage": "https://storybloq.com",
+  "repository": "https://github.com/Storybloq/storybloq",
+  "license": "PolyForm-Shield-1.0.0",
+  "keywords": [
+    "storybloq",
+    "claude-code",
+    "session-continuity",
+    "agentic-development"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "userConfig": {
+    "sidebar": {
+      "title": "臺賬儀表盤",
+      "type": "boolean",
+      "default": true,
+      "description": "在對話記錄旁的側邊面板中顯示 .story/ 臺賬。預設開啟；可用 /plugin configure storybloq 關閉。沒有 .story/ 目錄的專案無論開關都不會顯示（T-508、T-516）。"
+    },
+    "startupLogo": {
+      "title": "Storyfield 啟動標誌",
+      "type": "boolean",
+      "default": true,
+      "description": "在儀表盤前短暫顯示銅色點波標誌。關閉後直接顯示看板。"
+    },
+    "motion": {
+      "title": "儀表盤動畫",
+      "type": "boolean",
+      "default": true,
+      "description": "為啟動、階段進度、故事更新、活動和上下文計量器新增動畫。關閉後儀表盤保持靜態，但仍顯示當前狀態與活動。"
+    },
+    "changeHighlights": {
+      "title": "故事狀態高亮",
+      "type": "boolean",
+      "default": true,
+      "description": "短暫高亮發生變化的故事和目標計數，並在障礙解除時顯示“就緒”。需要開啟儀表盤動畫。"
+    }
+  },
+  "metadata": {
+    "functionHooks": "Early-access Claude Code API (client 2.1.273, see hooks/client-api.ts). By owner decision the ledger dashboard ships on by default in 1.15 (T-516): storybloq setup writes env.CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 into ~/.claude/settings.json, which is what lets the client load this module at all, and the userConfig default above is what turns the Mod on inside it."
+  }
+}

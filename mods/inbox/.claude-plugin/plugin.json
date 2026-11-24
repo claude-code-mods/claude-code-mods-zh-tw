@@ -1,0 +1,13 @@
+{
+  "name": "inbox",
+  "version": "0.6.0",
+  "description": "彙總會話中等著你處理的問題、任務、發現和 PR。",
+  "author": { "name": "Pete Petrash" },
+  "repository": "https://github.com/petekp/inbox",
+  "homepage": "https://github.com/petekp/inbox",
+  "documentationUrl": "https://github.com/petekp/inbox#readme",
+  "supportUrl": "https://github.com/petekp/inbox/issues",
+  "privacyPolicyUrl": "https://github.com/petekp/inbox#what-it-runs-sends-and-changes",
+  "license": "MIT",
+  "types": "./types/index.d.ts"
+}

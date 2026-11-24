@@ -1,0 +1,508 @@
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
+import { delimiter, dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { parseArgs } from 'node:util'
+
+import { CLAUDE_CODE, guidanceText, guidedCloseDescription, MAX_TOOL_DESCRIPTION } from '../hooks/model-text'
+import { CODEX } from '../codex/src/texts'
+import { OMP } from '../omp/src/texts'
+import { MODEL } from '../codex/src/update'
+import { agentTools } from '../hooks/tools'
+import { probeTools } from './probe-tools'
+import { readsFor } from './agent-reads'
+import { failures } from './agent-checks'
+import type { Agent, Call, Case, Outcome } from './agent-checks'
+import {
+  assertOnlyOmpProbe,
+  assertOnlyProbe,
+  exec,
+  guidance,
+  lines,
+  message,
+  ompClaudeToken,
+  PROBE,
+  PROBE_TOOLS,
+  TIMEOUT_MS,
+  tomlString,
+  writesOnlyUnder,
+} from './agent-cli'
+import { codexCli } from './codex-cli'
+import {
+  assertCodexOffersOnlyProbe,
+  assertCodexUsedOnlyProbe,
+  CODEX_ISOLATION_CONFIG,
+  CODEX_WEB_SEARCH_CONFIG,
+  codexEnv,
+  codexResourceCall,
+} from './codex-isolation'
+import {
+  earlierRuns,
+  finish,
+  IsolationError,
+  provenance,
+  readBaselines,
+  readCases,
+  repoFile,
+  report,
+  resultsPath,
+  runCount,
+  runJobs,
+  selectCases,
+  stamp,
+  writeResults,
+} from './harness'
+import type { Job, Run, Stamps } from './harness'
+
+const MIN = 0.75
+const OMP_MODEL = 'anthropic/claude-opus-5-5'
+
+const { values } = parseArgs({
+  options: {
+    agent: { type: 'string', default: 'both' },
+    'claude-model': { type: 'string', default: 'opus' },
+    'omp-model': { type: 'string', default: OMP_MODEL },
+    runs: { type: 'string', default: '5' },
+    case: { type: 'string' },
+    out: { type: 'string' },
+    'set-baseline': { type: 'boolean', default: false },
+    with: { type: 'string' },
+    cases: { type: 'string', default: 'evals/agent-cases' },
+    probe: { type: 'string' },
+    'omp-probe': { type: 'string' },
+    'no-guidance': { type: 'boolean', default: false },
+  },
+})
+const AGENTS: Record<string, Agent[]> = {
+  both: ['claude', 'codex'],
+  all: ['claude', 'codex', 'omp'],
+  claude: ['claude'],
+  codex: ['codex'],
+  omp: ['omp'],
+}
+const selected = AGENTS[values.agent]
+if (!selected) throw new Error(`Unknown --agent ${values.agent}. Use claude, codex, omp, both or all.`)
+const agents: Agent[] = selected
+const runs = runCount(values.runs)
+const caseFiles = readCases<Case>(values.cases)
+const cases: Case[] = selectCases(caseFiles.cases, values.case)
+/** The control run: every agent gets the tools and the inbox text, and none gets the guidance. */
+const isGuided = !values['no-guidance']
+const probeServer = values.probe ?? fileURLToPath(new URL('./probe.mjs', import.meta.url))
+const ompProbe = values['omp-probe'] ?? fileURLToPath(new URL('./omp-probe.mjs', import.meta.url))
+
+const CODEX_EFFORT = 'medium'
+const CLAUDE_MODEL = values['claude-model']
+const OMP_RUN_MODEL = values['omp-model']
+const OMP_RUN_MODEL_ID = OMP_RUN_MODEL.split('/').at(-1)
+
+const CLAUDE_FLAGS = [
+  '-p',
+  '--no-session-persistence',
+  '--model',
+  CLAUDE_MODEL,
+  '--strict-mcp-config',
+  '--setting-sources',
+  '',
+  '--tools',
+  '',
+  '--allowedTools',
+  PROBE_TOOLS.join(','),
+  '--output-format',
+  'stream-json',
+  '--verbose',
+]
+const CODEX_FLAGS = ['exec', '--ephemeral', '--skip-git-repo-check', '--strict-config', '--json', '-s', 'read-only']
+const CODEX_SETTINGS = [
+  `model = ${tomlString(MODEL)}`,
+  `model_reasoning_effort = ${tomlString(CODEX_EFFORT)}`,
+  CODEX_WEB_SEARCH_CONFIG,
+  ...(isGuided ? [`developer_instructions = ${tomlString(guidance(CODEX))}`] : []),
+]
+const OMP_FLAGS = [
+  '-p',
+  '--mode',
+  'json',
+  '--no-session',
+  '--no-extensions',
+  '--tools=bash',
+  '--approval-mode=yolo',
+  '--no-lsp',
+  '--no-skills',
+  '--no-rules',
+  '--no-title',
+  '--model',
+  OMP_RUN_MODEL,
+]
+
+/**
+ * A fresh folder for one run: the stand-in server's state and log, the working folder with the case's files, and the
+ * `PATH` for an agent's shell, with the case's scripts first.
+ */
+function sandbox(c: Case, agent: Agent) {
+  const dir = mkdtempSync(join(tmpdir(), 'inbox-agent-eval-'))
+  const work = join(dir, 'work')
+  mkdirSync(work)
+  for (const [path, text] of Object.entries(c.files ?? {})) {
+    mkdirSync(dirname(join(work, path)), { recursive: true })
+    writeFileSync(join(work, path), text)
+  }
+  const bin = join(dir, 'bin')
+  for (const [name, script] of Object.entries(c.bin ?? {})) {
+    mkdirSync(bin, { recursive: true })
+    writeFileSync(join(bin, name), script)
+    chmodSync(join(bin, name), 0o755)
+  }
+  const path = c.bin ? [bin, process.env.PATH].filter(Boolean).join(delimiter) : process.env.PATH
+  const state = join(dir, 'state.json')
+  const log = join(dir, 'calls.jsonl')
+  writeFileSync(
+    state,
+    JSON.stringify({
+      agent,
+      isGuided,
+      shown: c.ledger ?? {},
+      ledger: c.toolLedger ?? c.ledger ?? {},
+      lastActions: c.lastActions ?? {},
+      tools: c.tools ?? null,
+    }),
+  )
+  writeFileSync(log, '')
+  const serverArgs = [probeServer, '--state', state, '--log', log]
+  const calls = (): Call[] =>
+    lines(readFileSync(log, 'utf8')).map(l => ({ tool: l.tool, args: l.args, result: l.result }))
+
+  return { dir, work, path, state, log, serverArgs, calls }
+}
+
+async function runClaude(c: Case): Promise<Outcome> {
+  const s = sandbox(c, 'claude')
+  try {
+    return await claudeIn(c, s)
+  } finally {
+    rmSync(s.dir, { recursive: true, force: true })
+  }
+}
+
+/**
+ * The whole environment of a Claude run: the sign-in's variables and nothing of the runner's own session, whose
+ * variables load its plugins, such as the real inbox, into the run. Claude reads its sign-in from the keychain of `USER`.
+ */
+function claudeEnv(): NodeJS.ProcessEnv {
+  const signIn = ['CLAUDE_CONFIG_DIR', 'CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN']
+  const kept = Object.fromEntries(signIn.flatMap(k => (process.env[k] ? [[k, process.env[k]]] : [])))
+
+  return {
+    PATH: process.env.PATH,
+    HOME: process.env.HOME,
+    USER: process.env.USER,
+    ...kept,
+    CLAUDE_CODE_MAX_MCP_DESCRIPTION_LENGTH: String(MAX_TOOL_DESCRIPTION),
+  }
+}
+
+async function claudeIn(c: Case, s: ReturnType<typeof sandbox>): Promise<Outcome> {
+  const config = join(s.dir, 'mcp.json')
+  writeFileSync(config, JSON.stringify({ mcpServers: { [PROBE]: { command: process.execPath, args: s.serverArgs } } }))
+  // stream-json carries every assistant message. --output-format json returns only the text after the last tool call.
+  const r = await exec(['claude', ...CLAUDE_FLAGS, '--mcp-config', config], {
+    cwd: s.work,
+    env: claudeEnv(),
+    input: message(c, CLAUDE_CODE),
+  })
+  const events = lines(r.stdout)
+  const init = events.find(e => e.type === 'system' && e.subtype === 'init')
+  if (!init)
+    return {
+      reply: '',
+      calls: s.calls(),
+      error: `claude exited ${r.code} before it started a session: ${r.stderr.slice(0, 300)}`,
+      model: null,
+      raw: r.stdout,
+    }
+  const servers: { name: string; status: string }[] = init.mcp_servers ?? []
+  const isProbeDown = servers.length === 1 && servers[0]!.name === PROBE && servers[0]!.status !== 'connected'
+  if (isProbeDown)
+    return {
+      reply: '',
+      calls: s.calls(),
+      error: `the ${PROBE} server did not connect: ${servers[0]!.status}`,
+      model: init.model ?? null,
+      raw: r.stdout,
+    }
+  assertOnlyProbe(init)
+  const reply = events
+    .filter(e => e.type === 'assistant')
+    .flatMap(e => e.message.content as { type: string; text?: string }[])
+    .filter(b => b.type === 'text')
+    .map(b => b.text)
+    .join('\n')
+  const failed = !events.some(e => e.type === 'result' && e.is_error === false)
+
+  return {
+    reply,
+    calls: s.calls(),
+    error: failed ? `claude exited ${r.code}: ${r.stderr.slice(0, 300)}` : null,
+    model: init?.model ?? null,
+    raw: r.stdout,
+  }
+}
+
+function codexHome(s: ReturnType<typeof sandbox>): string {
+  const home = join(s.dir, 'codex-home')
+  mkdirSync(home)
+  // Only the sign-in: the runner's own AGENTS.md, rules and installed plugins would reach the agent.
+  const auth = join(process.env.CODEX_HOME || join(homedir(), '.codex'), 'auth.json')
+  if (existsSync(auth)) symlinkSync(auth, join(home, 'auth.json'))
+  writeFileSync(
+    join(home, 'config.toml'),
+    [
+      ...CODEX_SETTINGS,
+      `[mcp_servers.${PROBE}]`,
+      `command = ${tomlString(process.execPath)}`,
+      `args = ${JSON.stringify(s.serverArgs)}`,
+      `default_tools_approval_mode = "approve"`,
+      ...CODEX_ISOLATION_CONFIG,
+      '',
+    ].join('\n'),
+  )
+
+  return home
+}
+
+async function runCodex(c: Case): Promise<Outcome> {
+  const s = sandbox(c, 'codex')
+  try {
+    return await codexIn(c, s)
+  } finally {
+    rmSync(s.dir, { recursive: true, force: true })
+  }
+}
+
+async function codexIn(c: Case, s: ReturnType<typeof sandbox>): Promise<Outcome> {
+  const home = codexHome(s)
+  const r = await exec([codexCli, ...CODEX_FLAGS, '-C', s.work, message(c, CODEX)], {
+    cwd: s.work,
+    env: { ...codexEnv(s.dir, home), PATH: s.path },
+  })
+  const events = lines(r.stdout)
+  assertCodexUsedOnlyProbe(events)
+  const reply = events
+    .filter(e => e.type === 'item.completed' && e.item?.type === 'agent_message')
+    .map(e => e.item.text as string)
+    .join('\n')
+
+  return {
+    reply,
+    calls: s.calls(),
+    error: r.code === 0 ? codexResourceCall(events) : `codex exited ${r.code}: ${r.stderr.slice(0, 300)}`,
+    model: null,
+    raw: r.stdout,
+  }
+}
+
+/**
+ * Runs omp in print mode with its `bash` tool and the probe extension, in a fresh HOME that holds nothing of the
+ * person's omp config. Like Codex, it has a shell that can write only in the case's folder. The sign-in token reaches
+ * omp through the environment of this one command.
+ */
+async function ompIn(c: Case, s: ReturnType<typeof sandbox>): Promise<Outcome> {
+  const signIn = await ompClaudeToken()
+  if (signIn.error) return { reply: '', calls: s.calls(), error: signIn.error, model: null, raw: '' }
+  const home = join(s.dir, 'omp-home')
+  mkdirSync(home)
+  const toolsFile = join(s.dir, 'tools.json')
+  const r = await exec(['sandbox-exec', '-p', writesOnlyUnder(s.dir), 'omp', ...OMP_FLAGS, '-e', ompProbe, c.prompt], {
+    cwd: s.work,
+    env: {
+      PATH: s.path,
+      HOME: home,
+      ANTHROPIC_OAUTH_TOKEN: signIn.token,
+      INBOX_EVAL_STATE: s.state,
+      INBOX_EVAL_LOG: s.log,
+      INBOX_EVAL_TOOLS: toolsFile,
+      ...(isGuided ? {} : { INBOX_EVAL_NO_GUIDANCE: '1' }),
+    },
+  })
+  const events = lines(r.stdout)
+  if (!existsSync(toolsFile) && r.code !== 0) {
+    const why = r.code === -1 ? `timed out after ${TIMEOUT_MS / 1000}s or was killed` : `exited ${r.code}`
+    return {
+      reply: '',
+      calls: s.calls(),
+      error: `omp ${why} before it listed its tools: ${r.stderr.slice(0, 300)}`,
+      model: null,
+      raw: r.stdout,
+    }
+  }
+  if (!existsSync(toolsFile))
+    return { reply: '', calls: s.calls(), error: 'omp did not load the probe extension', model: null, raw: r.stdout }
+  assertOnlyOmpProbe(toolsFile)
+  // Like the Claude run, the reply is every assistant message's text, since the text after a tool call is not the whole reply.
+  const reply = events
+    .filter(e => e.type === 'message_end' && e.message?.role === 'assistant')
+    .flatMap(e => e.message.content as { type: string; text?: string }[])
+    .filter(b => b.type === 'text')
+    .map(b => b.text)
+    .join('\n')
+  const end = events.findLast(e => e.type === 'agent_end')
+  const lastAssistant = end?.messages?.findLast((m: { role: string }) => m.role === 'assistant')
+  const failed =
+    r.code !== 0 || !end || lastAssistant?.stopReason === 'error' || lastAssistant?.stopReason === 'aborted'
+  // omp runs the nearest model its catalog has when it lacks the one named, and says so only in each message.
+  const models = events
+    .filter(e => e.type === 'message_end' && e.message?.role === 'assistant')
+    .map(e => e.message.model as string)
+  const otherModel = models.find(m => m !== OMP_RUN_MODEL_ID)
+
+  return {
+    reply,
+    calls: s.calls(),
+    error: failed
+      ? `omp ${r.code === -1 ? 'timed out or was killed' : `exited ${r.code}`}${end ? '' : ' without agent_end'}: ${lastAssistant?.errorMessage ?? r.stderr.slice(0, 300)}`
+      : otherModel !== undefined
+        ? `omp ran ${otherModel}, not ${OMP_RUN_MODEL}`
+        : null,
+    model: models[0] ?? null,
+    raw: r.stdout,
+  }
+}
+
+async function runOmp(c: Case): Promise<Outcome> {
+  const s = sandbox(c, 'omp')
+  try {
+    return await ompIn(c, s)
+  } finally {
+    rmSync(s.dir, { recursive: true, force: true })
+  }
+}
+
+type Result = Run & { reply: string; calls: Call[]; raw: string }
+
+/** An `IsolationError` is thrown on, so the whole run stops. */
+async function once(agent: Agent, c: Case, n: number): Promise<Result> {
+  const run = agent === 'codex' ? runCodex : agent === 'omp' ? runOmp : runClaude
+  const o = await run(c).catch((e): Outcome => {
+    if (e instanceof IsolationError) throw e
+
+    return { reply: '', calls: [], error: String(e), model: null, raw: '' }
+  })
+  const failed = o.error ? [] : failures(o, c.checks)
+
+  return { ...o, ...job(agent, c, n), failed, attempts: 1, earlier: [], durationMs: 0 }
+}
+
+const REQUESTED: Record<Agent, string> = { claude: CLAUDE_MODEL, codex: MODEL, omp: OMP_RUN_MODEL }
+
+function job(agent: Agent, c: Case, n: number) {
+  return { agent, name: c.name, run: n, requested: REQUESTED[agent] }
+}
+
+const casesFor = (a: Agent) => cases.filter(c => c.agents?.includes(a) ?? true)
+
+async function assertOnlyCodexProbe() {
+  if (!agents.includes('codex')) return
+  const configCase = casesFor('codex').find(c => Object.keys(c.files ?? {}).some(f => f.split('/')[0] === '.codex'))
+  if (configCase)
+    throw new IsolationError(`${configCase.name} writes a .codex folder, which the preflight does not see`)
+  const probe = sandbox({ name: 'preflight', about: '', prompt: '', checks: [] }, 'codex')
+  try {
+    await assertCodexOffersOnlyProbe(codexCli, probe.work, codexEnv(probe.dir, codexHome(probe)))
+  } finally {
+    rmSync(probe.dir, { recursive: true, force: true })
+  }
+}
+
+/** One trivial omp run, which fails when the session offers any tool besides the probe's, or any MCP server's. */
+async function assertOnlyOmpProbeSession() {
+  if (!agents.includes('omp')) return
+  const o = await runOmp({ name: 'preflight', about: '', prompt: 'Reply with the word ok.', checks: [] })
+  if (o.error) throw new IsolationError(`omp preflight failed: ${o.error}`)
+}
+
+if (isGuided && agents.includes('claude')) {
+  guidance(CLAUDE_CODE)
+  const closeDescription = guidedCloseDescription(
+    CLAUDE_CODE,
+    agentTools(CLAUDE_CODE).find(t => t.name === 'close')!.description,
+  )
+  if (closeDescription.length > MAX_TOOL_DESCRIPTION)
+    throw new Error(
+      `close's description is ${closeDescription.length} characters, and Claude Code sends ${MAX_TOOL_DESCRIPTION}`,
+    )
+}
+
+const about = provenance(
+  isGuided ? 'agent' : 'agent-no-guidance',
+  { claude: 'claude', codex: codexCli, omp: 'omp' },
+  {
+    ...Object.fromEntries(
+      [CLAUDE_CODE, CODEX, OMP].flatMap(host => [
+        [`guidanceText ${host.agent}`, guidanceText(host)],
+        [`tools ${host.agent}`, JSON.stringify(agentTools(host))],
+        [`tools 0.3.0 ${host.agent}`, JSON.stringify(probeTools(host, '0.3.0'))],
+      ]),
+    ),
+    'close description Claude': guidedCloseDescription(CLAUDE_CODE, ''),
+    cases: caseFiles.text,
+    models: JSON.stringify(REQUESTED),
+    runner: readFileSync(process.argv[1]!, 'utf8'),
+    probe: readFileSync(probeServer, 'utf8'),
+    'omp probe': readFileSync(ompProbe, 'utf8'),
+  },
+)
+const path = resultsPath(values.out, about)
+const firstRuns = earlierRuns<Result>(values.with, about, path)
+const preflight = await Promise.all([assertOnlyCodexProbe(), assertOnlyOmpProbeSession()]).then(
+  () => null,
+  (e: unknown) => `preflight: ${String(e)}`,
+)
+const jobs: Job<Result>[] = agents.flatMap(a =>
+  casesFor(a).flatMap(c =>
+    Array.from({ length: runs }, (_, n) => ({
+      go: () => once(a, c, n),
+      unrun: (error: string): Result => ({
+        ...job(a, c, n),
+        model: null,
+        reply: '',
+        calls: [],
+        raw: '',
+        error,
+        failed: [],
+        attempts: 1,
+        earlier: [],
+        durationMs: 0,
+      }),
+    })),
+  ),
+)
+const { results, stopped } =
+  preflight === null
+    ? await runJobs(jobs, so => writeResults(path, about, so))
+    : { results: [] as Result[], stopped: preflight }
+writeResults(path, about, results, stopped)
+const judged = [...firstRuns, ...results]
+const RUN_SETTINGS: Record<Agent, string[]> = {
+  claude: [...CLAUDE_FLAGS, String(MAX_TOOL_DESCRIPTION)],
+  codex: [...CODEX_FLAGS, ...CODEX_SETTINGS, ...CODEX_ISOLATION_CONFIG],
+  omp: OMP_FLAGS,
+}
+const grading = repoFile('evals/agent-checks.ts')
+const stamps: Stamps = Object.fromEntries(
+  agents.flatMap(a =>
+    casesFor(a).map(c => [`${a} ${c.name}`, stamp(c, readsFor(a, c, isGuided), [grading, ...RUN_SETTINGS[a]])]),
+  ),
+)
+const baselines = readBaselines(about.suite)
+const verdicts = agents.map(a => report([a], casesFor(a), judged, runs, MIN, baselines, stamps))
+const verdict = verdicts.includes('fail') ? 'fail' : verdicts.includes('not run') ? 'not run' : 'pass'
+finish(about, path, judged, stopped, verdict, values['set-baseline'], stamps)

@@ -1,0 +1,38 @@
+#!/usr/bin/env node
+// Lists the settings changes tokendoctor wrote and reverts one. Dry run by default; --write writes.
+// Usage: tokendoctor-undo [--json]        the last 20 changes, newest first (1 is the newest)
+//        tokendoctor-undo <n> [--write]   put back the values change n replaced
+import { planOps, readJournal, valueAt, writePlan, describePlan } from '../lib/apply.mjs'
+import { readFileSync, existsSync } from 'node:fs'
+
+const args = process.argv.slice(2)
+const journal = readJournal().slice(0, 20)
+const n = args.find((a) => /^\d+$/.test(a))
+if (!n) {
+  if (args.includes('--json')) console.log(JSON.stringify(journal))
+  else if (!journal.length) console.log('tokendoctor 还没有做过任何修改。')
+  else journal.forEach((e, i) => console.log(`${String(i + 1).padStart(2)}  ${e.at}  ${e.scope}  ${e.changes.map((c) => `${c.key}: ${JSON.stringify(c.before) ?? 'unset'} → ${JSON.stringify(c.after) ?? 'unset'}`).join(', ')}`))
+  process.exit(0)
+}
+const entry = journal[Number(n) - 1]
+if (!entry) {
+  console.error(`No change ${n}: there are ${journal.length}.`)
+  process.exit(1)
+}
+// Each key goes back only while it still holds what this change wrote; a later change wins.
+const now = existsSync(entry.path) ? JSON.parse(readFileSync(entry.path, 'utf8')) : {}
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+const back = entry.changes.filter((c) => same(valueAt(now, c.key), c.after))
+const moved = entry.changes.filter((c) => !back.includes(c))
+for (const c of moved) console.log(`  保留 ${c.key}：此后又被修改（现在为 ${JSON.stringify(valueAt(now, c.key)) ?? '未设置'}）`)
+if (!back.length) {
+  console.log('没有可恢复的修改。')
+  process.exit(0)
+}
+const plan = planOps(entry.path, entry.scope, back.map((c) => (c.before === undefined ? { op: 'unset', key: c.key } : { op: 'set', key: c.key, value: c.before })))
+const write = args.includes('--write')
+console.log(`${write ? '正在应用' : '将修改'}（${plan.scope}）：${describePlan(plan)}`)
+if (write) {
+  const result = writePlan(plan)
+  console.log(result.written ? `  已写入${result.backup ? `，备份：${result.backup}` : ''}` : `  已跳过：${result.reason}`)
+} else console.log('\n试运行。加 --write 重新运行即可应用。')

@@ -1,0 +1,95 @@
+import { describe, expect, test } from 'claude-code/testing'
+
+import { SESSION_ID, T0, endTurn, journalRows, spawn, start, world } from './harness.ts'
+
+const DAY = 86_400_000
+
+describe('lockouts and the report', () => {
+  test('a usage-limit failure is journaled as a lockout; a transient rate limit is not', async ($, on) => {
+    const w = world(on)
+    await start($, w, false)
+    await $.classic.StopFailure({ error: 'rate_limit', error_details: 'API Error: Request rejected (429) · overloaded' } as never)
+    await endTurn($, 'error')
+    await $.classic.StopFailure({ error: 'rate_limit', error_details: "Claude usage limit reached. Your limit will reset at 3pm" } as never)
+    await endTurn($, 'error')
+    await $.classic.StopFailure({ error: 'server_error', error_details: 'usage limit' } as never)
+    await endTurn($, 'error')
+    await $.classic.StopFailure({ error: 'rate_limit', error_details: "You've hit your weekly limit · resets Oct 9" } as never)
+    await endTurn($, 'error')
+    await $.classic.StopFailure({ error: 'billing_error', error_details: 'You have reached your monthly spend limit.' } as never)
+    await endTurn($, 'error')
+    await $.classic.StopFailure({ error: 'rate_limit', error_details: 'Opus limit reached. Use /model to switch to another model.' } as never)
+    await endTurn($, 'error')
+    expect(journalRows(w).map((r) => `${r.ev}:${r.kind}`)).toEqual(['lockout:unknown', 'lockout:seven_day', 'lockout:spend_limit', 'lockout:model'])
+  })
+
+  test('a lockout row keeps when the window that locked resets', async ($, on) => {
+    const w = world(on)
+    await start($, w, false)
+    const resetsAt = '2027-01-15T15:00:00.000Z'
+    await $.session.measure({ context: { window: 1_000_000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 100, resetsAt }], changed: ['rateLimits'] } as never)
+    await $.classic.StopFailure({ error: 'rate_limit', error_details: "You've hit your session limit · resets 3pm" } as never)
+    await endTurn($, 'error')
+    expect(journalRows(w).filter((r) => r.ev === 'lockout')).toEqual([expect.objectContaining({ kind: 'five_hour', pct: 100, resets: Date.parse(resetsAt) })])
+  })
+
+  test('/agent-guard report reads every session\'s journal on this machine', async ($, on) => {
+    const w = world(on, {
+      store: {
+        'journal:2027-01-14:other-session': [
+          { t: T0 - DAY / 2, s: 'other-se', ev: 'lockout', kind: 'five_hour', pct: 100 },
+          { t: T0 - DAY / 2, s: 'other-se', ev: 'deny', rule: 'retry', tool: 'Bash', n: 1 },
+        ],
+      },
+    })
+    await start($, w, false)
+    await $.command.run({ command: 'agent-guard', args: 'allow', origin: { kind: 'composer' } } as never)
+    const report = await $.command.run({ command: 'agent-guard', args: 'report 3' } as never)
+    expect(report.text).toMatch(/3 events from 2 sessions/)
+    expect(report.text).toMatch(/Usage-limit lockouts: 1/)
+    expect(report.text).toMatch(/Overrides: 1 \(all 1\)/)
+  })
+
+  test('AGENT_GUARD_JOURNAL=0 records nothing', async ($, on) => {
+    const w = world(on, { env: { AGENT_GUARD_JOURNAL: '0' } })
+    await start($, w, false)
+    await $.command.run({ command: 'agent-guard', args: 'allow', origin: { kind: 'composer' } } as never)
+    expect(journalRows(w)).toEqual([])
+  })
+
+  test('housekeeping drops expired journal days and records of sessions long gone', async ($, on) => {
+    const w = world(on, {
+      store: {
+        'journal:2026-09-01:old': [{ t: T0 - 136 * DAY, s: 'old', ev: 'lockout' }],
+        'journal:2027-01-10:recent': [{ t: T0 - 5 * DAY, s: 'recent', ev: 'lockout' }],
+        'peer:gone': { v: 2, at: T0 - 2 * DAY, running: 3, starts: [], agentTokens: [], dormantResumes: [] },
+        'peer:alive': { v: 2, at: T0 - 60_000, running: 1, starts: [], agentTokens: [], dormantResumes: [] },
+        'last-active:gone': T0 - 31 * DAY,
+        'last-active:recent': T0 - 3 * DAY,
+      },
+    })
+    await start($, w, false)
+    expect([...w.store.keys()].sort()).toEqual(['journal:2027-01-10:recent', 'last-active:recent', 'peer:alive'])
+  })
+
+  test('a question asked while held agents are refused keeps its row in a new day\'s journal', async ($, on) => {
+    const w = world(on, { answers: ['Allow'] })
+    await start($, w, true)
+    for (let i = 0; i < 4; i++) await spawn($, w)
+    expect(journalRows(w)).toEqual([])
+    await Promise.all([spawn($, w), spawn($, w), spawn($, w)])
+    const rows = journalRows(w).map((r) => `${r.ev}:${r.rule}`)
+    expect(rows.filter((r) => r === 'ask:concurrency')).toHaveLength(1)
+    expect(rows.filter((r) => r === 'answer:concurrency')).toHaveLength(1)
+    expect(rows.filter((r) => r === 'deny:asking')).toHaveLength(2)
+  })
+
+  test('a journal row stores the rule and a context bucket, never the prompt', async ($, on) => {
+    const w = world(on, { contextTokens: 520_000 })
+    await start($, w, false)
+    await $.prompt.submit({ text: 'please refactor the billing module', origin: { kind: 'sdk' }, wait: false } as never)
+    const rows = journalRows(w)
+    expect(rows).toEqual([{ t: T0, s: SESSION_ID.slice(0, 8), ev: 'drop', rule: 'prompt-context', ctx: '>=500k' }])
+    expect(JSON.stringify([...w.store.values()])).not.toMatch(/billing/)
+  })
+})

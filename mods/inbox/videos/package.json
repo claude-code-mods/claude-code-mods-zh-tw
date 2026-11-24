@@ -1,0 +1,20 @@
+{
+  "name": "inbox-videos",
+  "private": true,
+  "type": "module",
+  "description": "The inbox's videos, rendered with Remotion. Each video's timeline is src/<video>/timeline.ts",
+  "scripts": {
+    "studio": "remotion studio",
+    "check": "node scripts/check.mjs"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.529",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remotion": "4.0.529"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.18",
+    "esbuild": "0.28.2"
+  }
+}

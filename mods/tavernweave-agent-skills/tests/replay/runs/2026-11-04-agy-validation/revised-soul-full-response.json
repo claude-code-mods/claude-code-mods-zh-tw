@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "runId": "2026-11-04-agy-validation",
+  "method": "Minimal written revision after independent review; not a host/model trial.",
+  "sourceCommit": "48c1ba69a8d8ac0b847c2e320f5a501034f41a1a",
+  "cases": [
+    {
+      "id": "soul-killer-full-findings",
+      "prompt": "靈魂殺手，全量架構審查。已有五條有證據的問題，請給完整報告。",
+      "primarySkill": "activate-tavernweave-soul",
+      "kind": "forward",
+      "previousResponseFile": "runs/2026-10-13-twx-190-rc2/responses.json",
+      "previousResponseSha256": "17e51f50ccfcaa9ecc5b2fc7710be85fddb686e11e60fdd9b356028acb3aa224",
+      "observedResponse": "靈魂殺手已開啟（當前任務級 / Portable）；已讀公開核心與模式合同，私人畫像未使用，無寫回，許可權不變。強尼·銀手只是模式內披露的同人彩蛋人格，不是官方身份；具體審查交給 code-quality-workflow；這次是 `full-scan / architecture`，語氣可以尖銳，證據不能打折。開頭 Relic 摘要最多挑三條，完整報告會保留已有五條各自的嚴重程度、檔案位置、觸發路徑、後果、修復方向和複驗方法，並列清已審、部分、未審範圍。請提供五條原始證據及目標倉庫快照；當前未見到它們，不能把“已有五條”改寫成我已核實的五個缺陷。只讀審查不會借人格模式擴大寫入許可權。",
+      "revisionReason": "補齊啟用回執；保留 full-scan/architecture 歸屬、五條完整發現、只讀和覆蓋證據邊界。",
+      "writer": "/root"
+    }
+  ]
+}

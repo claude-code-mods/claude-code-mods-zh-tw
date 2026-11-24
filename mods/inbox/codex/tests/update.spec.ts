@@ -1,0 +1,303 @@
+import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
+import { fork } from 'node:child_process'
+import { once } from 'node:events'
+import { fileURLToPath } from 'node:url'
+import { mkdir, symlink } from 'node:fs/promises'
+import { join } from 'node:path'
+import { test } from 'node:test'
+
+import { noteActivity } from '../../hooks/session-turns'
+import { endTurn, notePrompt, viewOf } from '../src/core'
+import { readState, statePath, updateState } from '../src/state'
+import { runUpdates as runBothCalls } from '../src/update'
+import { makeServer } from '../src/server'
+import type { Server } from '../src/server'
+import { ledgerOnly, movedRollout, removeTempDir, rolloutAt, tempDir } from './helpers'
+import { ex } from './update-fixtures'
+
+const runUpdates = (dir: string, id: string, ask: (prompt: string) => Promise<string | null>, now: () => number) =>
+  runBothCalls(dir, id, ledgerOnly(ask), now)
+
+if (process.env.INBOX_STATUS_WORKER_DIR) {
+  setInterval(() => undefined, 1_000)
+  await runUpdates(
+    process.env.INBOX_STATUS_WORKER_DIR,
+    's1',
+    async () => {
+      process.send?.('asking')
+      return new Promise(() => {})
+    },
+    Date.now,
+  )
+}
+
+test('a killed update worker leaves pending exchanges recoverable', async t => {
+  const dir = tempDir()
+  t.after(() => removeTempDir(dir))
+  await updateState(dir, 's1', s => ({
+    ...s,
+    pending: [{ ex: ex(1, 'Should I deploy?'), turnsStarted: 1 }],
+  }))
+  const lock = `${statePath(dir, 's1')}.updating`
+  const owner = `${lock}.owner-999999-${randomUUID()}`
+  await mkdir(owner)
+  await symlink(join(owner, 'held'), lock)
+
+  let calls = 0
+  await runUpdates(
+    dir,
+    's1',
+    async () => {
+      calls += 1
+      return 'NEW: decide | - | Deploy now? | Yes / No | Yes'
+    },
+    () => 5,
+  )
+
+  assert.equal(calls, 1)
+  assert.deepEqual((await readState(dir, 's1')).pending, [])
+})
+
+test('pending exchanges reach the ledger in order, a failed one waits for the next update, and a second failure drops it', async () => {
+  const dir = tempDir()
+  await updateState(dir, 's1', s => ({
+    ...s,
+    presence: { ...s.presence, turnsStarted: 2 },
+    pending: [
+      { ex: ex(1, 'Should I deploy?'), turnsStarted: 1 },
+      { ex: ex(2, 'Done.'), turnsStarted: 2 },
+    ],
+  }))
+  const prompts: string[] = []
+  const answers = ['NEW: decide | - | Deploy now? | Yes / No | Yes', null]
+  const ask = async (p: string) => (prompts.push(p), answers.shift() ?? null)
+  assert.deepEqual(viewOf(await readState(dir, 's1'), 4).status, { isRetrying: false, error: null })
+  await runUpdates(dir, 's1', ask, () => 5)
+
+  const kept = await readState(dir, 's1')
+  assert.equal(prompts.length, 2)
+  assert.match(prompts[1] ?? '', /i1 \| decide \| - \| Deploy now\?/)
+  assert.deepEqual(
+    kept.ledger.items.map(i => i.ask),
+    ['Deploy now?'],
+  )
+  assert.deepEqual(
+    kept.pending.map(p => [p.ex.turn, p.failed]),
+    [[2, true]],
+  )
+  assert.deepEqual(kept.presence, {
+    turnsStarted: 2,
+    turnsApplied: 1,
+    ledgerState: 'failed',
+    hasDroppedReply: false,
+    failedAttempts: 1,
+    isConversationUnreadable: false,
+    isUpdating: false,
+    isTurnRunning: false,
+    turnStartedAt: null,
+    lastReplyAt: null,
+    lastTypedMessageAt: null,
+  })
+  assert.match(
+    viewOf(kept, 5).status.error ?? '',
+    /^The inbox couldn't update from the agent's last reply\..*tries again after the next reply/,
+  )
+
+  await runUpdates(
+    dir,
+    's1',
+    async prompt => {
+      assert.deepEqual(viewOf(await readState(dir, 's1'), 6).status, {
+        isRetrying: true,
+        error: null,
+      })
+      return ask(prompt)
+    },
+    () => 6,
+  )
+  const dropped = await readState(dir, 's1')
+  assert.equal(prompts.length, 3)
+  assert.deepEqual(dropped.pending, [])
+  assert.deepEqual(dropped.presence, {
+    turnsStarted: 2,
+    turnsApplied: 2,
+    ledgerState: 'failed',
+    hasDroppedReply: true,
+    failedAttempts: 2,
+    isConversationUnreadable: true,
+    isUpdating: false,
+    isTurnRunning: false,
+    turnStartedAt: null,
+    lastReplyAt: null,
+    lastTypedMessageAt: null,
+  })
+  assert.match(
+    viewOf(dropped, 6).status.error ?? '',
+    /^The inbox couldn't read this conversation\..*tries again after the next reply\.$/,
+  )
+})
+
+test('a failed ledger catches up over a rollout Codex moved into archived_sessions, and saves where it is now', async () => {
+  const dir = tempDir()
+  const home = tempDir()
+  const saved = rolloutAt(home, 's1')
+  const archived = movedRollout(saved, home, 'archived_sessions')
+  await updateState(dir, 's1', s => ({
+    ...s,
+    root: '/repo',
+    transcriptPath: saved,
+    presence: { ...s.presence, ledgerState: 'failed' },
+  }))
+  const prompts: string[] = []
+
+  await runUpdates(
+    dir,
+    's1',
+    async p => (prompts.push(p), 'NEW: decide | - | Allow edits? | Yes / No | Yes'),
+    () => 5,
+  )
+  const caught = await readState(dir, 's1')
+  assert.equal(prompts.length, 1)
+  assert.match(prompts[0] ?? '', /Person: List the files here and say what each does/)
+  assert.equal(caught.transcriptPath, archived)
+  assert.equal(caught.presence.ledgerState, 'current')
+  assert.deepEqual(
+    caught.ledger.items.map(i => i.ask),
+    ['Allow edits?'],
+  )
+})
+
+test('an Explain exchange keeps its question open while applying the rest of the model update', async () => {
+  const dir = tempDir()
+  await updateState(dir, 's1', s => ({
+    ...s,
+    presence: { ...s.presence, turnsStarted: 2 },
+    pending: [
+      { ex: ex(1, 'Deploy now? Check the build?'), turnsStarted: 1 },
+      {
+        ex: { ...ex(2, 'Deployment means making the build live.'), press: { id: 'i1', action: 'explain' } },
+        turnsStarted: 2,
+      },
+    ],
+  }))
+  const replies = [
+    'NEW: decide | - | Deploy now? | Yes / No | Yes\nNEW: do | - | Check the build | - | -',
+    'CLOSED: i1 | done: explained\nCLOSED: i2 | done: checked',
+  ]
+  await runUpdates(
+    dir,
+    's1',
+    async () => replies.shift() ?? null,
+    () => 5,
+  )
+  const applied = await readState(dir, 's1')
+  assert.deepEqual(
+    applied.ledger.items.map(i => i.ask),
+    ['Deploy now?'],
+  )
+  assert.deepEqual(
+    applied.ledger.closed.map(c => c.ask),
+    ['Check the build'],
+  )
+  assert.deepEqual(applied.pending, [])
+})
+
+test('a finished turn gives the inbox model its latest forty distinct nonempty activity lines', async () => {
+  const dir = tempDir()
+  const lines = Array.from({ length: 45 }, (_, i) => `edited file-${i}.ts`)
+  await updateState(dir, 's1', s => {
+    let active = notePrompt(s, 'Do the work', 1).state
+    for (const line of [null, '', lines[0]!, lines[0]!, ...lines]) active = noteActivity(active, line)
+    return endTurn(active, 'Done.', 2)
+  })
+  const finished = await readState(dir, 's1')
+  assert.deepEqual(finished.pending[0]?.ex.activity, lines.slice(5))
+  assert.deepEqual(finished.turn.activity, [])
+})
+
+test('view polls preserve live worker activity and reconcile a killed worker without spending its retry', async t => {
+  const dir = tempDir()
+  const servers: Server[] = []
+  t.after(() => removeTempDir(dir, ...servers))
+  await updateState(dir, 's1', s => ({
+    ...s,
+    pending: [{ ex: ex(1, 'Should I deploy?'), turnsStarted: 1 }],
+  }))
+  const worker = fork(fileURLToPath(import.meta.url), [], {
+    silent: true,
+    env: { ...process.env, INBOX_STATUS_WORKER_DIR: dir },
+  })
+  t.after(async () => {
+    if (worker.exitCode === null && worker.signalCode === null) {
+      const exited = once(worker, 'exit')
+      worker.kill('SIGKILL')
+      await exited
+    }
+  })
+  await once(worker, 'message', { signal: AbortSignal.timeout(5_000) })
+  const server = () => {
+    const made = makeServer({
+      comparePage: '/plugin/dist/compare-page.html',
+      dir,
+      now: Date.now,
+      exec: async () => ({ code: 1, stdout: '', stderr: 'No external commands' }),
+      fallbackCli: async () => '/codex',
+      tabHtml: '<html></html>',
+    })
+    servers.push(made)
+
+    return made
+  }
+  const poll = async (handle = server()) => {
+    const answer = await handle({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 'inbox_view', arguments: {}, _meta: { thread_id: 's1' } },
+    })
+    return (answer?.result as { structuredContent: ReturnType<typeof viewOf> }).structuredContent
+  }
+  assert.equal((await poll()).status.error, null)
+  assert.equal((await readState(dir, 's1')).presence.isUpdating, true)
+  assert.equal((await readState(dir, 's1')).pending[0]?.failed, undefined)
+  assert.equal(worker.exitCode, null)
+  const exited = once(worker, 'exit')
+  assert.ok(worker.kill('SIGKILL'))
+  await exited
+  const stopped = await poll()
+  assert.match(
+    stopped.status.error ?? '',
+    /^The inbox couldn't update from the agent's last reply\..*tries again after the next reply/,
+  )
+  const state = await readState(dir, 's1')
+  assert.equal(state.presence.isUpdating, false)
+  assert.equal(state.pending.length, 1)
+  assert.equal(state.pending[0]?.failed, undefined)
+  let calls = 0
+  await runUpdates(
+    dir,
+    's1',
+    async () => {
+      calls++
+      return null
+    },
+    Date.now,
+  )
+  assert.equal(calls, 1)
+  assert.equal((await readState(dir, 's1')).pending[0]?.failed, true)
+  await runUpdates(
+    dir,
+    's1',
+    async () => {
+      calls++
+      return null
+    },
+    Date.now,
+  )
+  assert.equal(calls, 2)
+  assert.deepEqual((await readState(dir, 's1')).pending, [])
+  await updateState(dir, 's1', s => ({ ...s, presence: { ...s.presence, isUpdating: true, ledgerState: 'current' } }))
+  assert.deepEqual((await poll()).status, { isRetrying: false, error: null })
+  assert.equal((await readState(dir, 's1')).presence.isUpdating, false)
+})
